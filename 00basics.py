@@ -118,10 +118,49 @@ sheet2 = Sheet('reloaded', dsets)
 # Remove the file in the directory:
 !rm temp_data.hdf5
 
+'''
+Specs can also be saved as json files:
+'''
+import json
+with open ('tmp_specs.json','w') as jh:
+    json.dump(sheet.specs, jh)
+
+# reading a file:
+with open ('tmp_specs.json','r') as jh:
+    specs = json.load(jh)
+
+sheet2.update_specs(specs, reset=False)
+
+# Remove the file:
+!rm tmp_specs.json
 
 
+'''
+upcastign and downcasting data:
+It is often necessary to use a vertex-associated data on a computation that
+involves faces, and other combincations of elements. Tyssue offers the upcast
+and downcast mechanisms to do that.
+We will see these in the following codes.
+'''
 
+# Upcasting
+# We often need to access the cell related data on each of the cell's edges.
+# The epithelium class and its derivatives defines utilities to make this. 
+# i.e. copying the area of each face to each of its edges.
 
+print('Faces associated with the first edges:')
+print(sheet.edge_df['face'].head())
+print('\n')
+
+# First edge associated face
+face = sheet.edge_df.loc[0, 'face']
+
+print('Area of cell # {}:'.format(int(face)))
+print(sheet.face_df.loc[face, 'area'])
+
+print('\n')
+print('upcasted areas over the edges:')
+print(sheet.upcast_face(sheet.face_df['area']).head())
 
 
 
