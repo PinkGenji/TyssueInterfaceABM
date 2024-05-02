@@ -58,8 +58,35 @@ sheet.edge_df.keys() # This shows the column headers of the table.
 
 sheet.edge_df.groupby('face')['length'].mean().head() # We can compute the average.
 
-sheet.edge_df
+'''
+Specifications are defined as a nested dictionary, sheet.spcs
+For each element ('vert', 'edge', 'facet' 'cell'), the specification defines
+the columns of the corresponding DataFrame and their default values. 
+An extra key at the root of the specification is called 'settings', and can hold
+specific parameters, for example the arguments for an energy minimization procedure.
+For example, consider the following spec dictionary:
+'''
+spec = {
+        "vert":{
+            "x":0.0,
+            "y":0.0,
+            "active":True
+            },
+        "edge":{
+            "tension":0.0,
+            "length":1,
+            },
+        "face":{
+            "area":0.0,
+            "alive":True,
+            },
+        }     # This defines an 'area' column for sheet.face_df
+ 
+sheet.update_specs(spec)    #those columns will be added to the dataframes.
+sheet.face_df.head()
 
+sheet.update_specs({"edge":{"tension":0.0}})
+sheet.edge_df['tension'].head()
 
 
 
