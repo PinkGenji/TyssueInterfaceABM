@@ -88,9 +88,35 @@ sheet.face_df.head()
 sheet.update_specs({"edge":{"tension":0.0}})
 sheet.edge_df['tension'].head()
 
+'''
+We can also using reset = True to update the column.
+'''
+sheet.update_specs(
+    {"edge":{"tension":1.0}},
+    reset = True
+    )
+sheet.edge_df['tension'].head()
 
+'''
+Input and Output:
+The 'native' format is to save the datasets to hdf5 via pandas.HDFStore.
+The io.obj also provides functions to export the junction mesh or triangulations
+to the wavefront OBJ format (requires vispy), for easy import in 3D software,
+such as Blender.
+Here is the code to save the data in wavefront OBJ:
+    obj.save_junction_mesh('junctions.obj', sheet)
+The standard data format for the datasets is HDF:
+'''
+from tyssue.io import hdf5
 
+hdf5.save_datasets('temp_data.hdf5', sheet) # Writing a file.
 
+# Reading a file:
+dsets = hdf5.load_datasets('temp_data.hdf5')
+sheet2 = Sheet('reloaded', dsets)
+
+# Remove the file in the directory:
+!rm temp_data.hdf5
 
 
 
