@@ -107,6 +107,8 @@ Here is the code to save the data in wavefront OBJ:
     obj.save_junction_mesh('junctions.obj', sheet)
 The standard data format for the datasets is HDF:
 '''
+
+# The io may depends on the linux/unix system. skip it on windows.
 from tyssue.io import hdf5
 
 hdf5.save_datasets('temp_data.hdf5', sheet) # Writing a file.
@@ -153,7 +155,7 @@ print(sheet.edge_df['face'].head())
 print('\n')
 
 # First edge associated face
-face = sheet.edge_df.loc[0, 'face']
+face = sheet.edge_df.loc[0, 'face'] # the entry with row 0, column 'face'
 
 print('Area of cell # {}:'.format(int(face)))
 print(sheet.face_df.loc[face, 'area'])
