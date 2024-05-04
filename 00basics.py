@@ -138,10 +138,14 @@ sheet2.update_specs(specs, reset=False)
 
 
 '''
-upcastign and downcasting data:
+upcasting and downcasting data:
 It is often necessary to use a vertex-associated data on a computation that
 involves faces, and other combincations of elements. Tyssue offers the upcast
 and downcast mechanisms to do that.
+
+upcasting is defined to be 'obtain edge datafram from face or vertex dataframe'.
+downcasting is defined to be 'obtain face or vertex df from edge df' by the author.
+
 We will see these in the following codes.
 '''
 
@@ -163,6 +167,9 @@ print(sheet.face_df.loc[face, 'area'])
 print('\n')
 print('upcasted areas over the edges:')
 print(sheet.upcast_face(sheet.face_df['area']).head())
+
+# Downcasting is the following.
+sheet.sum_srce(sheet.edge_df['length']).head()
 
 
 
