@@ -155,7 +155,7 @@ print(sheet.edge_df['face'].head())
 print('\n')
 
 # First edge associated face
-face = sheet.edge_df.loc[0, 'face'] # the entry with row 0, column 'face'
+face = sheet.edge_df.loc[0, 'face'] # Details of using the loc[] method is in supplementary file
 
 print('Area of cell # {}:'.format(int(face)))
 print(sheet.face_df.loc[face, 'area'])
@@ -163,6 +163,8 @@ print(sheet.face_df.loc[face, 'area'])
 print('\n')
 print('upcasted areas over the edges:')
 print(sheet.upcast_face(sheet.face_df['area']).head())
+
+
 
 
 
