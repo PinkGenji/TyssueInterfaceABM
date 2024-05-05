@@ -152,6 +152,7 @@ monolayer.cell_df.head()
 # Similar to edges, in 3D each face is a 'half-face'.
 # The interface between two cells consists of two faces, one per cell.
 
+import ipyvolume as ipv
 ipv.clear()
 fig, mesh = sheet_view(monolayer, mode = '3D')
 
