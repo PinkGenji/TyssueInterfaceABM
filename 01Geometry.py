@@ -117,6 +117,29 @@ print(f"Lumen volume: {lumen_vol: .0f}")
 
 fig, (ax0, ax1) = plt.subplot(1, 2)
 
+fig, ax0 = sheet_view(ellipso, coords=['z','y'], ax=ax0)
+fig, ax1 = sheet_view(ellipso, coords = ['x','y'], ax=ax1)
+
+import ipyvolume as ipv
+ipv.clear()
+fig, mesh = sheet_view(ellipso, mode='3D')
+fig
+
+
+'''
+Monolayer
+
+To represent monolayers, we add a cell element and dataframe to the datasets.
+
+'''
+
+
+
+
+
+
+
+
 
 
 
