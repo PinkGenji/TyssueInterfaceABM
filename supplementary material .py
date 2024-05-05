@@ -108,6 +108,108 @@ del p1
 class Person:
     pass
 
+'''
+*args and **kwargs in Python:
+
+These two symbols are two special symbols used for passing arguments in Python:
+    *args are non-keyword arguments
+    **kwargs are keyword arguments
+
+The speical syntax *args in function definitions in Python is used to pass 
+a variable number of arguments to a function. It is used to pass a non-keyworded, variable length arugment list.
+
+The syntax is to use the symbol* to take in a variable numebr of arugments, by convention, we use *args
+What *args allows you to do is take in more arugments than the number of formal arguments that you defined before.
+For example, a multiply function that takes any number of arguments and is able to multiply them all, then *args can be used.
+The variable associated with * becoems iterable.
+'''
+
+#Example:
+
+def myFun(*argv):
+    for arg in argv:
+        print(arg)
+
+myFun('Hello', 'Welcome', 'to', 'GeekforGeeks')
+
+# We can also have *args with a first extra argument
+def myFun(arg1, *argv):
+    print("First argument: ", arg1)
+    for arg in argv:
+        print("Next argument through *argv: ", arg)
+myFun('Hello', 'Welcome', 'to', 'GeekforGeeks')
+
+# For **kwargs, it is used to pass a keyworded, variable-length argument list.
+# The double star ** allows us to pass through keyword arguments (and any number of them).
+
+def myFun(**kwargs):
+    for key, value in kwargs.items():
+        print("%s == %s" %(key,value))
+
+myFun(first = 'Geeks', mid = 'for', last = 'Geeks')
+
+# Both *args and **kwargs can be used at the same time.
+def myFun(arg1, arg2, arg3):
+	print("arg1:", arg1)
+	print("arg2:", arg2)
+	print("arg3:", arg3)
+
+
+# Now we can use *args or **kwargs to
+# pass arguments to this function :
+args = ("Geeks", "for", "Geeks")
+myFun(*args)
+
+kwargs = {"arg1": "Geeks", "arg2": "for", "arg3": "Geeks"}
+myFun(**kwargs)
+
+# *args receives arguments as a tuple
+# **kwargs received arguments as a dictionary
+
+# defining car class
+class car():
+	# args receives unlimited no. of arguments as an array
+	def __init__(self, *args):
+		# access args index like array does
+		self.speed = args[0]
+		self.color = args[1]
+
+
+# creating objects of car class
+audi = car(200, 'red')
+bmw = car(250, 'black')
+mb = car(190, 'white')
+
+# printing the color and speed of the cars
+print(audi.color)
+print(bmw.speed)
+
+# defining car class
+class car():
+	# args receives unlimited no. of arguments as an array
+	def __init__(self, **kwargs):
+		# access args index like array does
+		self.speed = kwargs['s']
+		self.color = kwargs['c']
+
+
+# creating objects of car class
+audi = car(s=200, c='red')
+bmw = car(s=250, c='black')
+mb = car(s=190, c='white')
+
+# printing the color and speed of cars
+print(audi.color)
+print(bmw.speed)
+
+
+
+
+
+
+
+
+
 
 
 
