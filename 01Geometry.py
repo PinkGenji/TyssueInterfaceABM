@@ -133,6 +133,33 @@ To represent monolayers, we add a cell element and dataframe to the datasets.
 
 '''
 
+# One way to create a monolayer is to extrude it from a sheet.
+# That means duplicating the 2D mesh to represent the basal surface, and
+# linking both meshes together to form lateral faces.
+
+from tyssue import Monolayer, MonolayerGeometry, ClosedMonolayerGeometry
+from tyssue.generation import extrude
+
+extruded = extrude(sheet_3d.datasets, method = 'translation')
+specs = config.geometry.bulk_spec()
+monolayer = Monolayer('mono', extruded, specs)
+MonolayerGeometry.update_all(monolayer)
+MonolayerGeometry.center(monolayer)
+
+monolayer.cell_df.head()
+
+# In cell_df, the num_face is self-explanatory, the num_ridges means the number of half edges on the face.
+# Similar to edges, in 3D each face is a 'half-face'.
+# The interface between two cells consists of two faces, one per cell.
+
+ipv.clear()
+fig, mesh = sheet_view(monolayer, mode = '3D')
+
+
+
+
+
+
 
 
 
