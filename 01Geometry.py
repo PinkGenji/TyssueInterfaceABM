@@ -104,6 +104,7 @@ Closed sheet in 2.5D
 For closed surfaces, a ClosedSheetGeometry is available. Calling update_all computes
 the enclosed volume of the sheet, and sotres it in the settings attribute as 'lumen_vol'
 
+Note: The following codes need to be fixed.
 '''
 
 from tyssue.geometry.sheet_geometry import ClosedSheetGeometry
@@ -127,7 +128,7 @@ fig
 
 
 '''
-Monolayer
+Monolayer (working codes)
 
 To represent monolayers, we add a cell element and dataframe to the datasets.
 
@@ -155,20 +156,122 @@ monolayer.cell_df.head()
 import ipyvolume as ipv
 ipv.clear()
 fig, mesh = sheet_view(monolayer, mode = '3D')
+fig
+
+monolayer.face_df['segment'].unique()
+
+apical_faces = monolayer.face_df[
+    monolayer.face_df['segment'] == 'apical'
+    ]
+
+basal = monolayer.get_sub_sheet('basal')
+fix, ax = sheet_view(basal, coords = ['x','y'], edge = {'head_width': 0.1})
+
+
+'''
+Closed Monolayer
+
+Similarly to sheet, monolayers can be closed with a defined lumen.
+
+'''
+datasets = extrude(ellipso.dataset, method = 'homotecy', scale = 0.9)
+
+mono_ellipso = Monolayer('mono_ell',  datasets)
+mono_ellipso.vert_df['z'] +=5
+
+ClosedMonolayerGeometry.update_all(mono_ellipso)
+
+ipv.clear()
+
+fig, mesh = sheet_view(mono_ellipso, mode = '3D')
+fig
+
+mono_ellipso.settings
+
+'''
+Bulk tissue
+
+Eventually, we can define arbitrary assemblies of cells.
+A way to generate such a tissue is through 3D Voroni tessellation.
+
+This part of the code seems not working.
+
+'''
+
+from tyssue import Epithelium, BulkGeometry
+from tyssue.generation import from_3d_voronoi, hexa_grid3d
+from tyssue.draw import highlight_cells
+from scipy.spatial import Voronoi
+
+cells = hexa_grid3d(4, 4, 6)
+datasets = from_3d_voronoi(Voronoi(cells))
+bulk = Epithelium('bulk', datasets)
+bulk.reset_topo()
+bulk.reset_index(order = True)
+bulk.sanitize()
+
+BulkGeometry.update_all(bulk)
+
+# We will see next how to configure visualization.
+bulk.face_df['visible'] = False
+
+highlight_cells(bulk, [12,4])
+ipv.clear()
+fig2, mesh = sheet_view(bulk, mode = "3D", face = {"visible":True})
+fig2
+
+
+'''
+Advanced example: better initial cells
+
+Due to the artfacts in the Voronoi tessellation at the boundaries of the above epithelium,
+the cells are ugly, with verticies protruding away from the tissue.
+
+Here we show how to bring the vertices too far from the cell at a closer distance to the cells.
+
+This will be the occasion to apply 'upcasting' and 'downcasting'.
+
+The algorithm is simple: for each vertex belonging to only one cell, bring the vertex at
+a distance equal to the median cell-vertex distance towards the cell.
+'''
+
+# step 1: get the vertices that belong to a single cell. 
+bulk.vert_df['num_cells'] = bulk.edge_df.groupby('srce').apply(lambda df:df['cell'].unique().size)
+bulk.vert_df['num_cells'].head()
+
+# step 2: create a binary mask over vertices with only one neighbour cell.
+lonely_vs = bulk.vert_df['num_cells']<2
+
+# step 3: for each source vertex, compute the vector from cell centre to the vertex, its length, and the median distance.
+rel_pos = bulk.edge_df[['sx','sy','sz']].to_numpy() - bulk.edge_df[['cx', 'cy', 'cz']].to_numpy()
+
+rel_dist = np.linalg.norm(rel_pos, axis=1)
+med_dist = np.median(rel_dist)
+# the displacement we need to apply is parallel to the cell-to-vertex vector, and can be expressed as:
+displacement = rel_pos*(med_dist/rel_dist-1)[:,np.newaxis]
+
+'''
+We use np.newaxis to multiply 2D arrays of shape(Ne,3) with 1D arrays of shape(Ne,).
+This is still defined for each edge source.
+We can come back to vertices by taking the mean over all outgoing edges:
+'''
+# create a df so we can groupby
+displacement = pd.DataFrame(displacement, index = bulk.edge_df.index)
+displacement['srce'] = bulk.edge_df['srce']
+vert_displacement = displacement.groupby('srce').mean()
+
+vert_displacement[~lonely_vs]=0
+
+#apply the displacement and update the geometry.
+bulk.vert_df[['x','y','z']] += vert_displacement.to_numpy()
+
+BulkGeometry.update_all(bulk)
+ipv.clear()
+fig2, mesh = sheet_view(bulk, mode = '3D', face = {'visible':True})
+fig2
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+'''
+This is the end of the file.
+'''
