@@ -21,6 +21,46 @@ For example, the line tension can be set for each individual edge.
 
 '''
 
+import sys
+import pandas as pd
+import numpy as np
+import json
+import matplotlib.pylab as plt
+
+from scipy import optimize
+
+from tyssue import Sheet, config
+from tyssue import SheetGeometry as geom
+from tyssue.dynamics import effectors, model_factory
+from tyssue.draw import sheet_view
+from tyssue.draw.plt_draw import plot_forces
+from tyssue.io import hdf5
+
+h5store = 'small_hexagonal.hf5'
+# h5store = 'data/before_apoptosis.hf5'
+
+datasets = hdf5.load_datasets(h5store)
+sheet = Sheet('emin', datasets)
+sheet.sanitize(trim_borders=True, order_edges=True)
+
+geom.update_all(sheet)
+
+sqrt_area = sheet.face_df['area'].mean()**0.5
+geom.scale(sheet, 1/sqrt_area, sheet.coords)
+
+fig, ax = sheet_view(sheet, ['z', 'x'], mode = 'quick')
 
 
+
+
+
+
+
+
+
+
+
+'''
+This is the end of the file.
+'''
 
