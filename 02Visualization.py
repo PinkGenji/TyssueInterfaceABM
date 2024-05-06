@@ -16,6 +16,7 @@ import numpy as np
 import pandas as pd
 
 import matplotlib.pylab as plt
+%matplotlib qt5
 import ipyvolume as ipv
 
 import tyssue
@@ -91,9 +92,81 @@ ax.set_xlim(-3, 2.5)
 ax.set_ylim(-2.75, 2.75)
 fig.set_size_inches((8,8))
 
+'''
+Filling the cells
+
+For faces and edges, we can pass directly an array or a pd.Series:
+
+'''
+sheet.face_df['color'] = np.linspace(0.0, 1.0, num = sheet.face_df.shape[0])
+
+draw_specs['edge']['visible'] = False
+
+draw_specs['face']['visible'] = True
+draw_specs['face']['color'] = sheet.face_df['color']
+draw_specs['face']['alpha'] = 0.5
+
+fig, ax = sheet_view(sheet, coords, **draw_specs)
+
+# To generate thickened edges:
+draw_specs['edge']['visible'] = True
+
+draw_specs['face']['color'] = sheet.face_df['color']
+draw_specs['face']['alpha'] = 0.2
+
+edge_color = np.linspace(0.0, 1.0, num = sheet.edge_df.shape[0])
+
+draw_specs['edge']['color'] = edge_color
+
+# Edge width can be passed as a parameter also, but only in 2D
+draw_specs['edge']['width'] = 8 * np.linspace(0.0, 1.0, num = sheet.edge_df.shape[0])
+
+fig, ax = sheet_view(sheet, coords, **draw_specs)
 
 
 
+'''
+Numbering the faces or vertices:
+
+In tough to debug situations, it is useful to print on the graph the face and vertex indices.
+
+'''
+fig, ax = sheet_view(sheet)
+fig.set_size_inches(8, 8)
+
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face, fontsize=14, color='r')
+
+for vert, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y+0.02, vert, weight = 'bold', color = 'blue')
+
+
+'''
+ipyvolume based drawing for 3D:
+
+'''
+
+extruded = extrude(sheet.datasets, method = 'translation')
+monolayer = Monolayer('mono', extruded)
+
+MonolayerGeometry.update_all(monolayer)
+
+ipv.clear()
+fig2, mesh = sheet_view(monolayer, mode = '3D')
+fig2
+
+'''
+Vertex based color:
+
+With ipyvolume, verteces are not represented. Edge color can be specified
+on a vertex basis or on an edge basis.    
+
+'''
+color = (monolayer.vert_df.x**2 + monolayer.vert_df.y**2 + monolayer.vert_df.z**2)
+
+ipv.clear()
+fig2, mesh = sheet_view(monolayer, edge = {'color': color}, mode = '3D')
+fig2
 
 
 
