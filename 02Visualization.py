@@ -16,7 +16,6 @@ import numpy as np
 import pandas as pd
 
 import matplotlib.pylab as plt
-%matplotlib qt5
 import ipyvolume as ipv
 
 import tyssue
@@ -167,6 +166,31 @@ color = (monolayer.vert_df.x**2 + monolayer.vert_df.y**2 + monolayer.vert_df.z**
 ipv.clear()
 fig2, mesh = sheet_view(monolayer, edge = {'color': color}, mode = '3D')
 fig2
+
+'''
+Edge based color:
+'''
+
+color = monolayer.edge_df['dy']
+ipv.clear()
+fig2, mesh = sheet_view(monolayer, edge = {'color': color}, mode = '3D')
+fig2
+
+
+'''
+Highlighting the faces:
+'''
+from tyssue.draw import highlight_cells, highlight_faces
+
+highlight_faces(monolayer.face_df, [0,2,3], reset_visible = True)
+highlight_cells(monolayer, 1, reset_visible=True)
+
+def sqradius(epithelium):
+    print('comptiong color value')
+    return (epithelium.face_df[['x','y','z']]**2).sum(axis=1).to_numpy()
+
+
+
 
 
 
