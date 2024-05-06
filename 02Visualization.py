@@ -189,10 +189,14 @@ def sqradius(epithelium):
     print('comptiong color value')
     return (epithelium.face_df[['x','y','z']]**2).sum(axis=1).to_numpy()
 
+# we pass the function itself as a parameter
+draw_specs['face']['color'] = sqradius
+draw_specs['face']['visible'] = 1
+monolayer.face_df['visible'] = True
 
+fig, ax = sheet_view(monolayer, mode= '2D', **draw_specs)
 
-
-
+monolayer.datasets
 
 
 '''
