@@ -37,11 +37,11 @@ from tyssue.draw import sheet_view
 from tyssue.draw.plt_draw import plot_forces
 from tyssue.io import hdf5
 
-# Set the working directory to the location of the file first.
-#wd = os.getcwd()
+# Set the working directory to the location of the file first, we do it manually.
 wd = r"C:\Users\lyu195\Documents\GitHub\tyssueHello"
 os.chdir(wd)
 
+os.path.isfile('small_hexagonal.hf5')  #Check working directory set correctly.
 
 h5store = 'small_hexagonal.hf5'
 # h5store = 'data/before_apoptosis.hf5'
