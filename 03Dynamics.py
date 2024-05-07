@@ -22,6 +22,7 @@ For example, the line tension can be set for each individual edge.
 '''
 
 import sys
+import os
 import pandas as pd
 import numpy as np
 import json
@@ -36,8 +37,15 @@ from tyssue.draw import sheet_view
 from tyssue.draw.plt_draw import plot_forces
 from tyssue.io import hdf5
 
+
+
+os.chdir(r'/Users/bruceyu/Documents/GitHub/tyssueHello')
+
+
 h5store = 'small_hexagonal.hf5'
 # h5store = 'data/before_apoptosis.hf5'
+
+os.path.isfile(h5store) #check if the working directory has been set correctly.
 
 datasets = hdf5.load_datasets(h5store)
 sheet = Sheet('emin', datasets)
