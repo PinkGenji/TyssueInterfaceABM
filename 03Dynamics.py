@@ -57,8 +57,32 @@ geom.scale(sheet, 1/sqrt_area, sheet.coords)
 
 fig, ax = sheet_view(sheet, ['z', 'x'], mode = 'quick')
 
-path = os.getcwd()
-print(path)
+'''
+(Non)-Dimensionalization:
+
+This section is about manipulating the units of parameters, so we can get a
+preferred area, such as the area is unity.
+
+'''
+
+geom.scale(sheet, 1/sheet.face_df['area'].mean()**0.5, coords = sheet.coords)
+geom.update_all(sheet)
+
+'''
+Effector class:
+
+An effector designates a dynamical term in the epithelium governing equation.
+For quasi-static models, we need to provide a method to compute the energy associated
+with this effector, and the corresponding gradient.
+
+For example, we can consider a line tension effector. The energy is the sum of 
+the tensions over all edges. For each half-edge, the gradient is defined by two terms,
+one for the gradient term associated with the half-edge ij source, 
+the other for tis target.
+
+'''
+
+
 
 
 
@@ -70,4 +94,3 @@ print(path)
 '''
 This is the end of the file.
 '''
-
