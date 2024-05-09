@@ -203,6 +203,67 @@ print(audi.color)
 print(bmw.speed)
 
 
+'''
+First-class functions:
+
+(wikipedia) A programming language is said to have First-class functions when
+functions in that language are treated like any other variable. For example,
+in such a language, a function can be passed as an argument to other functions,
+can be returned by another function and can be assigned as a value to a variable.
+
+'''
+# A trivial example:
+def square(x):
+    return x*x
+
+f = square    # Without the brackets, we are not executing the function
+
+print(square)   # This prints the function object at the memory address.
+print(f(5))     # This prints the function evaluated at arg=5
+
+# Advanced example:
+def my_map(func, arg_list):
+    result = []
+    for i in arg_list:
+        result.append(func(i))
+    return result
+
+squares = my_map(square, [1,2,3,4,5])  # square is being passed as an argument.
+
+print(squares)
+
+# More andvanced example:
+def logger(msg):
+    
+    def log_message():  # Here the inside function is used for modulation.
+        print('Log:', msg)
+    
+    return log_message
+
+log_hi = logger('Hi!')
+log_hi()
+
+'''
+Closure:
+A closure is a persistent local variable scope, which holds on to local variables
+even after the code execution has moved out of that block.
+'''
+
+def outer_func(msg):
+    message = msg
+    
+    def inner_func():
+        print(message)
+            
+    return inner_func
+
+hi_func = outer_func('Hi')
+hello_func = outer_func('Hello')
+
+hi_func()
+hello_func()
+# We can see that each function remembers its msg value.
+# A closure closes its free variables in their environment.
 
 
 
@@ -211,8 +272,6 @@ print(bmw.speed)
 
 
 
-
-
-
-
-
+'''
+This is the end of the file.
+'''
