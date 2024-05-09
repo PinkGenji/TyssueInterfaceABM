@@ -247,6 +247,9 @@ log_hi()
 Closure:
 A closure is a persistent local variable scope, which holds on to local variables
 even after the code execution has moved out of that block.
+
+In python, closure is a nested function that helps us access the outer 
+function's variables even after the outer function is closed or removed.
 '''
 
 def outer_func(msg):
@@ -254,17 +257,93 @@ def outer_func(msg):
     
     def inner_func():
         print(message)
-            
+# message was not created inside inner_func, but inner_func still has access
+# to it. This (message) is what we call a free variable.
     return inner_func
 
 hi_func = outer_func('Hi')
 hello_func = outer_func('Hello')
 
+del outer_func # Now delete the outer function
+
 hi_func()
 hello_func()
 # We can see that each function remembers its msg value.
-# A closure closes its free variables in their environment.
+# A closure closes/remembers the free variables in their environment.
 
+
+'''
+Decorators:
+
+(wikipedia) A decorator is a design pattern in Python that allows a user to add
+new functionality to an existing object without modifying its structure.
+Decorators are typically applied to functions, and they play a crucial role in
+enhancing or modifying the behaviour of functions.
+    
+'''
+
+# We start with a modified version of closure example.
+def decorator_function(original_function):
+    def wrapper_function(*args, **kwargs):
+       #print('wrapper executed this before {}'.format(original_function.__name__))
+       # un-comment the above line tells you the execution order of decorator. 
+       return original_function(*args, **kwargs)
+    return wrapper_function
+
+def display():
+    print('display function ran')
+
+decorated_display = decorator_function(display)
+
+decorated_display()
+
+@decorator_function    
+# put the decorator on top of a function, is equal to the function being passed in:
+# this decorator is equivalent to: display = decorator_function(display)
+def display():
+    print('display function ran')
+
+
+@decorator_function
+def display_info(name, age):
+    print('display_info ran with arguments ({},{})'.format(name,age))
+
+display_info('John', 25)
+
+display()
+
+
+# More self-contained example.
+def my_logger(orig_func):
+    import logging
+    logging.basicConfig(filename='{}.log'.format(orig_func.__name__), level = logging.INFO)
+    
+    def wrapper(*args, **kwargs):
+        logging.info(
+            'Ran with args: {}, and kwargs: {}'.format(args, kwargs))
+        return orig_func(*args, **kwargs)
+
+    return wrapper
+
+@my_logger
+def display_info(name,age):
+    print('display_info ran with arguments ({}, {})'.format(name, age))
+
+display_info('Hank', 30)
+display_info('John', 40)
+# Two log files being created in the directory.
+# Comparing with implementing this functionality to multiple functions, using
+# decorator is much simpler and less error-prone.
+
+
+'''
+static method:
+
+A static method in Python is a method that belongs to a class, not its instance.
+It does not require an instance of the class to be called, nor does it have 
+access to an instance.
+
+'''
 
 
 
