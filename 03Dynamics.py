@@ -27,6 +27,7 @@ import pandas as pd
 import numpy as np
 import json
 import matplotlib.pylab as plt
+import tyssue
 
 from scipy import optimize
 
@@ -78,11 +79,43 @@ with this effector, and the corresponding gradient.
 For example, we can consider a line tension effector. The energy is the sum of 
 the tensions over all edges. For each half-edge, the gradient is defined by two terms,
 one for the gradient term associated with the half-edge ij source, 
-the other for tis target.
+the other for it's target.
+
+The positional derivative of energy is composed of a term that sums over all the 
+edges which vertex i is a source, and another term that sums over all edges which
+vertex i is a target.
+
+Here is the definition of the line tension effector:
 
 '''
 
+'''
+# =============================================================================
+class LineTension(AbstractEffector):
+    dimension = units.line_tension
+    magnitude = 'line_tension'
+    label = 'Line tension'
+    element = 'edge'
+    specs = {'edge':{'is_active':1, 'line_tension':1e-2}}
+    
+    spatial_ref = 'mean_length', units.length
+    
+    @staticmethod
+    def energy(eptm):
+        return eptm.edge_df.eval(
+            "line_tension" "* is_active" "* length / 2"
+        )  # accounts for half edges
 
+    @staticmethod
+    def gradient(eptm):
+        grad_srce = -eptm.edge_df[eptm.ucoords] * to_nd(
+            eptm.edge_df.eval("line_tension * is_active/2"), len(eptm.coords)
+        )
+        grad_srce.columns = ["g" + u for u in eptm.coords]
+        grad_trgt = -grad_srce
+        return grad_srce, grad_trgt
+# =============================================================================
+'''    
 
 
 
