@@ -10,7 +10,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from IPython.display import Image
+from IPython.display import Image, display
 
 
 from tyssue import config, Sheet, SheetGeometry, History, EventManager
@@ -183,11 +183,65 @@ the error between the actual gradient and the approximate one.
 print('Total gradient error: ')
 solver.check_grad(sheet, geom, model)
 
+app_grad = solver.approx_grad(sheet, geom, model)
+app_grad = pd.DataFrame(app_grad.reshape((-1, 3)), columns=['gx', 'gy', 'gz'])
+app_grad.head()
+
+'''
+Simple forward Euler solver:
+
+The Eulersolver is time dependent, the model is used in the same way as the
+quasistatic solver.
+
+'''
+
+sheet = Sheet('3', *three_faces_sheet())
+geom.update_all(sheet)
+sheet.settings['threshold_length'] = 1e-3
+
+sheet.update_specs(config.dynamics.quasistatic_plane_spec())
+sheet.face_df["prefered_area"] = sheet.face_df["area"].mean()
+history = History(sheet) #, extra_cols={"edge":["dx", "dy", "sx", "sy", "tx", "ty"]})
+
+sheet.vert_df['viscosity'] = 1.0
+sheet.edge_df.loc[[0, 17],  'line_tension'] *= 4
+sheet.face_df.loc[1,  'prefered_area'] *= 1.2
+
+fig, ax = plot_forces(sheet, geom, model, ['x', 'y'], 1)
 
 
+# Solver instanciation: contrary to the quasistatic solver, this sovler needs 
+# the sheet, goemetry and model at instanciation time.
+solver = EulerSolver(
+    sheet,
+    geom,
+    model,
+    history=history,
+    auto_reconnect=True)
 
+'''
+The solver's solve method accepts a on_topo_change function as argument.
+This function is executed each time a topology change occurs.
+Here, we reset the line tension to its original value.
 
+'''
+def on_topo_change(sheet):
+    print('Topology changed!\n')
+    print("reseting tension")
+    sheet.edge_df["line_tension"] = sheet.specs["edge"]["line_tension"]
 
+# Solving from t = 0 to t = 15.
+
+res = solver.solve(tf=15, dt=0.05, on_topo_change=on_topo_change,
+                   topo_change_args=(solver.eptm,))
+
+# Showing the results
+
+create_gif(solver.history, "sheet3.gif", num_frames=120)
+
+Image("sheet3.gif")
+
+# The Image seems not working. Cannot get a gif picture.
 
 
 
