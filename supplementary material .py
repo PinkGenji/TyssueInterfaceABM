@@ -56,7 +56,7 @@ class Person:
         self.name = name
         self.age = age
         
-    def __str__(self):
+    def __str__(self):   #this is an example of 'method'.
         return f"{self.name}({self.age})"
 
 p1 = Person('John',36)
