@@ -115,12 +115,84 @@ class LineTension(AbstractEffector):
         grad_trgt = -grad_srce
         return grad_srce, grad_trgt
 # =============================================================================
+other examples are in the "tyssue.dynamics.effectors" module.
 '''    
 
+'''
+Model factory:
+
+These effectors are then aggregated with others to define a model object. This
+object will have two methods compute_energy and compute_gradient that take an 
+Epithelium object as single argument.
+
+Such a model will usually be built with the function model_factory, that takes
+a list of effectors as input and returns a model object. For example, we can define
+the model from Farhadifar et al. by:
+
+'''
+
+model = model_factory([
+    effectors.LineTension,
+    effectors.FaceContractility,
+    effectors.FaceAreaElasticity
+    ])
+
+# As for other parts, the parameters are defined by a nested dictionary 'spec'.
+# Default values are gathered in the model.spec attribute:
+
+model.specs
+
+# We can use sheet.update_spec to set the correct columns in the sheet object.
+# Once the column are set, it is possible to sets parameters for a subsets of edges
+# by indexing the edges with a boolean series:
+sheet.edge_df.loc[sheet.edge_df['sx']<0, 'line_tension'] = 0.5
+sheet.update_specs(model.specs, reset=True)
+
+'''
+Compute energy:
+
+'''
+
+geom.update_all(sheet)
+energy = model.compute_energy(sheet)    # Returns a scalar value
+print(f'Total energy: {energy: .3f}')
+
+# We can compute all energy terms with the full_output = True:
+Et, Ec, Ea = model.compute_energy(sheet, full_output=True)
+Et.head()
+
+fig, ax = sheet_view(
+    sheet,
+    coords = list('zy'),
+    face = {'visible': True, 'color':Ec, 'colormap':'gray'},
+    edge = {'color': Et}
+    )
 
 
+'''
+Computing the gradient
 
+By default, the gradient computes an array of shape(Nv, 3), with 3 coordinates
+(or 2 in 2D) for each vertex.
 
+'''
+
+grad_E = model.compute_gradient(sheet)
+grad_E.head()
+
+gradients = model.compute_gradient(sheet, components=True) # Returns a tuple of terms for each effector of the model.
+gradients = {label: (srce, trgt) for label, (srce, trgt) in zip(model.labels, gradients)}
+gradients['Line tension'][0].head()
+
+'''
+Plotting forces
+
+The tyssue.draw defines a useful plot_forces function.
+
+'''
+
+fig, ax = plot_forces(sheet, geom, model, ['z', 'y'], scaling = 1)
+fig.set_size_inches(10, 12)
 
 
 
