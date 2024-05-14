@@ -85,26 +85,90 @@ history.face_h.groupby('time').area.mean().plot(ax=ax)
 Quasistatic solver
 
 A common way to describe an epithelium is with the quasistatic approximation:
-we assume
+we assume that at any given point in time, without exterior pertubation,
+the epithelium is at an energy minimum. For a given expression of the model's
+hamiltonian, we thus seasrch the position of the vertices corresponding to the 
+minimum energy.
+
 
 '''
 
+# Following is for the Farhadifar model. The energy is the sum of an area elasticity, 
+# a contractility and a line tension:
+
+from tyssue.config.dynamics import quasistatic_plane_spec
+from tyssue.dynamics.planar_vertex_model import PlanarModel as smodel
+from tyssue.solvers import QSSolver
+from pprint import pprint
+
+specs = {
+    'edge': {
+        'is_active': 1,
+        'line_tension': 0.12,
+        'ux': 0.0,
+        'uy': 0.0,
+        'uz': 0.0
+    },
+   'face': {
+       'area_elasticity': 1.0,
+       'contractility': 0.04,
+       'is_alive': 1,
+       'prefered_area': 1.0},
+   'settings': {
+       'grad_norm_factor': 1.0,
+       'nrj_norm_factor': 1.0
+   },
+   'vert': {
+       'is_active': 1
+   }
+}
 
 
+# Update the specs (adds / changes the values in the dataframes' columns)
+sheet.update_specs(specs)
+
+pprint(specs)
+
+E_t = smodel.compute_energy(sheet)
+print('Total energy: ', E_t)
+
+smodel.compute_gradient(sheet).head()
+
+'''
+The energy minimum is found with a gradient descent strategy, the vertices are
+displaced in the direction opposite to the spatial derivative of the energy.
+Actually, this defines the force on the vertices.
+
+The gradient descent algorithm is provided by scipy minimize function, with the
+L-BFGSB method by default.
+'''
+
+# Find energy minimum
+solver = QSSolver()
+res = solver.find_energy_min(sheet, geom, smodel)
+
+print("Successfull gradient descent? ", res['success'])
+fig, ax = sheet_view(sheet)
+
+fig.set_size_inches(10, 10)
+ax.set_aspect('equal')
 
 
+# Keyword arguments to find_energy_min method are passed to scipy's minimize,
+# so it is possible for example to reduce the termination criteria.
 
+sheet.face_df.loc[4, 'prefered_area'] = 2.0
+res = solver.find_energy_min(sheet, geom, smodel, options = {'ftol': 1e-2})
 
+print('Boolean for the convergence success: ')
+print(res.success)
 
+print('Number of function evaluations: ')
 
+print(res.nfev)
 
-
-
-
-
-
-
-
+print('Information on the convergence: ')
+print(res.message)
 
 
 
