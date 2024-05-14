@@ -3,6 +3,10 @@
 This file is for learning 04Solvers of the tyssue package.
 """
 
+# ignore FutureWarning from pandas.
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -171,9 +175,13 @@ print('Information on the convergence: ')
 print(res.message)
 
 
+'''
+The solver objecct provides facilities to approximate the gradient and evaluate
+the error between the actual gradient and the approximate one.
+'''
 
-
-
+print('Total gradient error: ')
+solver.check_grad(sheet, geom, model)
 
 
 
