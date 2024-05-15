@@ -20,7 +20,6 @@ is composed of:
 
 '''
 
-# Generate 2D tyssue
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -41,6 +40,12 @@ from tyssue.draw import (
     create_gif,
     browse_history
 )
+
+'''
+Generate a 2D mesh
+
+'''
+
 
 sheet = Sheet.planar_sheet_2d(
     'basic2D', # a name or identifier for this sheet
@@ -110,6 +115,8 @@ as a parameter the function name and the keyword part.
 '''
 
 from tyssue.topology.sheet_topology import cell_division
+
+# Write the behaviour function:
 
 def division(sheet, manager, cell_id=0, crit_area=2.0, growth_rate=0.1, dt=1.):
     """Defines a division behavior.
