@@ -110,26 +110,201 @@ fig, ax = sheet_view(sheet, ['z', 'x'], mode="quick")
 
 sheet.validate()
 
+'''
+Type 1 transitions can also be performed on border faces.
+'''
+
+from tyssue.generation import three_faces_sheet
+
+# First plot
+
+sheet = Sheet('3f', *three_faces_sheet())
+geom.update_all(sheet)
+fig, ax = sheet_view(sheet, edge={'head_width': 0.05})
+fig.set_size_inches(8, 8)
+
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
+for vert, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y+0.1, vert)
+
+# Second plot
+type1_transition(sheet, 0, multiplier=2)
+sheet.reset_index()
+
+geom.update_all(sheet)
+
+fig, ax = sheet_view(sheet, edge={'head_width': 0.05})
+fig.set_size_inches(8, 8)
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
+
+for vert, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y+0.1, vert)
+
+# Third plot
+type1_transition(sheet, 16, multiplier=5)
+
+geom.update_all(sheet)
+
+fig, ax = sheet_view(sheet, edge={'head_width': 0.05})
+fig.set_size_inches(8, 8)
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
+
+for vert, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y+0.1, vert)
+
+# Fourth plot
+type1_transition(sheet, 17,  multiplier=5)
+
+geom.update_all(sheet)
+print(sheet.validate())
+
+fig, ax = sheet_view(sheet, edge={'head_width': 0.05})
+fig.set_size_inches(8, 8)
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
+
+for vert, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y+0.1, vert)
 
 
+'''
+Rosette:
+
+Create a small patch of cells in 2D and a simple mechjanical model:
+
+'''
+
+sheet = Sheet.planar_sheet_2d('flat', 30, 30, 1, 1, noise=0.2)
+geom = PlanarGeometry
+
+to_cut = sheet.cut_out([(0.1, 6), (0.1, 6)])
+sheet.remove(to_cut, trim_borders=True)
+sheet.sanitize(trim_borders=True)
+geom.center(sheet)
+geom.update_all(sheet)
+sheet.update_rank()
+model = model_factory(
+    [
+        effectors.LineTension,
+        effectors.FaceContractility,
+        effectors.FaceAreaElasticity
+    ]
+)
+
+specs = {
+    "face": {
+        "contractility": 5e-2,
+        "prefered_area": sheet.face_df.area.mean(),
+        "area_elasticity": 1.
+    },
+    "edge": {
+        "line_tension": 1e-2,
+        "is_active": 1
+    },
+    "vert": {
+        "is_active": 1
+    },
+}
+
+sheet.update_specs(specs, reset=True)
+
+# Gradient descent
+
+solver = QSSolver()
+
+res = solver.find_energy_min(sheet, geom, model)
+
+fig, ax = sheet_view(sheet, mode="quick")
+for f, (x, y) in sheet.face_df[["x", "y"]].iterrows():
+    ax.text(x, y, f)
+
+# Rearrange:
+
+sheet = Sheet.planar_sheet_2d('flat', 30, 30, 1, 1, noise=0.001)
+geom = PlanarGeometry
+
+to_cut = sheet.cut_out([(0.1, 6), (0.1, 6.)])
+sheet.remove(to_cut, trim_borders=True)
+sheet.sanitize(trim_borders=True)
+geom.center(sheet)
+geom.update_all(sheet)
+
+remove_face(sheet, 13)
+geom.update_all(sheet)
+
+fig, ax = sheet_view(sheet, mode="quick")
+for f, (x, y) in sheet.face_df[["x", "y"]].iterrows():
+    ax.text(x, y, f)
+
+'''
+Formation of rosettes (Finegan et al. 2019):
+
+Formation of a 4-way vertex: a 4-way vertex is formed whenever two vertices: i 
+and j, of rank 3 (number of cells sharing the vertex) are located less
+than a minimum threshold distance apart (much smaller than a typical cell diameter).
+
+In this case, we merge the two vertices into a single vertex lcoated at their midpoint
+and all cells previously connected to vertcies i and j now share a common vertex
+of rank 4.
+
+"Rosette vertex rank increase": Extending the principle of 4-way vertices,
+we allow for a vertex of rank m to merge with an existing vertex of rank n to 
+form a hole of rank (n+m-2). This occurs whenever two vertices i and j are
+located less than a minimum threshold distance apart. In this case, the vertex
+with higher degree remains in position, while the other vertex is merged
+into it. Vertices with rank > 4 are termed rosette vertices.
+
+'''
+
+# Merge vertices, or, said otherwise, collapse an edge:
+
+fig, ax = sheet_view(sheet, mode="quick", edge={"alpha": 0.5})
+center_edge = sheet.edge_df.eval("sx**2 + sy**2").idxmin()
+ax.scatter(sheet.edge_df.loc[center_edge, ["sx", "tx"]],
+           sheet.edge_df.loc[center_edge, ["sy", "ty"]])
+
+collapse_edge(sheet, center_edge)
+sheet.update_rank()
+
+geom.update_all(sheet)
+fig, ax = sheet_view(sheet, mode="quick", ax=ax, edge={"alpha": 0.5})
+
+print("Maximum vertex rank: ", sheet.vert_df['rank'].max())
+
+# Rearrange:
+sheet.update_specs(specs, reset=False)
+res = solver.find_energy_min(sheet, geom, model)
+
+fig, ax = sheet_view(sheet, mode="quick", edge={"alpha": 0.5})
 
 
+# Do it again to increase rank:
+
+# Plot to be overlayed:
+    
+fig, ax = sheet_view(sheet, mode="quick", edge={"alpha": 0.5})
+
+# overlay:
+
+for i in range(4):
+    center_edge = sheet.edge_df.eval("sx**2 + sy**2").idxmin()
+    collapse_edge(sheet, center_edge)
+    geom.update_all(sheet)
+    res = solver.find_energy_min(sheet, geom, model)
+    sheet.update_rank()
+
+fig, ax = sheet_view(sheet, mode="quick", ax=ax, edge={"alpha": 0.5})
+
+print("Maximum vertex rank: ", sheet.vert_df['rank'].max())
 
 
+'''
+Rosettes resolution:
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+'''
 
 
 
