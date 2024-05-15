@@ -302,9 +302,98 @@ print("Maximum vertex rank: ", sheet.vert_df['rank'].max())
 
 
 '''
-Rosettes resolution:
+Rosettes resolution
+
 
 '''
+
+#sheet = bck.copy()
+max_rank = sheet.vert_df['rank'].idxmax()
+
+print("Maximum vertex rank prior to rearangement: ", sheet.vert_df['rank'].max())
+
+
+fig, ax = sheet_view(sheet, mode="quick", edge={"alpha": 0.5})
+max_rank_vert = sheet.vert_df['rank'].idxmax()
+
+ax.scatter(sheet.vert_df.loc[max_rank_vert, "x"],
+           sheet.vert_df.loc[max_rank_vert, "y"])
+
+sheet_split(sheet, max_rank_vert)
+sheet.update_rank()
+
+geom.update_all(sheet)
+fig, ax = sheet_view(sheet, mode="quick", ax=ax, edge={"alpha": 0.5})
+
+print("Maximum vertex rank after rearangement: ", sheet.vert_df['rank'].max())
+
+
+res = solver.find_energy_min(sheet, geom, model)
+fig, ax = sheet_view(sheet, mode="quick", edge={"alpha": 0.5})
+
+# Solve repeatedly
+
+#sheet = bck.copy()
+max_rank = sheet.vert_df['rank'].max()
+print("Maximum vertex rank prior to rearangement: ", max_rank)
+
+while max_rank > 3:
+    max_rank_vert = sheet.vert_df['rank'].idxmax()
+
+    sheet_split(sheet, max_rank_vert)
+    sheet.update_rank()
+
+    geom.update_all(sheet)
+
+    res = solver.find_energy_min(sheet, geom, model)
+    max_rank = sheet.vert_df['rank'].max()
+
+    print("Maximum vertex rank: ", max_rank)
+
+fig, ax = sheet_view(sheet, mode="quick", edge={"alpha": 0.5})
+
+assert sheet.validate()
+
+
+'''
+Collapse a face and resolve the rosette
+
+'''
+remove_face(sheet, 12)
+sheet.update_rank()
+geom.update_all(sheet)
+
+res = solver.find_energy_min(sheet, geom, model)
+
+fig, ax = sheet_view(sheet, mode="quick", edge={"alpha": 0.5})
+
+
+max_rank = sheet.vert_df['rank'].max()
+while max_rank > 3:
+    max_rank_vert = sheet.vert_df['rank'].idxmax()
+
+    sheet_split(sheet, max_rank_vert)
+    sheet.update_rank()
+
+    geom.update_all(sheet)
+
+    res = solver.find_energy_min(sheet, geom, model)
+    max_rank = sheet.vert_df['rank'].max()
+
+    print("Maximum vertex rank: ", max_rank)
+
+
+fig, ax = sheet_view(sheet, mode="quick", edge={"alpha": 0.5})
+
+
+
+
+
+
+
+
+
+
 
 
 
