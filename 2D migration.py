@@ -160,18 +160,96 @@ highlight_faces(sheet.face_df, [pulled,], reset_visible=True)
 fig, ax = sheet_view(
     sheet, 
     mode="2D", 
-    face={"visible": True},
-    edge={"head_width": 0.0}, 
-    vert={"visible": False})
-fig.set_size_inches(120, 120)
+    #face={"visible": True},    # This line is causing problem.
+    edge={"head_width": 0.0},
+    vert={"visible": False}
+    )
+fig.set_size_inches(12, 12)
+
+
+# =============================================================================
+# Model with all the components
+# =============================================================================
+
+model = model_factory(
+    [effectors.PerimeterElasticity,
+     BrownianMotion,
+     effectors.LineTension,
+     effectors.FaceAreaElasticity])
+
+
+# =============================================================================
+# Setup the event manager and the solver
+# =============================================================================
+
+sheet = bck.copy()
+
+
+# setting up values for the whole epithelium
+model_specs = {
+    'face': {
+        'area_elasticity': 1.,
+        'prefered_area': 1.,
+        'perimeter_elasticity': 0.05, # 1/2r in the master equation
+        'prefered_perimeter': 3.81,
+        "id": sheet.face_df.index
+        },
+    'vert': {
+        "viscosity": 1.0
+        },
+    'edge': {'ux': 0, 'uy': 0},
+    'settings': {
+        'temperature': 2e-1,
+        "p_4": 10.0,
+        "p_5p": 1.0,
+        "threshold_length": 2e-2
+    }
+}
+
+sheet.update_specs(model_specs, reset=True)
+
+# This allows to auomaticaly solve topology changes
+
+manager = EventManager("face", )
+manager.append(basic_events.reconnect)
+manager.append(traction, face_id=pulled)
+
+# Implicit Euler solver
+
+solver = EulerSolver(
+    sheet,
+    geom,
+    model,
+    manager=manager,
+    bounds=(
+        -sheet.edge_df.length.median()/10,
+        sheet.edge_df.length.median()/10
+    )
+)
+manager.update()
+
+
+sheet.face_df['prefered_perimeter'] = 3.8
 
 
 
 
+# =============================================================================
+# Run the solver!
+# =============================================================================
 
+solver.solve(tf=120.0, dt=0.1)
 
+highlight_faces(sheet.face_df, [pulled,], reset_visible=True)
 
-
+fig, ax = sheet_view(
+    sheet,
+    mode="2D",
+    face={"visible": True},     # Another line of problem code
+    edge={"head_width": 0.0, "color": sheet.edge_df["line_tension"]},
+    vert={"visible": False}
+)
+fig.set_size_inches(6, 6)
 
 
 
