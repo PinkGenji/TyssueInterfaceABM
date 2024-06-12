@@ -52,8 +52,29 @@ fig, ax = sheet_view(sheet, mode = '2D')
 fig.set_size_inches(10,10)
 
 
+'''
+The following code draw a bilayer structure, with each layer only have a single
+layer of cells. 
 
+'''
+#start with specifying the properties of the sheet:
+#the sheet is named 'basic2D', cell number on x-axis =6, y-axis=7 and distance between 2 cells along x and y are both 1
+sheet = Sheet.planar_sheet_2d(identifier = 'basic2D', nx = 30, ny = 4, distx = 2, disty = 2)
+geom.update_all(sheet) #generate the sheet
 
+# =============================================================================
+# #sheet_view() function displays the created object in a matplotlib figure
+# fig,ax = sheet_view(sheet) 
+# fig.set_size_inches(10,10)
+# =============================================================================
+
+sheet.sanitize(trim_borders=True, order_edges=True)
+geom.update_all(sheet)
+# We pass an option to display the edge directions:
+fig, ax = sheet_view(sheet, mode = '2D')
+fig.set_size_inches(10,10)
+
+help(Sheet.planar_sheet_2d)
 
 
 
