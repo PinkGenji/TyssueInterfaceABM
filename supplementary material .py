@@ -116,11 +116,16 @@ These two symbols are two special symbols used for passing arguments in Python:
     **kwargs are keyword arguments
 
 The speical syntax *args in function definitions in Python is used to pass 
-a variable number of arguments to a function. It is used to pass a non-keyworded, variable length arugment list.
+a variable number of arguments to a function. It is used to pass a non-keyworded, 
+variable length arugment list.
 
-The syntax is to use the symbol* to take in a variable numebr of arugments, by convention, we use *args
-What *args allows you to do is take in more arugments than the number of formal arguments that you defined before.
-For example, a multiply function that takes any number of arguments and is able to multiply them all, then *args can be used.
+The syntax is to use the symbol* to take in a variable numebr of arugments, 
+by convention, we use *args
+
+What *args allows you to do is take in more arugments than the number of formal 
+arguments that you defined before.
+For example, a multiply function that takes any number of arguments and is able 
+to multiply them all, then *args can be used.
 The variable associated with * becoems iterable.
 '''
 
