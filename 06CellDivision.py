@@ -50,7 +50,7 @@ res = solver.find_energy_min(sheet, geom, model)
 # ## View the result
 draw_specs = config.draw.sheet_spec()
 draw_specs['vert']['visible'] = False
-draw_specs['edge']['head_width'] = 0.1
+draw_specs['edge']['head_width'] = 0  # values other than 0 gives error.
 fig, ax = sheet_view(sheet, **draw_specs)
 fig.set_size_inches(12, 5)
 
