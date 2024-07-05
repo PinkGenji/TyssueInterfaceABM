@@ -75,8 +75,12 @@ print('gap')
 dim_model_specs = pmodel.dimensionalize(nondim_specs)
 print(dim_model_specs)
 # No differences between two specs, why we need the second one then???
+type(config.dynamics.quasistatic_plane_spec)
+print(pmodel.dimensionalize())
 
-
+example = model_factory([effectors.LineTension, effectors.FaceContractility, effectors.FaceAreaElasticity])
+example.specs['edge']
+type(effectors.LineTension)
 
 
 # udpate the new specs (contain line_tension, etc) into the cell data.
