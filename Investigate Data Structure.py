@@ -58,7 +58,7 @@ geom.update_all(bilayer)
 fig, ax = sheet_view(bilayer, mode = '2D')
 fig.set_size_inches(10,10)
 
-# Investigate the data structure for cell division now. 
+# Generate sample sheet, Investigate the data structure for cell division now. 
 solver = QSSolver()
 sheet = Sheet.planar_sheet_2d('division', 6, 6, 1, 1)
 sheet.sanitize(trim_borders=True, order_edges=True)
@@ -70,22 +70,14 @@ geom.update_all(sheet)
 # First use the default specification for the dyanmics of a sheet vertex model.
 # This way, we can assign properties such as line_tension into the edge_df.
 nondim_specs = config.dynamics.quasistatic_plane_spec()
-print(nondim_specs)
-print('gap')
 dim_model_specs = pmodel.dimensionalize(nondim_specs)
-print(dim_model_specs)
-# No differences between two specs, why we need the second one then???
-type(config.dynamics.quasistatic_plane_spec)
-print(pmodel.dimensionalize())
-
-example = model_factory([effectors.LineTension, effectors.FaceContractility, effectors.FaceAreaElasticity])
-example.specs['edge']
-type(effectors.LineTension)
-
+# No differences between two specs.
+# We can use either specs.
 
 # udpate the new specs (contain line_tension, etc) into the cell data.
 sheet.update_specs(dim_model_specs, reset=True)
 
+# Show number of cells, edges and vertices of the sheet.
 print("Number of cells: {}\n"
       "          edges: {}\n"
       "          vertices: {}\n".format(sheet.Nf, sheet.Ne, sheet.Nv))
@@ -100,33 +92,18 @@ draw_specs['edge']['head_width'] = 0  # values other than 0 gives error.
 fig, ax = sheet_view(sheet, **draw_specs)
 fig.set_size_inches(12, 5)
 
-'''
-Then inspect the data structures.
-'''
-bilayer.specs
-sheet.specs
+# Now we perform cell division.
 
-# Both are in type of dictionary, then check the keys.
+# Cause a cell to divide. second parameter is the face index of mother cell.
+# The function returns the face index of new cell.
+daughter = cell_division(sheet, 1, geom, angle=np.pi)
 
-print(bilayer.specs.keys())
-print(sheet.specs.keys())
+# calculate energy min state.
+res = solver.find_energy_min(sheet, geom, pmodel)
+print(res['success'])
 
-# Look into each nested dictionary under each keys.
-print(bilayer.specs['edge'])
-print(sheet.specs['edge'])
-
-print(bilayer.specs['vert'])
-print(sheet.specs['vert'])
-
-print(bilayer.specs['face'])
-print(sheet.specs['face'])
-
-print(bilayer.specs['settings'])
-print(sheet.specs['settings'])
-
-# =============================================================================
-# From above, we notice that 
-# =============================================================================
+fig, ax = sheet_view(sheet, **draw_specs)
+fig.set_size_inches(12, 5)
 
 
 
