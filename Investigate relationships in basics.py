@@ -58,9 +58,35 @@ print('Upcasted areas over the edges:')
 print(sheet.upcast_face(sheet.face_df['area']).head())
 
 from tyssue.generation import hexa_grid2d, from_2d_voronoi
-help(hexa_grid2d)
+help(hexa_grid2d) #Creates a hexagonal shape.
+help(from_2d_voronoi)     #Creates 2D datasets from a voronoi tessellation.
 
+'''
+Explore the algorithm of hexa_grid in 2D, with an aim to use other polygons.
 
+Code below
+
+def hexa_grid2d(nx, ny, distx, disty, noise=None):
+    """Creates an hexagonal grid of points"""
+    cy, cx = np.mgrid[0:ny, 0:nx]
+    cx = cx.astype(float)
+    cy = cy.astype(float)
+    cx[::2, :] += 0.5
+
+    centers = np.vstack([cx.flatten(), cy.flatten()]).astype(float).T
+    centers[:, 0] *= distx
+    centers[:, 1] *= disty
+    if noise is not None:
+        pos_noise = np.random.normal(scale=noise, size=centers.shape)
+        centers += pos_noise
+    return centers
+
+Algorithm expaliend below;
+
+Given the number of points in x and y direction, a dense multi-dimensional
+'meshgrid' is created. A meshgrid is essentially an array that 
+
+'''
 
 
 

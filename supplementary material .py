@@ -5,7 +5,7 @@ Spyder Editor
 This file contains the supplementary material for the tyssue learning code. 
 """
 import pandas as pd
-
+import numpy as np
 
 '''
 The following is the supp material for 00basics.py file
@@ -351,6 +351,23 @@ access to an instance.
 '''
 
 
+'''
+What is an array in Python?
+'''
+arr = np.array('Plane')
+print(arr) # This is a 0-dimension array.
+# A dimension in arrays is one level of array depth (nested arrays).
+
+cars = np.array(['Ford', 'Volvo', 'BMW']) # This is an array type object.
+print(cars)    # This is a 1-D array. 
+
+brr = np.array([[1,2,3], [6,7,8]])
+print(brr)	# This is a 2-D array: two 1D arrays are nested in another array.
+
+crr = np.array([[[1,2,3],[4,5,6]],[[1,2,3],[4,5,6]]])
+print(crr)	# This is a 3-D array, its elements are 2-D arrays.
+
+# Now, explore what is a dense meshgrid from numpy.
 
 
 
