@@ -366,6 +366,7 @@ print(brr)	# This is a 2-D array: two 1D arrays are nested in another array.
 
 crr = np.array([[[1,2,3],[4,5,6]],[[1,2,3],[4,5,6]]])
 print(crr)	# This is a 3-D array, its elements are 2-D arrays.
+print(crr.ndim)  #numpy has built-in dimension checking, easy to use.
 
 # Now, explore what is a dense meshgrid from numpy.
 
