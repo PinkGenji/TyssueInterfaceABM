@@ -83,12 +83,21 @@ def hexa_grid2d(nx, ny, distx, disty, noise=None):
 
 Algorithm expaliend below;
 
-Given the number of points in x and y direction, a dense multi-dimensional
-'meshgrid' is created. A meshgrid is essentially an array that 
-
 '''
 
+import numpy as np
+nx = 4
+ny =3
+distx = 0.5
+disty=0.7
 
+cy, cx = np.mgrid[0:ny, 0:nx]   #create ny-by-nx arrays
+cx = cx.astype(float)
+cy = cy.astype(float)
+cx[::2, :] += 0.5
+centers = np.vstack([cx.flatten(), cy.flatten()]).astype(float).T
+centers[:, 0] *= distx
+centers[:, 1] *= disty
 
 
 

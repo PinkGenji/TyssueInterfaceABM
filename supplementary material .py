@@ -369,9 +369,11 @@ print(crr)	# This is a 3-D array, its elements are 2-D arrays.
 print(crr.ndim)  #numpy has built-in dimension checking, easy to use.
 
 # Now, explore what is a dense meshgrid from numpy.
-
-
-
+# mgrid returns a single array, containing a set of ndarray, all of the same
+# dimensions, stacked along the first axis.
+grid_sample = np.mgrid[0:3,0:4] 	
+grid_sample
+grid_sample.shape  # 2D mesh grid, each element has size 3-by-4.
 
 
 '''
