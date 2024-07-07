@@ -57,7 +57,8 @@ print('\n')
 print('Upcasted areas over the edges:')
 print(sheet.upcast_face(sheet.face_df['area']).head())
 
-
+from tyssue.generation import hexa_grid2d, from_2d_voronoi
+help(hexa_grid2d)
 
 
 
