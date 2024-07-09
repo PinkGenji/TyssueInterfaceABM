@@ -62,12 +62,13 @@ print(sheet.upcast_face(sheet.face_df['area']).head())
 
 #Function sum_srce() sums the values of the edge-indexed dataframe `df` grouped
 # by the values of `self.edge_df["srce"]
-print(sheet.sum_srce(sheet.edge_df['trgt']).head())
+sheet.sum_srce(sheet.edge_df['sub_area'])
+
+
 
 
 '''
 Now we explore how cells are drawn. We need to figure out how polygons are computed.
-
 '''
 
 from tyssue.generation import hexa_grid2d, from_2d_voronoi
@@ -122,6 +123,10 @@ centers = np.vstack([cx.flatten(), cy.flatten()]).astype(float).T
 centers[:, 0] *= distx
 centers[:, 1] *= disty
 
+'''
+We can see this part of code only produces coordinates for the cell centers.
+We need to further explore how polygon is drawn.
+'''
 
 
 
