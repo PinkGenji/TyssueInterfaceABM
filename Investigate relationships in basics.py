@@ -66,7 +66,8 @@ print(sheet.sum_srce(sheet.edge_df['trgt']).head())
 
 
 '''
-Now we explore how cells are drawn. We need to figure out how polygons are coded.
+Now we explore how cells are drawn. We need to figure out how polygons are computed.
+
 '''
 
 from tyssue.generation import hexa_grid2d, from_2d_voronoi
