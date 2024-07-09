@@ -47,7 +47,7 @@ print('Faces associated with the first edges:')
 print(sheet.edge_df['face'].head())
 print('\n')
 
-# First edge associated face
+# First edge associated face, also called upcasting
 face = sheet.edge_df.loc[0, 'face']
 
 print('Area of cell # {}:'.format(int(face)))
@@ -56,6 +56,18 @@ print(sheet.face_df.loc[face, 'area'])
 print('\n')
 print('Upcasted areas over the edges:')
 print(sheet.upcast_face(sheet.face_df['area']).head())
+
+
+#The oppsite of upcasting is downcasting.
+
+#Function sum_srce() sums the values of the edge-indexed dataframe `df` grouped
+# by the values of `self.edge_df["srce"]
+print(sheet.sum_srce(sheet.edge_df['trgt']).head())
+
+
+'''
+Now we explore how cells are drawn. We need to figure out how polygons are coded.
+'''
 
 from tyssue.generation import hexa_grid2d, from_2d_voronoi
 help(hexa_grid2d) #Creates a hexagonal shape.
@@ -81,20 +93,30 @@ def hexa_grid2d(nx, ny, distx, disty, noise=None):
         centers += pos_noise
     return centers
 
-Algorithm expaliend below;
+Algorithm explained below;
 
 '''
 
 import numpy as np
+
+#set up constants.
 nx = 4
 ny =3
 distx = 0.5
 disty=0.7
 
-cy, cx = np.mgrid[0:ny, 0:nx]   #create ny-by-nx arrays
+#create a multi-dimensional meshgrid of ny and nx array.
+cy, cx = np.mgrid[0:ny, 0:nx]   
+
+#convert types
 cx = cx.astype(float)
 cy = cy.astype(float)
+
+#move the x-axis by 0.5
 cx[::2, :] += 0.5
+
+#use vstack to stack arrays in sequence vertically (row wise).
+#use flatten() function to get a copy of the array collapsed into 1D.
 centers = np.vstack([cx.flatten(), cy.flatten()]).astype(float).T
 centers[:, 0] *= distx
 centers[:, 1] *= disty
