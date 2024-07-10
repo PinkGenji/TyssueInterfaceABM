@@ -161,6 +161,53 @@ v_center.ridge_point 	  #The ridges are perpendicular between lines drawn betwee
 # We can see that the hexagon is inherited from the voronoi_plot_2d function.
 
 
+
+'''
+Next, we shall explore the specification.
+'''
+# First use the default specification for the dyanmics of a sheet vertex model.
+# This way, we can assign properties such as line_tension into the edge_df.
+from tyssue.solvers.quasistatic import QSSolver
+from tyssue import Sheet, config
+from tyssue.dynamics.planar_vertex_model import PlanarModel as pmodel
+
+
+solver = QSSolver()
+sheet1 = Sheet.planar_sheet_2d('division', 6, 6, 1, 1)
+sheet1.sanitize(trim_borders=True, order_edges=True)
+geom.update_all(sheet1)
+
+nondim_specs = config.dynamics.quasistatic_plane_spec()
+
+# No differences between two specs.
+# We can use either specs.
+
+# udpate the new specs (contain line_tension, etc) into the cell data.
+sheet1.update_specs(nondim_specs, reset=True)
+
+# Show number of cells, edges and vertices of the sheet.
+print("Number of cells: {}\n"
+      "          edges: {}\n"
+      "          vertices: {}\n".format(sheet.Nf, sheet.Ne, sheet.Nv))
+
+# ## Minimize energy
+res = solver.find_energy_min(sheet1, geom, pmodel)
+
+# ## View the result
+draw_specs = config.draw.sheet_spec()
+draw_specs['vert']['visible'] = False
+draw_specs['edge']['head_width'] = 0  # values other than 0 gives error.
+fig, ax = sheet_view(sheet1, **draw_specs)
+fig.set_size_inches(12, 5)
+
+# Now we try to add another property attribute into the edge dictionary.
+sheet1.update_specs({'edge':{'test':1.0}})
+sheet1.edge_df.keys()
+#try another way
+sheet.specs['edge']['test2'] = 0.1
+sheet1.edge_df.keys()   # From this, we know that we have to use the spec update function.
+
+
 '''
 This is the end of the script.
 '''
