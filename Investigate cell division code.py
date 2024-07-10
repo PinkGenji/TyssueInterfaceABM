@@ -105,13 +105,10 @@ print(res['success'])
 fig, ax = sheet_view(sheet, **draw_specs)
 fig.set_size_inches(12, 5)
 
-
-
-
-
-
-
-
+sheet.specs
+sheet.specs['edge']['line_tension'] = 0.1
+sheet.specs['face']['prefered_area'] = 1.0
+res = solver.find_energy_min(sheet, geom, pmodel)
 
 
 '''

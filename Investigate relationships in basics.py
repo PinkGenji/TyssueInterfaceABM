@@ -66,6 +66,16 @@ print(sheet.sum_srce(sheet.edge_df['trgt']).head())
 
 
 '''
+Next, we try the Tyssue visualisation tools to understand the indexing order.
+'''
+
+
+
+
+
+
+
+'''
 Now we explore how cells are drawn. We need to figure out how polygons are computed.
 
 '''
@@ -122,14 +132,33 @@ centers = np.vstack([cx.flatten(), cy.flatten()]).astype(float).T
 centers[:, 0] *= distx
 centers[:, 1] *= disty
 
+# The next step is 2D voronoi tessellation.
 
+from scipy.spatial import Voronoi, voronoi_plot_2d
+from tyssue.generation import from_2d_voronoi
 
+help(Voronoi)
+'''
+Voronoi() function returns a voronoi diagram, we can view the diagram via 
+matplotlib.pyplot and we can also get the voronoice verices as an array.
+'''
+help(from_2d_voronoi)
 
+import matplotlib.pyplot as plt
 
+#centers[1]=0.88     # uncomment this line to see how we can get non-hexagons.
+v_center = Voronoi(centers)
 
+#show plot
+fig = voronoi_plot_2d(v_center)
+plt.show()
 
+v_center.vertices 	#show vertcies array
+v_center.regions 	#shw voronoi regions
+v_center.ridge_vertices 	#voronoi ridge
+v_center.ridge_point 	#The ridges are perpendicular between lines drawn between the following input points.
 
-
+# We can see that the hexagon is inherited from the voronoi_plot_2d function.
 
 
 '''
