@@ -153,10 +153,10 @@ v_center = Voronoi(centers)
 fig = voronoi_plot_2d(v_center)
 plt.show()
 
-v_center.vertices 	#show vertcies array
-v_center.regions 	#shw voronoi regions
-v_center.ridge_vertices 	#voronoi ridge
-v_center.ridge_point 	#The ridges are perpendicular between lines drawn between the following input points.
+v_center.vertices 	      #show vertcies array
+v_center.regions 	      #show voronoi regions
+v_center.ridge_vertices   #voronoi ridge
+v_center.ridge_point 	  #The ridges are perpendicular between lines drawn between the following input points.
 
 # We can see that the hexagon is inherited from the voronoi_plot_2d function.
 
