@@ -203,10 +203,12 @@ fig.set_size_inches(12, 5)
 # Check terms in the spec.
 sheet1.specs
 
-# Make sure we print all.
+# Make sure we print all, set both to None to print all.
 import pandas as pd
-pd.set_option('display.max_rows', None, 'display.max_columns', None)
-# Inspect all entries.
+pd.set_option('display.max_rows', 5, 'display.max_columns', 10)
+
+# Inspect column names and the entries that are relevant.
+print(sheet1.edge_df.keys())
 print(sheet1.edge_df['sx'])
 
 # Try change the line_tension in certain rows.
