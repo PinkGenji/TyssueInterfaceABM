@@ -188,7 +188,7 @@ sheet1.update_specs(nondim_specs, reset=True)
 # Show number of cells, edges and vertices of the sheet.
 print("Number of cells: {}\n"
       "          edges: {}\n"
-      "          vertices: {}\n".format(sheet.Nf, sheet.Ne, sheet.Nv))
+      "          vertices: {}\n".format(sheet1.Nf, sheet1.Ne, sheet1.Nv))
 
 # ## Minimize energy
 res = solver.find_energy_min(sheet1, geom, pmodel)
@@ -200,12 +200,23 @@ draw_specs['edge']['head_width'] = 0  # values other than 0 gives error.
 fig, ax = sheet_view(sheet1, **draw_specs)
 fig.set_size_inches(12, 5)
 
+# Check terms in the spec.
+sheet1.specs
+
+# Try change the line_tension in certain rows.
+
+
 # Now we try to add another property attribute into the edge dictionary.
 sheet1.update_specs({'edge':{'test':1.0}})
 sheet1.edge_df.keys()
 #try another way
 sheet.specs['edge']['test2'] = 0.1
 sheet1.edge_df.keys()   # From this, we know that we have to use the spec update function.
+
+
+
+
+
 
 
 '''
