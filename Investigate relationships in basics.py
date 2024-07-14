@@ -203,7 +203,18 @@ fig.set_size_inches(12, 5)
 # Check terms in the spec.
 sheet1.specs
 
+# Make sure we print all.
+import pandas as pd
+pd.set_option('display.max_rows', None, 'display.max_columns', None)
+# Inspect all entries.
+print(sheet1.edge_df['sx'])
+
 # Try change the line_tension in certain rows.
+sum(sheet1.edge_df['line_tension'])    # Keep a record of the sum.
+sheet1.edge_df.loc[sheet1.edge_df['sx']< 2, 'line_tension'] = 0.5
+sum(sheet1.edge_df['line_tension'])    # Check if the sum changes.
+
+
 
 
 # Now we try to add another property attribute into the edge dictionary.
