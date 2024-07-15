@@ -131,7 +131,7 @@ specs = {
 # Update the specs (adds / changes the values in the dataframes' columns)
 sheet.update_specs(specs)
 
-pprint(specs)
+print(specs)
 
 E_t = smodel.compute_energy(sheet)
 print('Total energy: ', E_t)

@@ -169,7 +169,9 @@ Next, we shall explore the specification.
 # This way, we can assign properties such as line_tension into the edge_df.
 from tyssue.solvers.quasistatic import QSSolver
 from tyssue import Sheet, config
-from tyssue.dynamics.planar_vertex_model import PlanarModel as pmodel
+from tyssue.dynamics.planar_vertex_model import PlanarModel as smodel
+from tyssue import PlanarGeometry as geom
+from tyssue.draw import sheet_view
 
 
 solver = QSSolver()
@@ -191,7 +193,7 @@ print("Number of cells: {}\n"
       "          vertices: {}\n".format(sheet1.Nf, sheet1.Ne, sheet1.Nv))
 
 # ## Minimize energy
-res = solver.find_energy_min(sheet1, geom, pmodel)
+res = solver.find_energy_min(sheet1, geom, smodel)
 
 # ## View the result
 draw_specs = config.draw.sheet_spec()
@@ -234,20 +236,79 @@ Now, we explore the energy related parts in Tyssue.
 
 # We can compute the energy of a given configuration.
 from tyssue.dynamics import effectors, model_factory
-model_example = model_factory([effectors.LineTension, effectors.FaceContractility, effectors.FaceAreaElasticity, effectors.LineViscosity])
+model_example = model_factory([effectors.LineTension, effectors.FaceContractility, effectors.FaceAreaElasticity])
 model_example.specs
 sheet1.update_specs(model_example.specs, reset = True)  # Reset the model.
 geom.update_all(sheet1)    # Update sheet1
 
-from tyssue.dynamics.planar_vertex_model import PlanarModel as model
-energy = model.compute_energy(sheet1)
+from tyssue.dynamics.planar_vertex_model import PlanarModel as smodel
+energy = smodel.compute_energy(sheet1)
 print(f'Total energy: {energy: .3f}')
-Et, Ec, Ea = model.compute_energy(sheet1, full_output=True)
+Et, Ec, Ea = smodel.compute_energy(sheet1, full_output=True)
 Et.head()
 Ec.head()
 Ea.head()
 
-fig, ax = sheet_view(sheet1, coords=list('zy'), face={"visible": True, "color": Ec, "colormap": "gray"}, edge={"color": Et},)
+fig, ax = sheet_view(sheet1, coords=list('xy'), face={"visible": True, "color": Ec, "colormap": "gray"}, edge={"color": Et},)
+
+
+""" Given that we can compute energy with given configuration, we then need a 
+solver to find the minimum energy state. """
+
+smodel.compute_energy(sheet1) 	# Total energy.
+smodel.compute_gradient(sheet1).head() 	# Min energy is found via gradient descent.
+solver = QSSolver 	#Quasi-Static solver
+res = solver.find_energy_min(sheet1, geom, smodel)
+print("Successfull gradient descent? ", res['success'])
+
+# Plot the new figure.
+fig, ax = sheet_view(sheet1)
+fig.set_size_inches(10, 10)
+ax.set_aspect('equal')
+
+# Print the gradient error during approximation.
+print('Total gradient error: ')
+solver.check_grad(sheet1, geom, smodel)
+
+fig, ax = sheet_view(sheet1, mode="quick")
+for f, (x, y) in sheet1.face_df[["x", "y"]].iterrows():
+    ax.text(x, y, f)
+
+''' Try with merging two vertices. '''
+
+from tyssue.topology.base_topology import collapse_edge
+
+
+
+centre_edge = sheet1.edge_df.eval("sx**2 + sy**2").idxmin()
+collapse_edge(sheet1, centre_edge)
+sheet1.update_rank()
+geom.update_all(sheet1)
+
+fig, ax = sheet_view(sheet1, mode="quick")
+
+solver = QSSolver 	#Quasi-Static solver
+res = solver.find_energy_min(sheet1, geom, smodel)
+print("Successfull gradient descent? ", res['success'])
+
+# Plot the new figure.
+fig, ax = sheet_view(sheet1)
+fig.set_size_inches(10, 10)
+ax.set_aspect('equal')
+
+print("Maximum vertex rank: ", sheet1.vert_df['rank'].max())
+
+sheet1.validate()
+
+
+
+
+
+
+
+
+
+
 
 
 '''
