@@ -217,19 +217,37 @@ sheet1.edge_df.loc[sheet1.edge_df['sx']< 2, 'line_tension'] = 0.5
 sum(sheet1.edge_df['line_tension'])    # Check if the sum changes.
 
 
-
-
 # Now we try to add another property attribute into the edge dictionary.
-sheet1.update_specs({'edge':{'test':1.0}})
+sheet1.update_specs({'edge':{'test111':1.0}})
 sheet1.edge_df.keys()
 #try another way
-sheet.specs['edge']['test2'] = 0.1
-sheet1.edge_df.keys()   # From this, we know that we have to use the spec update function.
+sheet1.specs['edge']['test222'] = 0.1
+sheet1.edge_df.keys() # Nothing changed in the spec dictionary.
+'''
+From the above, we can see that the we must use update_specs() to add attribute,
+but we can change the value for certain cells by using the dataframe structure.
+'''
 
+"""
+Now, we explore the energy related parts in Tyssue.
+"""
 
+# We can compute the energy of a given configuration.
+from tyssue.dynamics import effectors, model_factory
+model_example = model_factory([effectors.LineTension, effectors.FaceContractility, effectors.FaceAreaElasticity, effectors.LineViscosity])
+model_example.specs
+sheet1.update_specs(model_example.specs, reset = True)  # Reset the model.
+geom.update_all(sheet1)    # Update sheet1
 
+from tyssue.dynamics.planar_vertex_model import PlanarModel as model
+energy = model.compute_energy(sheet1)
+print(f'Total energy: {energy: .3f}')
+Et, Ec, Ea = model.compute_energy(sheet1, full_output=True)
+Et.head()
+Ec.head()
+Ea.head()
 
-
+fig, ax = sheet_view(sheet1, coords=list('zy'), face={"visible": True, "color": Ec, "colormap": "gray"}, edge={"color": Et},)
 
 
 '''
