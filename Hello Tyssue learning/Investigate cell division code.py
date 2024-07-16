@@ -45,32 +45,6 @@ from tyssue.draw import sheet_view, highlight_cells
 from tyssue.io import hdf5
 
 
-'''
-First we generate a bilayer structure and a sample cell sheet.
-Bilayer is generated via the function Sheet.planar_sheet_2d().
-'''
-# Generate a bilayer structure.
-bilayer = Sheet.planar_sheet_2d(identifier = 'basic2D', nx = 30, ny = 4, distx = 2, disty = 2)
-
-bilayer.sanitize(trim_borders=True, order_edges=True)
-geom.update_all(bilayer)
-
-# Have a look of the generated bilayer.
-fig, ax = sheet_view(bilayer, mode = '2D')
-fig.set_size_inches(10,10)
-
-# Update bilayer specs to add attributes for energy minimization.
-nondim_specs = config.dynamics.quasistatic_plane_spec()
-bilayer.update_specs(nondim_specs, reset = True)
-
-# Perform energy minimization.
-solver = QSSolver()
-res = solver.find_energy_min(bilayer, geom, pmodel)
-fig, ax = sheet_view(bilayer)
-fig.set_size_inches(12, 5)
-
-
-
 '''Generate sample sheet, Investigate the data structure for cell division now. '''
 
 solver = QSSolver()
