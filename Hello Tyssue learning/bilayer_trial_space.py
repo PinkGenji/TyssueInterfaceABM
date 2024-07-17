@@ -99,6 +99,7 @@ fig.set_size_inches(12, 5)
 
 
 
+
 ''' Show face index of bilayer '''
 fig, ax = sheet_view(bilayer, mode = '2D')
 fig.set_size_inches(30,30)
@@ -141,7 +142,17 @@ res = solver.find_energy_min(bilayer, geom, smodel)
 fig, ax = sheet_view(bilayer)
 fig.set_size_inches(12, 5)
 
+for i in list(range(3,30,4)):
+	sub = cell_division(bilayer,i, geom, angle=np.pi*np.random.rand(1).item())
+	geom.update_all(bilayer)
+	res=solver.find_energy_min(bilayer, geom, smodel)
+fig, ax = sheet_view(bilayer)
+fig.set_size_inches(12,5)
 
+
+""" Try face division edges """
+from tyssue.topology.sheet_topology import face_division
+face_divided = face_division(bilayer, 9, )
 
 
 
