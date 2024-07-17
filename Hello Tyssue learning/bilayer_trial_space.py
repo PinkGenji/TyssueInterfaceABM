@@ -97,7 +97,17 @@ res = solver.find_energy_min(bilayer, geom, smodel)
 fig, ax = sheet_view(bilayer)
 fig.set_size_inches(12, 5)
 
+""" Example of vertex manipulating """
 
+bilayer.vert_df.loc[2,['y','x']]
+
+bilayer.vert_df.loc[2,['y','x']] = 10,7
+geom.update_all(bilayer)
+sheet_view(bilayer)
+
+res = solver.find_energy_min(bilayer, geom, smodel)
+fig, ax = sheet_view(bilayer)
+fig.set_size_inches(12, 5)
 
 
 ''' Show face index of bilayer '''
@@ -125,6 +135,7 @@ fig.set_size_inches(10, 12)
 """
 Try manipulate the center dataset, 1) non uniform shape. 2) get boundary cells.
 """
+
 
 
 

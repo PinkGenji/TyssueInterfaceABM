@@ -34,12 +34,7 @@ from tyssue import Sheet
 # Simple 2D geometry
 from tyssue import PlanarGeometry as sgeom
 # Visualisation
-from tyssue.draw import (
-    sheet_view,
-    highlight_faces,
-    create_gif,
-    browse_history
-)
+from tyssue.draw import (sheet_view, highlight_faces, create_gif, browse_history)
 
 '''
 Generate a 2D mesh
