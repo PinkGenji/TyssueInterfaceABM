@@ -160,6 +160,50 @@ v_center.ridge_point 	  #The ridges are perpendicular between lines drawn betwee
 
 # We can see that the hexagon is inherited from the voronoi_plot_2d function.
 
+from tyssue.generation import hexa_grid2d
+hexa_grid2d(30, 4, 2, 2)
+
+# Draw voronoi diagram with moving cell centres.
+#set up constants.
+r = 1
+nx = 30
+ny = 4
+distx = 2*r
+disty = 2*r
+
+#create a multi-dimensional meshgrid of ny and nx array.
+cy, cx = np.mgrid[0:ny, 0:nx]   
+
+#convert types
+cx = cx.astype(float)
+cy = cy.astype(float)
+
+#move the x-axis by a variable
+np.random.seed(10)
+for i in cx[::2, :]:
+	cx[::2, :] += np.random.rand(1).item() * r
+	
+# cx[::2, :] += 0.5
+
+#use vstack to stack arrays in sequence vertically (row wise).
+#use flatten() function to get a copy of the array collapsed into 1D.
+centers = np.vstack([cx.flatten(), cy.flatten()]).astype(float).T
+centers[:, 0] *= distx
+centers[:, 1] *= disty
+centers
+
+from scipy.spatial import Voronoi, voronoi_plot_2d
+
+
+#centers[1]=0.88     # uncomment this line to see how we can get non-hexagons.
+v_center = Voronoi(centers)
+
+#show plot
+fig = voronoi_plot_2d(v_center)
+plt.show()
+
+
+
 
 
 '''
