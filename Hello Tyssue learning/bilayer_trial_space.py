@@ -140,7 +140,7 @@ Try manipulate the center dataset, 1) non uniform shape. 2) get boundary cells.
 
 
 '''
-Perform cell division, perhaps exploit the event manager.
+Perform cell division, without using event manager
 '''
 
 # Generate a daughter cell.
@@ -159,6 +159,15 @@ for i in list(range(3,30,4)):
 	res=solver.find_energy_min(bilayer, geom, smodel)
 fig, ax = sheet_view(bilayer)
 fig.set_size_inches(12,5)
+
+
+""" Perform cell divison by using event manager """
+
+
+
+
+
+
 
 
 """ Try face division edges """
