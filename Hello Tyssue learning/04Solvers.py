@@ -60,10 +60,13 @@ for i in range(10):
     # record only every `save_every` time 
     history.record()
 
-create_gif(history, 'simple_growth.gif', num_frames=len(history))
-
-
-Image('simple_growth.gif')
+# =============================================================================
+# """ Somehow the .gif creation is not working, 
+# we can view the change by printing out results at each time step. """
+#
+# create_gif(history, 'simple_growth.gif', num_frames=len(history))
+# Image('simple_growth.gif')
+# =============================================================================
 
 # retrieve function returns an epithelium of the same type as the original.
 type(history.retrieve(5))
