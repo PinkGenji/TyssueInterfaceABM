@@ -37,7 +37,7 @@ fig, ax = sheet_view(sheet)
 '''
 The history object
 
-The HIstory class defines the object in charge of stroing the evolving epithelium
+The History class defines the object in charge of stroing the evolving epithelium
 during the course of the simulation. It allows to access to different time points
 of a simulation from 1 unique epithelium.
 

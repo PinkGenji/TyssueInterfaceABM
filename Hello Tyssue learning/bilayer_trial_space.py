@@ -95,7 +95,7 @@ bilayer.update_specs(nondim_specs, reset = True)
 solver = QSSolver()
 res = solver.find_energy_min(bilayer, geom, smodel)
 fig, ax = sheet_view(bilayer)
-fig.set_size_inches(12, 5)
+
 
 """ Example of vertex manipulating """
 
@@ -163,10 +163,66 @@ fig.set_size_inches(12,5)
 
 """ Perform cell divison by using event manager """
 
+from tyssue.topology.sheet_topology import cell_division
+
+# Write behavior function for division.
+def division(sheet, manager, cell_id, crit_area, growth_rate=0.1, dt=1.):
+    """Defines a division behavior.
+    
+    Parameters
+    ----------
+    sheet: a :class:`Sheet` object
+    cell_id: int
+        the index of the dividing cell
+    crit_area: float
+        the area at which 
+    growth_rate: float
+        increase in the area per unit time
+        A_0(t + dt) = A0(t) * (1 + growth_rate * dt)
+    """
+
+    # if the cell area is larger than the crit_area, we let the cell divide.
+    if sheet.face_df.loc[cell_id, "area"] > crit_area:
+        # restore prefered_area
+        sheet.face_df.loc[cell_id, "prefered_area"] = 1.0
+        # Do division
+        daughter = cell_division(sheet, cell_id, geom)
+        # update geometry
+        geom.update_all(sheet)
+        print(f"cell num: {daughter} is born")
+    # if the cell area is less than the threshold, update the area by growth.
+    else:
+        sheet.face_df.loc[cell_id, "area"] *= (1 + dt * growth_rate)
 
 
+from tyssue.behaviors import EventManager
 
+# Initialisation of manager 
+manager = EventManager("face")
 
+from tyssue import History
+
+t = 0
+stop = 30
+
+# The History object records all the time steps 
+history = History(bilayer)
+
+while manager.current and t < stop:
+    manager.append(division, cell_id=t, crit_area=0.548)
+    # Execute the event in the current list
+    manager.execute(bilayer)
+    t += 1
+    
+    # Find energy min
+    #res = solver.find_energy_min(bilayer, geom, smodel)
+    history.record()
+
+    # Switch event list from the next list to the current list
+    manager.update()
+
+res = solver.find_energy_min(bilayer, geom, smodel)
+fig, ax = sheet_view(bilayer, mode="2D")
 
 
 

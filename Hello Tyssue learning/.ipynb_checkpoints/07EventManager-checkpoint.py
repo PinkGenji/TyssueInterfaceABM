@@ -125,11 +125,11 @@ def division(sheet, manager, cell_id=0, crit_area=2.0, growth_rate=0.1, dt=1.):
     crit_area: float
         the area at which 
     growth_rate: float
-        increase in the area per unit time
+        increase in the prefered are per unit time
         A_0(t + dt) = A0(t) * (1 + growth_rate * dt)
     """
 
-    # if the cell area is larger than the crit_area, we let the cell divide.
+    
     if sheet.face_df.loc[cell_id, "area"] > crit_area:
         # restore prefered_area
         sheet.face_df.loc[12, "prefered_area"] = 1.0
@@ -140,11 +140,9 @@ def division(sheet, manager, cell_id=0, crit_area=2.0, growth_rate=0.1, dt=1.):
         # update geometry
         sgeom.update_all(sheet)
         print(f"cell n°{daughter} is born")
-	
-	# if the cell area is less than the threshold, update the area by growth.
     else:
-        #
-        sheet.face_df.loc[12, "area"] *= (1 + dt * growth_rate)
+        # 
+        sheet.face_df.loc[12, "prefered_area"] *= (1 + dt * growth_rate)
         manager.append(division, cell_id=cell_id)
 
 from tyssue.behaviors import EventManager
@@ -177,11 +175,8 @@ while manager.current and t < stop:
     # Find energy min
     res = solver.find_energy_min(sheet, sgeom, smodel)
     history.record()
-    fig, ax = sheet_view(sheet, mode = 'quick')
     # Switch event list from the next list to the current list
     manager.update()
-	
-
 
 draw_specs = {
     "edge": {
