@@ -42,40 +42,59 @@ from tyssue.draw import sheet_view, highlight_cells
 
 from tyssue.generation import three_faces_sheet
 
+nondim_specs = config.dynamics.quasistatic_plane_spec()
 
 """ start the project """
 # Generate the cell sheet as three cells.
 sheet = Sheet.planar_sheet_2d('face', nx = 3, ny=4, distx=2, disty=2)
 sheet.sanitize(trim_borders=True)
 geom.update_all(sheet)
-# Energy minimisation.
-nondim_specs = config.dynamics.quasistatic_plane_spec()
-sheet.update_specs(nondim_specs, reset = True)
+# Add more mechanical properties, take four factors
+# line tensions; edge length elasticity; face contractility and face area elasticity
+new_specs = model_factory([effectors.LineTension, effectors.LengthElasticity, effectors.FaceContractility, effectors.FaceAreaElasticity])
+
+sheet.update_specs(new_specs.specs, reset = True)
+geom.update_all(sheet)
+
+#check border vertices are not having force.
+fig, ax= sheet_view(sheet)
+for vert, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y+0.1, vert)
+
+# So we need to sinactivate vert 0,2,3 and 5.
+sheet.vert_df.loc[[0,2,3,5], 'is_active'] = 0
+sheet.vert_df.loc[[0,2,3,5], 'is_active']
 solver = QSSolver()
 res = solver.find_energy_min(sheet, geom, smodel)
 
 sheet_view(sheet)   # Draw cell mesh.
 
+
+#plot forces
+from tyssue.draw.plt_draw import plot_forces
+fig, ax = plot_forces(sheet, geom, smodel, ['x', 'y'], scaling=0.1)
+fig.set_size_inches(10, 12)
+
 # Draw the cell mesh with face labelling.
-fig, ax= sheet_view(sheet)
-for vert, data in sheet.vert_df.iterrows():
-    ax.text(data.x, data.y+0.1, vert)
-    
-# for face, data in sheet.face_df.iterrows():
-#     ax.text(data.x, data.y, face)
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
 
 # Do cell division
 daughter = cell_division(sheet, 1, geom, angle= np.pi)
 geom.update_all(sheet)
 sheet.reset_index(order=True)
+res = solver.find_energy_min(sheet, geom, smodel)
 # Draw again with face labelling.
 fig, ax= sheet_view(sheet)
-
 for vert, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y+0.1, vert)
+#plot forces
+from tyssue.draw.plt_draw import plot_forces
+fig, ax = plot_forces(sheet, geom, smodel, ['x', 'y'], scaling=0.1)
+fig.set_size_inches(10, 12)
 
-for face, data in sheet.face_df.iterrows():
-    ax.text(data.x, data.y, face)
+
+print(sheet.vert_df) #print vert df
 
 # Show three data frames for vertices, edge and face.
 
@@ -229,6 +248,64 @@ print(f'There are {edge_differ} difference in edge data frame. \n')
 print(f'There are {face_differ} difference in face data frame. \n')
 print("Face area is: " + str(sheet.face_df.loc[0, 'area']) + "\n")
 
+
+""" 
+Can we make strange things directly on vertex dataset?
+Can we do vertex merge directly on vertex dataset?
+"""
+
+sheet = Sheet.planar_sheet_2d('face', nx = 3, ny=4, distx=2, disty=2)
+sheet.sanitize(trim_borders=True)
+geom.update_all(sheet)
+# Add more mechanical properties, take four factors
+# line tensions; edge length elasticity; face contractility and face area elasticity
+new_specs = model_factory([effectors.LineTension, effectors.LengthElasticity, effectors.FaceContractility, effectors.FaceAreaElasticity])
+
+sheet.update_specs(new_specs.specs, reset = True)
+geom.update_all(sheet)
+
+fig, ax = sheet_view(sheet)
+for face, data in sheet.face_df.iterrows():
+     ax.text(data.x, data.y, face)
+
+face_old = sheet.face_df
+
+# Get vertex df first.
+vertex_origin = sheet.vert_df
+vertex_origin.loc[0,['is_active']] = 0.0
+geom.update_all(sheet)
+fig, ax = sheet_view(sheet)
+for face, data in sheet.face_df.iterrows():
+     ax.text(data.x, data.y, face)
+
+face_new = sheet.face_df
+
+''' use built-in functions to collapse an edge '''
+sheet = Sheet.planar_sheet_2d('face', nx = 3, ny=4, distx=2, disty=2, noise = 0.5)
+sheet.sanitize(trim_borders=True)
+geom.update_all(sheet)
+sheet_view(sheet)
+
+geom.update_all(sheet)
+# Add more mechanical properties, take four factors
+# line tensions; edge length elasticity; face contractility and face area elasticity
+new_specs = model_factory([effectors.LineTension, effectors.LengthElasticity, effectors.FaceContractility, effectors.FaceAreaElasticity])
+
+sheet.update_specs(new_specs.specs, reset = True)
+geom.update_all(sheet)
+
+fig, ax = sheet_view(sheet)
+for face, data in sheet.face_df.iterrows():
+     ax.text(data.x, data.y, face)
+
+face_old = sheet.face_df
+
+from tyssue.topology.base_topology import collapse_edge, remove_face
+
+# For 
+shortest_edge = sheet.edge_df.eval('sx**2+sy**2').idxmin() 
+
+sheet.get_neighbors(4)
 
 
 """
