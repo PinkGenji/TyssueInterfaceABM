@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-This script uses a three cell system as a demo.
+This script uses a four cell system as a demo.
 """
 
 # =============================================================================
@@ -49,6 +49,7 @@ nondim_specs = config.dynamics.quasistatic_plane_spec()
 sheet = Sheet.planar_sheet_2d('face', nx = 3, ny=4, distx=2, disty=2)
 sheet.sanitize(trim_borders=True)
 geom.update_all(sheet)
+sheet_view(sheet, mode = '2D')
 # Add more mechanical properties, take four factors
 # line tensions; edge length elasticity; face contractility and face area elasticity
 new_specs = model_factory([effectors.LineTension, effectors.LengthElasticity, effectors.FaceContractility, effectors.FaceAreaElasticity])
@@ -76,6 +77,7 @@ fig, ax = plot_forces(sheet, geom, smodel, ['x', 'y'], scaling=0.1)
 fig.set_size_inches(10, 12)
 
 # Draw the cell mesh with face labelling.
+fig, ax = sheet_view(sheet)
 for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
 
