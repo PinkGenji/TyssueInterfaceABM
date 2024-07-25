@@ -363,6 +363,7 @@ fig, ax0 = sheet_view(
     coords=["z", "y"],
     ax=ax0
 )
+
 fig, ax1 = sheet_view(
     ellipso, 
     coords=["x", "y"],
