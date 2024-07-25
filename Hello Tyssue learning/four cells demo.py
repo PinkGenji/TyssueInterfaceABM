@@ -40,9 +40,6 @@ from tyssue.topology.sheet_topology import remove_face, cell_division
 # 2D plotting
 from tyssue.draw import sheet_view, highlight_cells
 
-from tyssue.generation import three_faces_sheet
-
-nondim_specs = config.dynamics.quasistatic_plane_spec()
 
 """ start the project """
 # Generate the cell sheet as three cells.
@@ -57,10 +54,17 @@ new_specs = model_factory([effectors.LineTension, effectors.LengthElasticity, ef
 sheet.update_specs(new_specs.specs, reset = True)
 geom.update_all(sheet)
 
-#check border vertices are not having force.
+# Draw with vertex labelling.
 fig, ax= sheet_view(sheet)
 for vert, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y+0.1, vert)
+
+# =============================================================================
+# # Draw with edge labelling.
+# fig, ax= sheet_view(sheet)
+# for edge, data in sheet.edge_df.iterrows():
+#     ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
+# =============================================================================
 
 # So we need to sinactivate vert 0,2,3 and 5.
 sheet.vert_df.loc[[0,2,3,5], 'is_active'] = 0
@@ -116,7 +120,7 @@ print("\n There are too many columns, let's get all the column names: \n")
 print(sheet.face_df.keys())
 print("=========")
 
-print("Vertex is: " + str(sheet.vert_df.loc[0,]) + "\n")
+print("Vertex is: \n" + str(sheet.vert_df.loc[0,]) + "\n")
 print("Edge is: " + str(sheet.edge_df.loc[0,]) + "\n")
 print("Face is: " + str(sheet.face_df.loc[0,]) + "\n")
 
@@ -212,10 +216,9 @@ edge_before = sheet.edge_df.loc[0,]
 face_before = sheet.face_df.loc[0,]
 
 # Change one entry in face_df, change face area for example.
+print('original face area is: '+ str(sheet.face_df.loc[0,'area']) + '\n')
 sheet.face_df.loc[0,['area']] = 23
-
-print("Face area is: " + str(sheet.face_df.loc[0,'area']) + "\n")
-
+print("Face area is manually changed to: " + str(sheet.face_df.loc[0,'area']) + "\n")
 
 vertex_after = sheet.vert_df.loc[0,]
 edge_after = sheet.edge_df.loc[0,]
@@ -228,8 +231,6 @@ face_differ = (~(face_before == face_after)).sum()
 print(f'There are {vertex_differ} difference in vertex data frame. \n')
 print(f'There are {edge_differ} difference in edge data frame. \n')
 print(f'There are {face_differ} difference in face data frame. \n')
-
-print("Face area is: " + str(sheet.face_df.loc[0,'area']) + "\n")
 
 print('Now we use geom.update_all to check if all data frames will be auto-adjusted. \n')
 print('start update: \n')
@@ -304,10 +305,19 @@ face_old = sheet.face_df
 
 from tyssue.topology.base_topology import collapse_edge, remove_face
 
-# For 
+# some more operations.
 shortest_edge = sheet.edge_df.eval('sx**2+sy**2').idxmin() 
 
 sheet.get_neighbors(4)
+
+
+""" what is face id in the face_df? """
+sheet.face_df.keys()
+sheet.face_df['id']
+
+
+
+
 
 
 """

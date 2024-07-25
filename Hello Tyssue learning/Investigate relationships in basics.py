@@ -344,7 +344,30 @@ print("Maximum vertex rank: ", sheet1.vert_df['rank'].max())
 
 sheet1.validate()
 
+""" Create a 2.5D object """
 
+from tyssue.geometry.sheet_geometry import ClosedSheetGeometry
+from tyssue.generation import ellipsoid_sheet
+
+ellipso = ellipsoid_sheet(a=12, b=12, c=21, n_zs=12)
+ClosedSheetGeometry.update_all(ellipso)
+
+lumen_vol = ellipso.settings['lumen_vol']
+
+print(f"Lumen volume: {lumen_vol: .0f}")
+
+fig, (ax0, ax1) = plt.subplots(1, 2)
+
+fig, ax0 = sheet_view(
+    ellipso, 
+    coords=["z", "y"],
+    ax=ax0
+)
+fig, ax1 = sheet_view(
+    ellipso, 
+    coords=["x", "y"],
+    ax=ax1
+)
 
 
 
