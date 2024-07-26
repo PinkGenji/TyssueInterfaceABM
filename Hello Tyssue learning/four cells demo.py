@@ -59,8 +59,8 @@ fig, ax= sheet_view(sheet)
 for vert, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y+0.1, vert)
 
+# Draw with edge labelling.
 # =============================================================================
-# # Draw with edge labelling.
 # fig, ax= sheet_view(sheet)
 # for edge, data in sheet.edge_df.iterrows():
 #     ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
@@ -310,12 +310,28 @@ shortest_edge = sheet.edge_df.eval('sx**2+sy**2').idxmin()
 
 sheet.get_neighbors(4)
 
+""" what does 'is_active' in face_df mean? """
+sheet.face_df['is_alive']
+
+
 
 """ what is face id in the face_df? """
 sheet.face_df.keys()
 sheet.face_df['id']
 
 
+
+
+""" add another attribute to the dictionary """
+
+# Create a list (as column) that we want to add into the dataframe.
+test_set = []
+for i in list(range(len(sheet.edge_df))):
+	test_set.append("some entry " + str(i))
+
+# adding another attribtue called 'test' in the df.
+sheet.edge_df = sheet.edge_df.assign(test = test_set)
+print(sheet.edge_df.head())
 
 
 
