@@ -53,6 +53,7 @@ bilayer = Sheet.planar_sheet_2d(identifier = 'basic2D', nx = 30, ny = 4, distx =
 
 bilayer.sanitize(trim_borders=True, order_edges=True)
 geom.update_all(bilayer)
+print(f'Initially, we have {len(bilayer.face_df)} faces/cells in our sheet. \n')
 
 # Have a look of the generated bilayer.
 fig, ax = sheet_view(bilayer, mode = '2D')
@@ -225,10 +226,37 @@ res = solver.find_energy_min(bilayer, geom, smodel)
 fig, ax = sheet_view(bilayer, mode="2D")
 
 
+""" Try remove_face """
+from tyssue.topology.base_topology import remove_face
 
-""" Try face division edges """
-from tyssue.topology.sheet_topology import face_division
-face_divided = face_division(bilayer, 9, )
+remove_face(bilayer, 1)
+res = solver.find_energy_min(bilayer, geom, smodel)
+sheet_view(bilayer, mode = '2D')
+
+
+""" Try edge collapse """
+
+"""
+Collapses edge and merges it's vertices, creating (or increasing the rank of)
+    a rosette structure.
+
+    If `reindex` is `True` (the default), resets indexes and topology data.
+    The edge is collapsed on the smaller of the srce, trgt indexes
+    (to minimize reindexing impact)
+
+    Returns the index of the collapsed edge's remaining vertex (its srce)
+    
+    In default, two-sided cells are not allowed.
+ """
+
+from tyssue.topology.base_topology import collapse_edge
+
+collapse_edge(bilayer, 3)
+res = solver.find_energy_min(bilayer, geom, smodel)
+sheet_view(bilayer, mode = '2D')
+
+
+
 
 
 
