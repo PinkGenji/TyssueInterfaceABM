@@ -401,7 +401,33 @@ print('Following shows the dictionary of faces after the division. \n')
 print(face_after.head())
 
 
-""" Investigate the apoptotic function in the package. """
+""" do cell divisions. """
+
+init_vert = sheet.vert_df
+init_edge = sheet.edge_df
+init_face = sheet.face_df
+
+from tyssue.topology.sheet_topology import cell_division
+
+# Choose a cell
+cell_chosen = 2
+
+# Reset the preferred area.
+sheet.face_df.loc[cell_chosen, 'prefered_area'] = 1.0
+
+# Do division
+daughter = cell_division(sheet, cell_chosen, geom)
+
+# Update the toplogy
+sheet.reset_index(order = True)
+
+# Update geometry
+geom.update_all(sheet)
+
+# View the new plot
+fig, ax = sheet_view(sheet, mode = '2D')
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
 
 
 
