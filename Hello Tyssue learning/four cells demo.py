@@ -69,6 +69,8 @@ for vert, data in sheet.vert_df.iterrows():
 # So we need to sinactivate vert 0,2,3 and 5.
 sheet.vert_df.loc[[0,2,3,5], 'is_active'] = 0
 sheet.vert_df.loc[[0,2,3,5], 'is_active']
+
+# energy minimisation.
 solver = QSSolver()
 res = solver.find_energy_min(sheet, geom, smodel)
 
@@ -310,7 +312,7 @@ shortest_edge = sheet.edge_df.eval('sx**2+sy**2').idxmin()
 
 sheet.get_neighbors(4)
 
-""" what does 'is_active' in face_df mean? """
+""" what does 'is_alive' in face_df mean? """
 sheet.face_df['is_alive']
 
 
@@ -324,14 +326,82 @@ sheet.face_df['id']
 
 """ add another attribute to the dictionary """
 
-# Create a list (as column) that we want to add into the dataframe.
+# Create a list (as the entries) that we want to add into the dataframe.
 test_set = []
 for i in list(range(len(sheet.edge_df))):
 	test_set.append("some entry " + str(i))
 
-# adding another attribtue called 'test' in the df.
+# adding another attribtue called 'test' in the df, and fill the new column.
 sheet.edge_df = sheet.edge_df.assign(test = test_set)
 print(sheet.edge_df.head())
+print(sheet.edge_df.keys())
+
+
+""" Do division on the four cell system, and inspect the dictionaries. """
+sheet = Sheet.planar_sheet_2d('face', nx = 3, ny=4, distx=2, disty=2)
+sheet.sanitize(trim_borders=True)
+geom.update_all(sheet)
+sheet_view(sheet, mode = '2D')
+# Add more mechanical properties, take four factors
+# line tensions; edge length elasticity; face contractility and face area elasticity
+new_specs = model_factory([effectors.LineTension, effectors.LengthElasticity, effectors.FaceContractility, effectors.FaceAreaElasticity])
+
+sheet.update_specs(new_specs.specs, reset = True)
+geom.update_all(sheet)
+
+solver = QSSolver()
+res = solver.find_energy_min(sheet, geom, smodel)
+fig, ax = sheet_view(sheet)
+
+vert_before = sheet.vert_df
+edge_before = sheet.edge_df
+face_before = sheet.face_df
+
+daughter = cell_division(sheet, 2, geom, angle=np.pi/2)
+geom.update_all(sheet)
+
+# Perform energy minimisation.
+res = solver.find_energy_min(sheet, geom, smodel)
+fig, ax = sheet_view(sheet)
+
+vert_after = sheet.vert_df
+edge_after = sheet.edge_df
+face_after = sheet.face_df
+
+# We need to incrase display setting to view all columns.
+
+pd.set_option('display.expand_frame_repr', False)
+
+# We compare the vertex df.
+print(f'thre are {len(vert_before)} vertices before division. \n')
+print(f'thre are {len(vert_after)} vertices after division. \n')
+
+print('Following shows the dictionary of vertices before division. \n')
+print(vert_before)
+print('Following shows the dictionary of vertices after division. \n')
+print(vert_after)
+
+# "%pprint" is the code to disable/enable pretty printing in ipython.
+
+
+# We compare the edge df.
+print(f'thre are {len(edge_before)} edges before division. \n')
+print(f'thre are {len(edge_after)} edges after division. \n')
+
+print('Following shows the dictionary of edges before the division. \n')
+print(edge_before.head())
+
+print('Following shows the dictionary of edges after the division. \n')
+
+print(edge_after.head())
+
+print(face_before.head())
+print(face_after.head())
+
+
+
+
+
 
 
 
