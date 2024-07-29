@@ -392,14 +392,16 @@ print('Following shows the dictionary of edges before the division. \n')
 print(edge_before.head())
 
 print('Following shows the dictionary of edges after the division. \n')
-
 print(edge_after.head())
 
+
+print('Following shows the dictionary of faces before the division. \n')
 print(face_before.head())
+print('Following shows the dictionary of faces after the division. \n')
 print(face_after.head())
 
 
-
+""" Investigate the apoptotic function in the package. """
 
 
 
