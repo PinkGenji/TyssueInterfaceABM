@@ -609,6 +609,16 @@ print('We can see that no differences between resetting and resetting,')
 print('and the two new vertices were appended "in order",')
 print('which means that the two new vertices were added at the end of the rows.')
 
+# plot original
+fig, ax= sheet_view(sheet)
+for vert, data in init_vert.iterrows():
+    ax.text(data.x, data.y+0.1, vert)
+	
+# Plot with reset.
+fig, ax= sheet_view(sheet)
+for vert, data in sheet.edge_df.iterrows():
+    ax.text(data.x, data.y+0.1, vert)
+
 
 # Second, we compare the edge dataframe. 
 print(f'There are {len(init_edge)} edges initially.')
