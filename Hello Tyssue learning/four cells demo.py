@@ -534,9 +534,28 @@ sheet.update_specs(new_specs.specs, reset = True)
 geom.update_all(sheet)
 
 
+fig, ax = sheet_view(sheet, mode = '2D')
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
+
 init_vert = sheet.vert_df
 init_edge = sheet.edge_df
 init_face = sheet.face_df
+
+# plot with edges.
+from tyssue.core.objects import get_simple_index
+simple_index = get_simple_index(init_edge)
+simple_index_comp = list(set(init_edge.index) - set(simple_index))
+
+fig, ax= sheet_view(sheet)
+for edge, data in sheet.edge_df.loc[simple_index,:].iterrows():
+    ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
+
+fig, ax= sheet_view(sheet)
+for edge, data in sheet.edge_df.loc[simple_index_comp,:].iterrows():
+    ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
+	
+
 
 from tyssue.topology.sheet_topology import cell_division
 
@@ -596,23 +615,44 @@ print(f'There are {len(init_edge)} edges initially.')
 print(f'There are {len(nonreset_edge)} edges after division.')
 # Analyse the new 5 edges.
 
-# Compare the initial and nonresetting dataframe.
-edge_diff_with_nonreset = []
-for i in list(range(len(init_edge))):
-    # Since we only care about the source and target vertice.
-	compare = sum(nonreset_edge.loc[i,'sx':'sy'] != init_edge.loc[i,'sx':'sy'])
+# Start with plotting the edges.
+simple_index = get_simple_index(nonreset_edge)
+simple_index_comp = list(set(nonreset_edge.index) - set(simple_index))
+print(simple_index)
+print(simple_index_comp)
+
+fig, ax= sheet_view(sheet)
+for edge, data in sheet.edge_df.loc[simple_index,:].iterrows():
+    ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
+
+fig, ax= sheet_view(sheet)
+for edge, data in sheet.edge_df.loc[simple_index_comp,:].iterrows():
+    ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
 	
-	if compare != 0:
-            edge_diff_with_nonreset.append(i)
 
+#compare with the resetting.
+simple_index = get_simple_index(reset_edge)
+simple_index_comp = list(set(reset_edge.index) - set(simple_index))
+print(simple_index)
+print(simple_index_comp)
 
-# Too complicated, try view the raw dataframes.
-print(init_edge.loc[edge_diff_with_nonreset , ['sx', 'sy']])
-print('=' * 8)
-print(nonreset_edge.loc[edge_diff_with_nonreset , ['sx', 'sy']])
+fig, ax= sheet_view(sheet)
+for edge, data in sheet.edge_df.loc[simple_index,:].iterrows():
+    ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
 
-# Comapre the resettting and non-resetting dataframes.
-did_really_reset = []
+fig, ax= sheet_view(sheet)
+for edge, data in sheet.edge_df.loc[simple_index_comp,:].iterrows():
+    ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
+
+# Now compare the face dataframes.
+fig, ax = sheet_view(sheet)
+for face, data in nonreset_face.iterrows():
+    ax.text(data.x, data.y, face)
+
+# With resetting.
+fig, ax = sheet_view(sheet)
+for face, data in reset_face.iterrows():
+    ax.text(data.x, data.y, face)
 
 
 
