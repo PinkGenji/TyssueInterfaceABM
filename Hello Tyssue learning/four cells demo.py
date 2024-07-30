@@ -549,11 +549,25 @@ reset_edge = sheet.edge_df
 reset_face = sheet.face_df
 
 # First we should compare the dataframe for vertices.
+print('The following is the initial vertice dataframe. \n')
+print(init_vert)
+print('=' * 8)
+
+print('The following is the vertices dataframe without resetting. \n')
+print(nonreset_vert)
+print('=' * 8)
+
+print('The following is the vertices dataframe with resetting index. \n')
+print(reset_vert)
+print('=' * 8)
+
+print('We can see that no differences between resetting and resetting,')
+print('and the two new vertices were appended "in order",')
+print('which means that the two new vertices were added at the end of the rows.')
 
 
+# Second, we compare the edge dataframe. Since we care about 'per edge', we can try downcasting.
 
-
-# Second, we compare the edge dataframe.
 
 
 
