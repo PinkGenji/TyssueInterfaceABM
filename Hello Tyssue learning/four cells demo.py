@@ -524,10 +524,6 @@ sheet.face_df.loc[cell_chosen, 'prefered_area'] = 1.0
 # Do division
 daughter = cell_division(sheet, cell_chosen, geom)
 
-# Update the indexing, when order is True, sorts the edges such that for
-# each face, vertices are ordered clockwise.
-#sheet.reset_index(order = True)
-
 # Update geometry
 geom.update_all(sheet)
 
@@ -540,9 +536,30 @@ nonreset_vert = sheet.vert_df
 nonreset_edge = sheet.edge_df
 nonreset_face = sheet.face_df
 
+# Update the indexing, when order is True, sorts the edges such that for
+# each face, vertices are ordered clockwise.
+sheet.reset_index(order = True)
+
+#Update geometry
+geom.update_all(sheet)
+
+
 reset_vert = sheet.vert_df
 reset_edge = sheet.edge_df
 reset_face = sheet.face_df
+
+# First we should compare the dataframe for vertices.
+
+
+
+
+# Second, we compare the edge dataframe.
+
+
+
+# Third, we comparethe face dataframe.
+
+
 
 edge_diff_with_nonreset = []
 for i in list(range(len(init_edge))):
