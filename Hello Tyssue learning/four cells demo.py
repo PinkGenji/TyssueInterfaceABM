@@ -312,16 +312,6 @@ shortest_edge = sheet.edge_df.eval('sx**2+sy**2').idxmin()
 
 sheet.get_neighbors(4)
 
-""" what does 'is_alive' in face_df mean? """
-sheet.face_df['is_alive']
-
-
-
-""" what is face id in the face_df? """
-sheet.face_df.keys()
-sheet.face_df['id']
-
-
 
 
 """ add another attribute to the dictionary """
@@ -400,8 +390,124 @@ print(face_before.head())
 print('Following shows the dictionary of faces after the division. \n')
 print(face_after.head())
 
+""" Investigate add_vert  """
 
-""" do cell divisions. """
+# Generate the cell sheet as three cells.
+sheet = Sheet.planar_sheet_2d('face', nx = 3, ny=4, distx=2, disty=2)
+sheet.sanitize(trim_borders=True)
+geom.update_all(sheet)
+sheet_view(sheet, mode = '2D')
+# Add more mechanical properties, take four factors
+# line tensions; edge length elasticity; face contractility and face area elasticity
+new_specs = model_factory([effectors.LineTension, effectors.LengthElasticity, effectors.FaceContractility, effectors.FaceAreaElasticity])
+
+sheet.update_specs(new_specs.specs, reset = True)
+geom.update_all(sheet)
+
+# Draw with vertex labelling.
+fig, ax= sheet_view(sheet)
+for vert, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y+0.1, vert)
+	
+
+from tyssue.topology.base_topology import add_vert
+print("The source and target of edge number 1: \n" + str(sheet.edge_df.loc[1,['trgt','srce']]) + '\n')
+
+# Now add a vertex.
+add_vert(sheet, 1)
+# Have a look of the cell mesh.
+fig, ax= sheet_view(sheet)
+for vert, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y+0.1, vert)
+
+# We check the edge number 14 and 15 for the newly created vetex num 6.
+sheet.edge_df.loc[:,['srce','trgt']]
+
+
+""" 
+The machanism of add_vert:
+	
+	In the simple case whith two half-edge, returns
+    indices to the new edges, with the following convention:
+
+    s    e    t
+      ------>
+    * <------ *
+         oe
+
+    s    e       ne   t
+      ------   ----->
+    * <----- * ------ *
+        oe   nv   noe
+
+    where "e" is the passed edge as argument, "s" its source "t" its
+    target and "oe" its opposite. The returned edges are the ones
+    between the new vertex and the input edge's original target.
+
+"""
+
+# We can get a subset of the edge_df index corresponding to the non-oriented,
+# full edges by using get_simple_index().
+from tyssue.core.objects import get_simple_index
+simple_index = get_simple_index(sheet.edge_df)
+print(simple_index)
+
+
+
+""" Investigate get_division_edges()  """
+from tyssue.topology.sheet_topology import get_division_edges
+
+# Perform division, returns the new edge indices.
+chosen_edge = list(get_division_edges(sheet, 3, geom))
+print(f'The two chosen edges are {chosen_edge}. \n' )
+
+fig, ax= sheet_view(sheet)
+for edge, data in sheet.edge_df.loc[chosen_edge,:].iterrows():
+    ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
+
+
+# Get the simple edge indices.
+from tyssue.core.objects import get_simple_index
+simple_index = get_simple_index(sheet.edge_df)
+print(simple_index)
+
+
+fig, ax= sheet_view(sheet)
+for edge, data in sheet.edge_df.loc[simple_index,:].iterrows():
+    ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
+
+
+""" Investigate face_division """
+
+
+# Generate the cell sheet as three cells.
+sheet = Sheet.planar_sheet_2d('face', nx = 3, ny=4, distx=2, disty=2)
+sheet.sanitize(trim_borders=True)
+geom.update_all(sheet)
+# Add more mechanical properties, take four factors
+# line tensions; edge length elasticity; face contractility and face area elasticity
+new_specs = model_factory([effectors.LineTension, effectors.LengthElasticity, effectors.FaceContractility, effectors.FaceAreaElasticity])
+
+sheet.update_specs(new_specs.specs, reset = True)
+geom.update_all(sheet)
+
+fig, ax = sheet_view(sheet)
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
+
+
+# Get the command from package.
+from tyssue.topology.sheet_topology import face_division
+face_division(sheet, mother = 3, vert_a=3, vert_b=1)
+
+fig, ax = sheet_view(sheet)
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
+
+
+
+
+""" Do cell divisions. """
 
 init_vert = sheet.vert_df
 init_edge = sheet.edge_df
@@ -418,8 +524,9 @@ sheet.face_df.loc[cell_chosen, 'prefered_area'] = 1.0
 # Do division
 daughter = cell_division(sheet, cell_chosen, geom)
 
-# Update the toplogy
-sheet.reset_index(order = True)
+# Update the indexing, when order is True, sorts the edges such that for
+# each face, vertices are ordered clockwise.
+#sheet.reset_index(order = True)
 
 # Update geometry
 geom.update_all(sheet)
@@ -429,6 +536,34 @@ fig, ax = sheet_view(sheet, mode = '2D')
 for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
 
+nonreset_vert = sheet.vert_df
+nonreset_edge = sheet.edge_df
+nonreset_face = sheet.face_df
+
+reset_vert = sheet.vert_df
+reset_edge = sheet.edge_df
+reset_face = sheet.face_df
+
+edge_diff_with_nonreset = []
+for i in list(range(len(init_edge))):
+	compare = sum(nonreset_edge.loc[i,'sx':'sy'] != init_edge.loc[i,'sx':'sy'])
+	
+	if compare != 0:
+		print(str(i))
+
+	edge_diff_with_nonreset.append(compare)
+
+edge_diff_nonreset_total = sum(edge_diff_with_nonreset)
+print('There are {} differences between initial and nonresetting edge dataframe'.format(edge_diff_nonreset_total))
+
+# Show the half-edges that are at the boundary
+sheet.get_extra_indices()
+print('half eges at the boundary: ' + str(sheet.free_edges))
+# Double check with the edge dataframe.
+sheet.edge_df.loc[:,['trgt','srce']]
+
+sheet.reset_index(order = True)
+len(sheet.edge_df)
 
 
 
