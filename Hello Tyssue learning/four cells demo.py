@@ -66,6 +66,16 @@ for vert, data in sheet.vert_df.iterrows():
 #     ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
 # =============================================================================
 
+# Show the half-edges that are at the boundary
+sheet.get_extra_indices()
+print('half eges at the boundary: ' + str(sheet.free_edges))
+# Double check with the edge dataframe.
+sheet.edge_df.loc[:,['trgt','srce']]
+
+sheet.reset_index(order = True)
+len(sheet.edge_df)
+
+
 # So we need to sinactivate vert 0,2,3 and 5.
 sheet.vert_df.loc[[0,2,3,5], 'is_active'] = 0
 sheet.vert_df.loc[[0,2,3,5], 'is_active']
@@ -509,6 +519,21 @@ for face, data in sheet.face_df.iterrows():
 
 """ Do cell divisions. """
 
+# Initialisation the cell sheet.
+
+# Generate the cell sheet as three cells.
+sheet = Sheet.planar_sheet_2d('face', nx = 3, ny=4, distx=2, disty=2)
+sheet.sanitize(trim_borders=True)
+geom.update_all(sheet)
+sheet_view(sheet, mode = '2D')
+# Add more mechanical properties, take four factors
+# line tensions; edge length elasticity; face contractility and face area elasticity
+new_specs = model_factory([effectors.LineTension, effectors.LengthElasticity, effectors.FaceContractility, effectors.FaceAreaElasticity])
+
+sheet.update_specs(new_specs.specs, reset = True)
+geom.update_all(sheet)
+
+
 init_vert = sheet.vert_df
 init_edge = sheet.edge_df
 init_face = sheet.face_df
@@ -567,6 +592,9 @@ print('which means that the two new vertices were added at the end of the rows.'
 
 
 # Second, we compare the edge dataframe. 
+print(f'There are {len(init_edge)} edges initially.')
+print(f'There are {len(nonreset_edge)} edges after division.')
+# Analyse the new 5 edges.
 
 # Compare the initial and nonresetting dataframe.
 edge_diff_with_nonreset = []
@@ -583,6 +611,8 @@ print(init_edge.loc[edge_diff_with_nonreset , ['sx', 'sy']])
 print('=' * 8)
 print(nonreset_edge.loc[edge_diff_with_nonreset , ['sx', 'sy']])
 
+# Comapre the resettting and non-resetting dataframes.
+did_really_reset = []
 
 
 
