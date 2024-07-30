@@ -566,26 +566,25 @@ print('and the two new vertices were appended "in order",')
 print('which means that the two new vertices were added at the end of the rows.')
 
 
-# Second, we compare the edge dataframe. Since we care about 'per edge', we can try downcasting.
+# Second, we compare the edge dataframe. 
 
-
-
-
-# Third, we comparethe face dataframe.
-
-
-
+# Compare the initial and nonresetting dataframe.
 edge_diff_with_nonreset = []
 for i in list(range(len(init_edge))):
+    # Since we only care about the source and target vertice.
 	compare = sum(nonreset_edge.loc[i,'sx':'sy'] != init_edge.loc[i,'sx':'sy'])
 	
 	if compare != 0:
-		print(str(i))
+            edge_diff_with_nonreset.append(i)
 
-	edge_diff_with_nonreset.append(compare)
 
-edge_diff_nonreset_total = sum(edge_diff_with_nonreset)
-print('There are {} differences between initial and nonresetting edge dataframe'.format(edge_diff_nonreset_total))
+# Too complicated, try view the raw dataframes.
+print(init_edge.loc[edge_diff_with_nonreset , ['sx', 'sy']])
+print('=' * 8)
+print(nonreset_edge.loc[edge_diff_with_nonreset , ['sx', 'sy']])
+
+
+
 
 # Show the half-edges that are at the boundary
 sheet.get_extra_indices()
@@ -595,6 +594,14 @@ sheet.edge_df.loc[:,['trgt','srce']]
 
 sheet.reset_index(order = True)
 len(sheet.edge_df)
+
+
+
+# Third, we comparethe face dataframe.
+
+
+
+
 
 
 
