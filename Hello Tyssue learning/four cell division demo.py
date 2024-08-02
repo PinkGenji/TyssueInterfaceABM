@@ -98,6 +98,10 @@ def division(sheet, manager, cell_id, crit_area= initial_cells_mean_area , growt
 
 # Initialisation of manager 
 manager = EventManager('face')
+print(manager.current)
+print(manager.next)
+manager.execute(sheet)
+print(manager.current)
 
 from tyssue import History
 
@@ -123,20 +127,23 @@ sim_recorder = History(sheet)
 
 
 
-while t < stop:
+while manager.next and t < stop:
     print(f'\n Time step {t} starts now: ')
     # Execute the event in the current list.
 
-    for i in list(sheet.face_df.index):
-        print('manager.current :')
-        print(manager.current)
+    for i in list(sheet.face_df.index):	
 		
+        print(f'\n current manager index is {i}')
+        # print('manager current:')
+        # print(manager.current)
 
         manager.append(division, cell_id = i)
-        print('\n manager.next :')
-        print(manager.next)
-		
-        #manager.execute(sheet)
+        # print('\n manager next:')
+        # print(manager.next)
+        manager.execute(sheet)
+        # print('\n after execution, manager current is: ')
+        # print(manager.current)
+
         # Find energy min.
         res = solver.find_energy_min(sheet, geom, smodel)
     # Record the step.
