@@ -71,7 +71,7 @@ solver = QSSolver()
 res = solver.find_energy_min(sheet, geom, smodel)
 
 # Visualize the sheet.
-fig, ax = sheet_view(sheet,  mode = '2D')
+# fig, ax = sheet_view(sheet,  mode = '2D')
 
 # Write a behaviour function.
 def division(sheet, manager, cell_id, crit_area=0.5, growth_rate=0.05, dt=1):
@@ -97,10 +97,10 @@ def division(sheet, manager, cell_id, crit_area=0.5, growth_rate=0.05, dt=1):
         # Do division
         daughter = cell_division(sheet, cell_id, geom)
         # Update the topology
-        sheet.reset_index(order=True)
+        #sheet.reset_index(order=True)
         # update geometry
         geom.update_all(sheet)
-        print(f"cell # {daughter} is born")
+        print(f"cell # {daughter} is born from {cell_id}")
     else:
         # 
         sheet.face_df.loc[cell_id, "prefered_area"] *= (1 + dt * growth_rate)
@@ -116,7 +116,7 @@ manager = EventManager('face')
 from tyssue import History
 
 t= 0
-stop = 2
+stop = 3
 
 # initialise the History object.
 sim_recorder = History(sheet)
@@ -124,7 +124,6 @@ sim_recorder = History(sheet)
 while manager.current and t < stop:
 	# Execute the event in the current list.
     for i in sheet.face_df.index:
-        print(f'we are at time step {t}, cell {i} is being checked.')
         manager.append(division, cell_id = i)
         manager.execute(sheet)
         # Find energy min.
