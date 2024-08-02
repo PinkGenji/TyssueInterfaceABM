@@ -74,7 +74,7 @@ res = solver.find_energy_min(sheet, geom, smodel)
 # fig, ax = sheet_view(sheet,  mode = '2D')
 
 # Write a behaviour function.
-def division(sheet, manager, cell_id, crit_area=0.5, growth_rate=0.05, dt=1):
+def division(sheet, manager, cell_id, crit_area=np.mean(sheet.face_df['area']), growth_rate=0.05, dt=1):
     """Defines a division behavior.
     
     Parameters
@@ -90,7 +90,7 @@ def division(sheet, manager, cell_id, crit_area=0.5, growth_rate=0.05, dt=1):
         A_0(t + dt) = A0(t) * (1 + growth_rate * dt)
     """
 
-    
+    print(f'currently checking cell number: {cell_id}')
     if sheet.face_df.loc[cell_id, "area"] > crit_area:
         # restore prefered_area
         sheet.face_df.loc[cell_id, "prefered_area"] = 1.0
@@ -103,8 +103,9 @@ def division(sheet, manager, cell_id, crit_area=0.5, growth_rate=0.05, dt=1):
         print(f"cell # {daughter} is born from {cell_id}")
     else:
         # 
-        sheet.face_df.loc[cell_id, "prefered_area"] *= (1 + dt * growth_rate)
-        manager.append(division, cell_id=cell_id)
+        sheet.face_df.loc[cell_id, "area"] *= (sheet.face_df.loc[cell_id, "area"] + dt * growth_rate)
+        geom.update_all(sheet)
+        #manager.append(division, cell_id=cell_id)
 
 
 # Initialise the manager, by default a wait function is set as current event.
@@ -116,14 +117,15 @@ manager = EventManager('face')
 from tyssue import History
 
 t= 0
-stop = 3
+stop = 2
 
 # initialise the History object.
 sim_recorder = History(sheet)
 
 while manager.current and t < stop:
-	# Execute the event in the current list.
-    for i in sheet.face_df.index:
+    print(f'\n Time step {t} starts now: ')
+    # Execute the event in the current list.
+    for i in list(sheet.face_df.index):
         manager.append(division, cell_id = i)
         manager.execute(sheet)
         # Find energy min.
@@ -132,8 +134,10 @@ while manager.current and t < stop:
         sim_recorder.record()
 	# Switch event list from the next list to the current list.
         manager.update()
-
+    print(f'\n Finished time step {t} simulation.')
+    
     t += 1
+    
 
 # Visualisation of the tissue
 fig, ax = sheet_view(sheet, mode="2D")
@@ -148,7 +152,7 @@ from tyssue.draw import (
 )
 
 # Createa gif image, set margin = -1 to let the draw function decide.
-create_gif(sim_recorder, "growth.gif", num_frames=30, margin=-1)
+create_gif(sim_recorder, "growth.gif", num_frames=100, margin=-1)
 display.Image("growth.gif")
 
 
