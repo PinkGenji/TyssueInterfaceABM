@@ -1,16 +1,6 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Aug  2 14:45:16 2024
-
-@author: bruceyu
-"""
-
-# -*- coding: utf-8 -*-
-"""
-This script is to run a more automated simulation of cell division.
-This simulation aims to provide better understanding on the data frame changes
-during the process.
+This script runs a simulation of cell divisions with 4 cells initially.
 """
 
 # =============================================================================
@@ -72,25 +62,22 @@ res = solver.find_energy_min(sheet, geom, smodel)
 
 # Visualize the sheet.
 # fig, ax = sheet_view(sheet,  mode = '2D')
-
+initial_cells_mean_area = np.mean(sheet.face_df['area'])
 # Write a behaviour function.
-def division(sheet, manager, cell_id, crit_area=np.mean(sheet.face_df['area']), growth_rate=0.05, dt=1):
+def division(sheet, manager, cell_id, crit_area= initial_cells_mean_area , growth_rate=0.05, dt=1):
     """Defines a division behavior.
     
     Parameters
-    ----------
-    
+    ----------    
     sheet: a :class:`Sheet` object
-    cell_id: int
-        the index of the dividing cell
-    crit_area: float
-        the area at which 
-    growth_rate: float
-        increase in the prefered are per unit time
+    cell_id: int; the index of the dividing cell
+    crit_area: float; the area at which 
+    growth_rate: float; increase in the prefered are per unit time
         A_0(t + dt) = A0(t) * (1 + growth_rate * dt)
     """
 
     print(f'currently checking cell number: {cell_id}')
+	
     if sheet.face_df.loc[cell_id, "area"] > crit_area:
         # restore prefered_area
         sheet.face_df.loc[cell_id, "prefered_area"] = 1.0
@@ -104,9 +91,7 @@ def division(sheet, manager, cell_id, crit_area=np.mean(sheet.face_df['area']), 
     else:
         # 
         sheet.face_df.loc[cell_id, "area"] *= (sheet.face_df.loc[cell_id, "area"] + dt * growth_rate)
-        geom.update_all(sheet)
-        #manager.append(division, cell_id=cell_id)
-
+        geom.update_all(sheet)    
 
 # Initialise the manager, by default a wait function is set as current event.
 # Any new event added to the manager are added to the 'next' list.
@@ -117,31 +102,54 @@ manager = EventManager('face')
 from tyssue import History
 
 t= 0
-stop = 2
+stop = 1
 
 # initialise the History object.
 sim_recorder = History(sheet)
 
-while manager.current and t < stop:
+# =============================================================================
+# print('manager.current :')
+# print(manager.current)
+# 
+# print('\n manager.next :')
+# print(manager.next)
+# 
+# for i in list(sheet.face_df.index):
+#     print(f'\n cell id {i} to be appended: ')
+#     manager.append(division, cell_id = i)
+#     print(f'\n cell id {i} has been appended.')
+# =============================================================================
+
+
+
+
+while t < stop:
     print(f'\n Time step {t} starts now: ')
     # Execute the event in the current list.
+
     for i in list(sheet.face_df.index):
+        print('manager.current :')
+        print(manager.current)
+		
+
         manager.append(division, cell_id = i)
-        manager.execute(sheet)
+        print('\n manager.next :')
+        print(manager.next)
+		
+        #manager.execute(sheet)
         # Find energy min.
         res = solver.find_energy_min(sheet, geom, smodel)
     # Record the step.
         sim_recorder.record()
 	# Switch event list from the next list to the current list.
         manager.update()
-    print(f'\n Finished time step {t} simulation.')
-    
-    t += 1
+    print(f'\n Finished time step {t} simulation.')    
+    t += 1    # move into the next time step.
     
 
 # Visualisation of the tissue
 fig, ax = sheet_view(sheet, mode="2D")
-fig.set_size_inches(8, 8)
+
 
 from IPython import display
 from tyssue.draw import (
