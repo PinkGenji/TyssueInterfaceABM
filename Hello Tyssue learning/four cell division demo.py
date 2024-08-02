@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Aug  2 14:45:16 2024
+
+@author: bruceyu
+"""
+
 # -*- coding: utf-8 -*-
 """
 This script is to run a more automated simulation of cell division.
@@ -48,7 +56,7 @@ from tyssue.draw import sheet_view, highlight_cells
 
 """ start the project """
 # Generate the cell sheet as three cells.
-sheet = Sheet.planar_sheet_2d('face', nx = 9, ny=8, distx=2, disty=2)
+sheet = Sheet.planar_sheet_2d('face', nx = 3, ny=4, distx=2, disty=2)
 sheet.sanitize(trim_borders=True)
 geom.update_all(sheet)
 
@@ -108,7 +116,7 @@ manager = EventManager('face')
 from tyssue import History
 
 t= 0
-stop = 1
+stop = 2
 
 # initialise the History object.
 sim_recorder = History(sheet)
