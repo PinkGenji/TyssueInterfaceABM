@@ -98,10 +98,17 @@ def division(sheet, manager, cell_id, crit_area= initial_cells_mean_area , growt
 
 # Initialisation of manager 
 manager = EventManager('face')
-print(manager.current)
-print(manager.next)
-manager.execute(sheet)
-print(manager.current)
+
+
+# =============================================================================
+# print('manger current is: \n')
+# print(manager.current)
+# print()
+# 
+# print('manger next is: \n')
+# print(manager.next)
+# print()
+# =============================================================================
 
 from tyssue import History
 
@@ -127,29 +134,41 @@ sim_recorder = History(sheet)
 
 
 
-while manager.next and t < stop:
-    print(f'\n Time step {t} starts now: ')
+while t < stop:
+    print(f'\n Searching at time step {t} starts now. \n')
     # Execute the event in the current list.
 
     for i in list(sheet.face_df.index):	
 		
         print(f'\n current manager index is {i}')
-        # print('manager current:')
-        # print(manager.current)
+        print('manager current: \n')
+        print(manager.current)
+        print()
 
         manager.append(division, cell_id = i)
-        # print('\n manager next:')
-        # print(manager.next)
-        manager.execute(sheet)
-        # print('\n after execution, manager current is: ')
-        # print(manager.current)
+        print('manager next: \n')
+        print(manager.next)
+        print()
 
-        # Find energy min.
-        res = solver.find_energy_min(sheet, geom, smodel)
+    print(f'\n Searching at time step {t} is finished. \n')
+    
+    print('updating manager.current with manager.next')
+    manager.update()
+    print('\n after update, manager current is: \n')
+    print(manager.current)
+
+    print( f'executing the events are time {t}... \n')
+    manager.execute(sheet)
+
+    # Find energy min.
+    print('calculating enery min... \n')
+    res = solver.find_energy_min(sheet, geom, smodel)
+    print(f'energy min state at time step {t} is found.')
+    
     # Record the step.
-        sim_recorder.record()
-	# Switch event list from the next list to the current list.
-        manager.update()
+    sim_recorder.record()
+
+    manager.execute(sheet)
     print(f'\n Finished time step {t} simulation.')    
     t += 1    # move into the next time step.
     
@@ -158,17 +177,19 @@ while manager.next and t < stop:
 fig, ax = sheet_view(sheet, mode="2D")
 
 
-from IPython import display
-from tyssue.draw import (
-    sheet_view,
-    highlight_faces,
-    create_gif,
-    browse_history
-)
-
-# Createa gif image, set margin = -1 to let the draw function decide.
-create_gif(sim_recorder, "growth.gif", num_frames=100, margin=-1)
-display.Image("growth.gif")
+# =============================================================================
+# from IPython import display
+# from tyssue.draw import (
+#     sheet_view,
+#     highlight_faces,
+#     create_gif,
+#     browse_history
+# )
+# 
+# # Createa gif image, set margin = -1 to let the draw function decide.
+# create_gif(sim_recorder, "growth.gif", num_frames=100, margin=-1)
+# display.Image("growth.gif")
+# =============================================================================
 
 
 
