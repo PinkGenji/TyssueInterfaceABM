@@ -100,16 +100,6 @@ def division(sheet, manager, cell_id, crit_area= initial_cells_mean_area , growt
 manager = EventManager('face')
 
 
-# =============================================================================
-# print('manger current is: \n')
-# print(manager.current)
-# print()
-# 
-# print('manger next is: \n')
-# print(manager.next)
-# print()
-# =============================================================================
-
 from tyssue import History
 
 t= 0
@@ -117,19 +107,6 @@ stop = 1
 
 # initialise the History object.
 sim_recorder = History(sheet)
-
-# =============================================================================
-# print('manager.current :')
-# print(manager.current)
-# 
-# print('\n manager.next :')
-# print(manager.next)
-# 
-# for i in list(sheet.face_df.index):
-#     print(f'\n cell id {i} to be appended: ')
-#     manager.append(division, cell_id = i)
-#     print(f'\n cell id {i} has been appended.')
-# =============================================================================
 
 
 
@@ -140,7 +117,7 @@ while t < stop:
 
     for i in list(sheet.face_df.index):	
 		
-        print(f'\n current manager index is {i}')
+        print(f'current manager index is {i}')
         print('manager current: \n')
         print(manager.current)
         print()
@@ -154,10 +131,10 @@ while t < stop:
     
     print('updating manager.current with manager.next')
     manager.update()
-    print('\n after update, manager current is: \n')
+    print('\n After update, manager current is: \n')
     print(manager.current)
 
-    print( f'executing the events are time {t}... \n')
+    print( f'\n Executing the events are time {t}... \n')
     manager.execute(sheet)
 
     # Find energy min.
@@ -171,25 +148,93 @@ while t < stop:
     manager.execute(sheet)
     print(f'\n Finished time step {t} simulation.')    
     t += 1    # move into the next time step.
-    
+
 
 # Visualisation of the tissue
 fig, ax = sheet_view(sheet, mode="2D")
 
+# See the face area change.
+print(sim_recorder.face_h)
 
-# =============================================================================
-# from IPython import display
-# from tyssue.draw import (
-#     sheet_view,
-#     highlight_faces,
-#     create_gif,
-#     browse_history
-# )
-# 
-# # Createa gif image, set margin = -1 to let the draw function decide.
-# create_gif(sim_recorder, "growth.gif", num_frames=100, margin=-1)
-# display.Image("growth.gif")
-# =============================================================================
+# Plot a diagram of the area change.
+fig, ax = plt.subplots()
+ax.scatter(sim_recorder.face_h['time'], sim_recorder.face_h['area'])
+sim_recorder.face_h.groupby('time').area.sum().plot(ax=ax)
+
+
+
+""" Reset the cell sheet, and generate a .gif animation. """
+
+# Generate the cell sheet as three cells.
+sheet = Sheet.planar_sheet_2d('face', nx = 3, ny=4, distx=2, disty=2)
+sheet.sanitize(trim_borders=True)
+geom.update_all(sheet)
+
+
+# add mechanical properties.
+nondim_specs = nondim_specs = config.dynamics.quasistatic_plane_spec()
+sheet.update_specs(nondim_specs, reset = True)
+geom.update_all(sheet)
+
+# Minimize the potential engery
+solver = QSSolver()
+res = solver.find_energy_min(sheet, geom, smodel)
+
+# Do 10 steps.
+t= 0
+stop = 10
+
+# initialise the History object.
+sim_recorder = History(sheet)
+
+while t < stop:
+    # we append the event to all cells at current time step into 'next deque'.
+    for i in list(sheet.face_df.index):	
+        manager.append(division, cell_id = i)
+    
+    # Then we replace the current deque by next deque.
+    manager.update()
+    # Then we perform execution on the cell sheet.
+    manager.execute(sheet)
+
+    # Lastly we relax the cell sheet.
+    res = solver.find_energy_min(sheet, geom, smodel)
+    
+    # Record the sheet datasets at current time step.
+    sim_recorder.record()
+
+    # Update the time step.   
+    t += 1    
+
+
+
+
+
+from IPython import display
+from tyssue.draw import (
+    sheet_view,
+    highlight_faces,
+    create_gif,
+    browse_history
+)
+
+
+# Specify drawing settings.
+draw_specs = {
+    "edge": {
+        "color": lambda sheet: sheet.edge_df.length
+    },
+    "face": {
+        "visible": True,
+        "color": lambda sheet: sheet.face_df.area,
+        "color_range": (0, 2)
+    }
+}
+
+# Createa gif image, set margin = -1 to let the draw function decide.
+create_gif(sim_recorder, "four cell division demo.gif", num_frames=100, margin=-1, **draw_specs)
+
+
 
 
 
