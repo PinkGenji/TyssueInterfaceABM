@@ -153,6 +153,12 @@ while t < stop:
 # Visualisation of the tissue
 fig, ax = sheet_view(sheet, mode="2D")
 
+# See the vertex df change.
+print(sim_recorder.vert_h)
+
+# See the edge df change.
+print(sim_recorder.edge_h)
+
 # See the face area change.
 print(sim_recorder.face_h)
 
