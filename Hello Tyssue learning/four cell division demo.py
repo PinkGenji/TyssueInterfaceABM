@@ -56,6 +56,15 @@ nondim_specs = nondim_specs = config.dynamics.quasistatic_plane_spec()
 sheet.update_specs(nondim_specs, reset = True)
 geom.update_all(sheet)
 
+""" Add another two attributes, "tracker_id" and "division_counter". """
+# add tracker_id first, initialize it by copying the original face index.
+
+
+
+# add division_counter now, initialize it by setting value=0 for all.
+
+
+
 # Minimize the potential engery
 solver = QSSolver()
 res = solver.find_energy_min(sheet, geom, smodel)
