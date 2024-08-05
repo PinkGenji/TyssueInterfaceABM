@@ -180,9 +180,11 @@ geom.update_all(sheet)
 solver = QSSolver()
 res = solver.find_energy_min(sheet, geom, smodel)
 
-# Do 10 steps.
+
+manager = EventManager('face')
+# Do 4 steps.
 t= 0
-stop = 10
+stop = 4
 
 # initialise the History object.
 sim_recorder = History(sheet)
