@@ -69,11 +69,15 @@ geom.update_all(sheet)
 solver = QSSolver()
 res = solver.find_energy_min(sheet, geom, smodel)
 
+fig, ax = sheet_view(sheet)
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
+
 # Visualize the sheet.
 # fig, ax = sheet_view(sheet,  mode = '2D')
 initial_cells_mean_area = np.mean(sheet.face_df['area'])
 # Write a behaviour function.
-def division(sheet, manager, cell_id, crit_area= initial_cells_mean_area , growth_rate=0.05, dt=1):
+def division(sheet, manager, cell_id, crit_area= np.mean(sheet.face_df['area']) , growth_rate=0.05, dt=1):
     """Defines a division behavior.
     
     Parameters
@@ -166,10 +170,14 @@ fig, ax = sheet_view(sheet, mode="2D")
 print(sim_recorder.vert_h)
 
 # See the edge df change.
-print(sim_recorder.edge_h)
+print(sim_recorder.edge_h.loc[:,['edge','sx','sy', 'time']] )
 
 # See the face area change.
-print(sim_recorder.face_h)
+print(sim_recorder.face_h.loc[:,['face','area','time']] )
+
+fig, ax = sheet_view(sheet)
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
 
 # Plot a diagram of the area change.
 fig, ax = plt.subplots()
@@ -235,21 +243,8 @@ from tyssue.draw import (
     browse_history
 )
 
-
-# Specify drawing settings.
-draw_specs = {
-    "edge": {
-        "color": lambda sheet: sheet.edge_df.length
-    },
-    "face": {
-        "visible": True,
-        "color": lambda sheet: sheet.face_df.area,
-        "color_range": (0, 2)
-    }
-}
-
 # Createa gif image, set margin = -1 to let the draw function decide.
-create_gif(sim_recorder, "four cell division demo.gif", num_frames=100, margin=-1, **draw_specs)
+create_gif(sim_recorder, "four cell division demo.gif", num_frames=100, margin=-1)
 
 
 
