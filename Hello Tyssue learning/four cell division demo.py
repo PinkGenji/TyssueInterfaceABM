@@ -244,7 +244,7 @@ from tyssue.draw import (
 )
 
 # Createa gif image, set margin = -1 to let the draw function decide.
-create_gif(sim_recorder, "four cell division demo.gif", num_frames=100, margin=-1)
+create_gif(sim_recorder, "four cell division demo.gif", num_frames=30, margin=-1)
 
 
 
