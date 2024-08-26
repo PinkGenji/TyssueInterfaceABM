@@ -71,8 +71,20 @@ print(sheet.edge_df)
 
 sheet.get_opposite()    # store the corresponding half-edge into edge dataframe.
 sheet.get_extra_indices()
+sheet.free_edges
+sheet.east_edges
+sheet.west_edges
 
 
+
+# labelling the east edges
+fig, ax= sheet_view(sheet)
+for edge, data in sheet.edge_df.iterrows():
+    # We only want the indexes that are in the east_edge list.
+    if edge in sheet.east_edges:
+        ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
+    else:
+        continue
 
 
 
