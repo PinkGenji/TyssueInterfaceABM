@@ -35,7 +35,7 @@ from tyssue.dynamics.planar_vertex_model import PlanarModel as smodel
 from tyssue.solvers.quasistatic import QSSolver
 from tyssue.generation import extrude
 from tyssue.dynamics import model_factory, effectors
-from tyssue.topology.sheet_topology import remove_face, cell_division
+from tyssue.topology.sheet_topology import remove_face, cell_division, get_division_edges
 
 # Event manager
 from tyssue.behaviors import EventManager
@@ -54,15 +54,23 @@ sheet.update_specs(nondim_specs, reset = True)
 solver = QSSolver()
 res = solver.find_energy_min(sheet, geom, smodel)
 geom.update_all(sheet)
-
+sheet.get_opposite() 
+print(sheet.edge_df)
 sheet_view(sheet)
 
-daughter = cell_division(sheet, mother = 2, geom=geom, angle = 0)
+daughter = cell_division(sheet, mother = 2, geom=geom, angle = np.pi/2)
+daughter = cell_division(sheet, mother = 1, geom=geom, angle = np.pi/2)
 geom.update_all(sheet)
-
+print(sheet.edge_df)
 sheet_view(sheet)
 
+help(sheet.get_opposite)
 
+print(sheet.edge_df)
+
+
+sheet.get_opposite()    # store the corresponding half-edge into edge dataframe.
+sheet.get_extra_indices()
 
 
 
