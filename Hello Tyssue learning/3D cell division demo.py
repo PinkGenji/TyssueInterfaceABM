@@ -59,8 +59,7 @@ monolayer.update_specs(specs, reset=True)
 solver = QSSolver()
 res = solver.find_energy_min(monolayer, monolayer_geom, ClosedMonolayerModel)
 mother = 8
-daughter = cell_division(monolayer, mother, 
-                         orientation='vertical')
+daughter = cell_division(monolayer, mother, orientation='vertical')
 
 monolayer.validate()
 draw_specs = config.draw.sheet_spec()
@@ -76,8 +75,7 @@ fig, mesh = sheet_view(monolayer, mode="3D",
 fig
 
 mother = 18
-daughter = cell_division(monolayer, mother, 
-                         orientation='horizontal')
+daughter = cell_division(monolayer, mother, orientation='horizontal')
 monolayer.validate()
 
 rho = np.linalg.norm(monolayer.vert_df[monolayer.coords], axis=1)
@@ -85,8 +83,7 @@ draw_specs['edge']['color'] = rho
 draw_specs['face']['visible'] = True
 ipv.clear()
 highlight_cells(monolayer, mother)
-fig, mesh = sheet_view(monolayer, mode="3D",
-                    coords=['z', 'x', 'y'], **draw_specs)
+fig, mesh = sheet_view(monolayer, mode="3D", coords=['z', 'x', 'y'], **draw_specs)
 fig
 
 
