@@ -48,43 +48,60 @@ from tyssue.draw import sheet_view, highlight_cells
 sheet = Sheet.planar_sheet_2d('face', nx = 3, ny=4, distx=2, disty=2)
 sheet.sanitize(trim_borders=True)
 geom.update_all(sheet)
-# add mechanical properties.
-nondim_specs = nondim_specs = config.dynamics.quasistatic_plane_spec()
-sheet.update_specs(nondim_specs, reset = True)
-solver = QSSolver()
-res = solver.find_energy_min(sheet, geom, smodel)
-geom.update_all(sheet)
-sheet.get_opposite() 
-print(sheet.edge_df)
-sheet_view(sheet)
+sheet.get_extra_indices()
+
+fig, ax= sheet_view(sheet)
+for vert, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y+0.1, vert)
 
 daughter = cell_division(sheet, mother = 2, geom=geom, angle = np.pi/2)
-daughter = cell_division(sheet, mother = 1, geom=geom, angle = np.pi/2)
+daughter = cell_division(sheet, mother = 1, geom=geom, angle = np.pi)
+
 geom.update_all(sheet)
-print(sheet.edge_df)
-sheet_view(sheet)
 
-help(sheet.get_opposite)
-
-print(sheet.edge_df)
-
-
-sheet.get_opposite()    # store the corresponding half-edge into edge dataframe.
-sheet.get_extra_indices()
-sheet.free_edges
-sheet.east_edges
-sheet.west_edges
-
-
-
-# labelling the east edges
 fig, ax= sheet_view(sheet)
 for edge, data in sheet.edge_df.iterrows():
     # We only want the indexes that are in the east_edge list.
     if edge in sheet.east_edges:
         ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
+    elif edge in sheet.free_edges:
+        ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
     else:
         continue
+    
+fig, ax= sheet_view(sheet)
+for edge, data in sheet.edge_df.iterrows():
+    # We only want the indexes that are in the west_edge list.
+    if edge in sheet.west_edges:
+        ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
+    else:
+        continue
+
+fig, ax = sheet_view(sheet)
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
+
+''' For each face, we find the basal/free edges '''
+# First we need to find all the edges associated with face x, for example x=1
+
+def edges_within_a_face(sheet_obj, face_id):
+    return sheet_obj.edge_df[(sheet_obj.edge_df['face'] == face_id)]
+
+print(edges_within_a_face(sheet, 1))
+face_1_edges = edges_within_a_face(sheet, 1)
+
+def basal_edge_filter(given_edge_set, basal_edge_set):
+    return [x for x in given_edge_set.index if x in basal_edge_set]
+
+print(basal_edge_filter(face_1_edges, sheet.free_edges))
+
+#now we obtain a list that contains the basal edges for face 1
+face_1_basal_edges = basal_edge_filter(face_1_edges, sheet.free_edges)
+
+
+
+
+
 
 
 
