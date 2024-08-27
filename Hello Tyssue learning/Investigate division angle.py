@@ -100,7 +100,16 @@ print(basal_edge_filter(face_1_edges, sheet.free_edges))
 #now we obtain a list that contains the basal edges for face 1
 face_1_basal_edges = basal_edge_filter(face_1_edges, sheet.free_edges)
 
-''' now find the opposite edge of the basal edge within the face '''
+''' now investigate how angle is defined in 2D. '''
+
+# First we explore how normals are defined.
+
+rcoords = ["r" + c for c in sheet.coords]
+dcoords = ["d" + c for c in sheet.coords]
+
+normals = np.cross(sheet.edge_df[rcoords], sheet.edge_df[dcoords])
+print(normals)
+
 
 print(face_1_edges)
 
@@ -113,9 +122,50 @@ face_1_edges.loc[:,['fx','fy','rx','ry']]
 
 geom.get_phis(sheet)
 
-daughter = cell_division(sheet, 1, geom)
+sheet.vert_df[sheet.coords]
+sheet.face_df.loc[face, ["x", "y"]]
 
-geom.update_all(sheet)
+sheet.vert_df
+geom.face_projected_pos(sheet, 1, 0)
+
+
+def face_projected_pos(sheet, face, psi):
+        """
+        returns the sheet vertices position translated to center the face
+        `face` at (0, 0) and rotated in the (x, y) plane
+        by and angle `psi` radians
+
+        """
+        rot_pos = sheet.vert_df[sheet.coords].copy()
+        face_x, face_y = sheet.face_df.loc[face, ["x", "y"]]
+        rot_pos.x = (sheet.vert_df.x - face_x) * np.cos(psi) - (sheet.vert_df.y - face_y) * np.sin(psi)
+        rot_pos.y = (sheet.vert_df.x - face_x) * np.sin(psi) + (sheet.vert_df.y - face_y) * np.cos(psi)
+
+        return rot_pos
+
+rot_pos = geom.face_projected_pos(sheet, 1, np.pi/4)
+rot_pos
+m_data = sheet.edge_df[sheet.edge_df["face"] == 1]
+m_data
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 """
