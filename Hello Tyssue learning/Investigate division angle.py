@@ -54,17 +54,11 @@ fig, ax= sheet_view(sheet)
 for vert, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y+0.1, vert)
 
-daughter = cell_division(sheet, mother = 2, geom=geom, angle = np.pi/2)
-daughter = cell_division(sheet, mother = 1, geom=geom, angle = np.pi)
-
-geom.update_all(sheet)
 
 fig, ax= sheet_view(sheet)
 for edge, data in sheet.edge_df.iterrows():
     # We only want the indexes that are in the east_edge list.
     if edge in sheet.east_edges:
-        ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
-    elif edge in sheet.free_edges:
         ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
     else:
         continue
@@ -77,11 +71,19 @@ for edge, data in sheet.edge_df.iterrows():
     else:
         continue
 
+fig, ax= sheet_view(sheet)
+for edge, data in sheet.edge_df.iterrows():
+    # We only want the indexes that are in the west_edge list.
+    if edge in sheet.free_edges:
+        ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
+    else:
+        continue
+
 fig, ax = sheet_view(sheet)
 for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
 
-''' For each face, we find the basal/free edges '''
+''' For a single face, we find the basal/free edges '''
 # First we need to find all the edges associated with face x, for example x=1
 
 def edges_within_a_face(sheet_obj, face_id):
@@ -98,13 +100,22 @@ print(basal_edge_filter(face_1_edges, sheet.free_edges))
 #now we obtain a list that contains the basal edges for face 1
 face_1_basal_edges = basal_edge_filter(face_1_edges, sheet.free_edges)
 
+''' now find the opposite edge of the basal edge within the face '''
+
+print(face_1_edges)
+
+sheet.srtd_edges
+sheet.free_edges
 
 
+geom.face_projected_pos(sheet, 1, np.pi)
+face_1_edges.loc[:,['fx','fy','rx','ry']]
 
+geom.get_phis(sheet)
 
+daughter = cell_division(sheet, 1, geom)
 
-
-
+geom.update_all(sheet)
 
 
 """
