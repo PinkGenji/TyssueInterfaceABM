@@ -29,9 +29,7 @@ from tyssue.geometry.bulk_geometry import ClosedMonolayerGeometry as monolayer_g
 from tyssue.dynamics.bulk_model import ClosedMonolayerModel
 from tyssue.draw import highlight_cells
 
-datasets = load_datasets('data/small_ellipsoid.hf5',
-                         data_names=['vert', 'edge',
-                                     'face', 'cell'])
+datasets = load_datasets('small_ellipsoid.hf5',data_names=['vert', 'edge','face', 'cell'])
 
 specs = config.geometry.bulk_spec()
 monolayer = Monolayer('ell', datasets, specs)
