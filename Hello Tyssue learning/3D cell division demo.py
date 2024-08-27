@@ -70,8 +70,7 @@ draw_specs['face']['visible'] = True
 
 ipv.clear()
 highlight_cells(monolayer, mother, reset_visible=True)
-fig, mesh = sheet_view(monolayer, mode="3D",
-                    coords=['z', 'x', 'y'], **draw_specs)
+fig, mesh = sheet_view(monolayer, mode="3D", coords=['z', 'x', 'y'], **draw_specs)
 fig
 
 mother = 18
