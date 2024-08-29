@@ -109,6 +109,11 @@ from tyssue.topology.base_topology import add_vert
 basal_edge_index = face_1_basal_edges[0]
 add_vert(sheet, basal_edge_index)
 geom.update_all(sheet)
+
+# Update the list of edges and basal edges after generating a new vertex.
+face_1_edges = edges_within_a_face(sheet, 1)
+face_1_basal_edges = basal_edge_filter(face_1_edges, sheet.free_edges)
+
 # Plot the diagram with vertex labelling
 fig, ax= sheet_view(sheet)
 for vert, data in sheet.vert_df.iterrows():
@@ -117,8 +122,8 @@ for vert, data in sheet.vert_df.iterrows():
 # We only care about newedge starts from vert 6, since it's a basal edge.
 new_edge = sheet.edge_df[(sheet.edge_df['srce'] == 6)]
 new_edge_index = new_edge.index[0]
+print(f'The index for the newly generated basal edge is: {new_edge_index}')
 sheet.edge_df.loc[new_edge_index,]
-
 
 
 
