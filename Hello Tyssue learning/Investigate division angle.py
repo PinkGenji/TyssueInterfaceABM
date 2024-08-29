@@ -114,11 +114,10 @@ fig, ax= sheet_view(sheet)
 for vert, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y+0.1, vert)
 
-# Print the edges starts from vert 6 OR finishes at vert 6
-sheet.edge_df[(sheet.edge_df['srce'] == 6) | (sheet.edge_df['trgt']==6)]
-
-#  We only care about newedge starts from vert 6, since it's a basal edge.
-sheet.edge_df.loc[14,]
+# We only care about newedge starts from vert 6, since it's a basal edge.
+new_edge = sheet.edge_df[(sheet.edge_df['srce'] == 6)]
+new_edge_index = new_edge.index[0]
+sheet.edge_df.loc[new_edge_index,]
 
 
 
