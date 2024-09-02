@@ -119,19 +119,50 @@ fig, ax= sheet_view(sheet)
 for vert, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y+0.1, vert)
 
+# Update the dataset after adding the vertex.
+face_1_edges = edges_within_a_face(sheet, 1)
+face_1_basal_edges = basal_edge_filter(face_1_edges, sheet.free_edges)
+
 # We only care about newedge starts from vert 6, since it's a basal edge.
 new_edge = sheet.edge_df[(sheet.edge_df['srce'] == 6)]
+print(new_edge)
+# Get the central coordinate of the new vertex.
 new_edge_index = new_edge.index[0]
+<<<<<<< Updated upstream
 print(f'The index for the newly generated basal edge is: {new_edge_index}')
 sheet.edge_df.loc[new_edge_index,]
 
+=======
+new_edge_cc = sheet.edge_df.loc[new_edge_index,['rx','ry']]
+print(new_edge_cc)
+>>>>>>> Stashed changes
 
+# Function that calculates the magnitude of a vector.
+def calc_mag(a):
+    return (a[0]**2 + a[1]**2)**0.5
 
+print(calc_mag(new_edge_cc))
 
+# show all columns.
+# =============================================================================
+# pd.set_option('display.max_columns', None)
+# pd.set_option('display.max_rows', None)
+# =============================================================================
 
+scalar_proj_list = []
+index_be_looped= list(face_1_edges.index)
+index_be_looped.remove(new_edge_index)
+print(index_be_looped)
 
+for i in index_be_looped :
+    print(f'check with edge index: {i}')
+    dot_prod = np.dot(new_edge_cc, sheet.edge_df.loc[i,['rx','ry']])
+    scalar_proj = dot_prod/(calc_mag(new_edge_cc) * calc_mag(sheet.edge_df.loc[i,['rx','ry']]) )
+    scalar_proj_list.append((i, scalar_proj))
 
+print(scalar_proj_list)     # Now we get the list of scalar projections
 
+scalar_proj_list[0][1]
 
 
 
