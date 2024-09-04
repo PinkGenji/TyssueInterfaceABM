@@ -128,14 +128,12 @@ new_edge = sheet.edge_df[(sheet.edge_df['srce'] == 6)]
 print(new_edge)
 # Get the central coordinate of the new vertex.
 new_edge_index = new_edge.index[0]
-<<<<<<< Updated upstream
+
 print(f'The index for the newly generated basal edge is: {new_edge_index}')
 sheet.edge_df.loc[new_edge_index,]
 
-=======
 new_edge_cc = sheet.edge_df.loc[new_edge_index,['rx','ry']]
 print(new_edge_cc)
->>>>>>> Stashed changes
 
 # Function that calculates the magnitude of a vector.
 def calc_mag(a):
@@ -158,14 +156,20 @@ for i in index_be_looped :
     print(f'check with edge index: {i}')
     dot_prod = np.dot(new_edge_cc, sheet.edge_df.loc[i,['rx','ry']])
     scalar_proj = dot_prod/(calc_mag(new_edge_cc) * calc_mag(sheet.edge_df.loc[i,['rx','ry']]) )
-    scalar_proj_list.append((i, scalar_proj))
-
-print(scalar_proj_list)     # Now we get the list of scalar projections
-
-scalar_proj_list[0][1]
-
-
-
+    scalar_proj_list.append(scalar_proj)
+    smallest_scalarp = min(scalar_proj_list)
+# =============================================================================
+#     if smallest_scalarp < -0.86:
+#         print(f'The vertex index for opposite is: {scalar_proj_list.index(smallest_scalarp)}')
+# =============================================================================
+# =============================================================================
+#     else:
+#         # we add a vertex in the middle of the two smallest vertex (in their edge)
+#         second_list = scalar_proj_list.remove(smallest_scalarp)
+#         smallest_2_scalarp = min(second_list)
+#         print(f'Two indices are: {scalar_proj_list.index(smallest_scalarp)} and {scalar_proj_list.index(smallest_2_scalarp)}')
+# 
+# =============================================================================
 
 
 
