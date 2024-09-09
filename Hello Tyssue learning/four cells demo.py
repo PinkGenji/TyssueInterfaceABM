@@ -58,7 +58,7 @@ for face, data in sheet.face_df.iterrows():
     
 delete_face(sheet, 2)
 delete_face(sheet, 3)
-sheet.reset_index()
+sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
 
 # Plot figures to check.
 # Draw the cell mesh with face labelling and edge arrows.
@@ -67,7 +67,7 @@ for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
 
 # Draw with vertex labelling.
-fig, ax= sheet_view(sheet)
+fig, ax= sheet_view(sheet, edge = {'head_width':0.1})
 for vert, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y+0.1, vert)
 
@@ -98,11 +98,12 @@ for i in list(range(len(sheet.edge_df))):
     
 print(sheet.edge_df)
 
-""" Develope the algorithm that splits the cell approximately in half. """
+""" Develope a algorithm splits a cell approximately in half laterally. """
 
-
-
-
+# First we check the edge faces within the cell
+pd.set_option('display.max_columns', None)
+face0_edges = sheet.edge_df[sheet.edge_df['face'] == 0]
+print(face0_edges)
 
 
 

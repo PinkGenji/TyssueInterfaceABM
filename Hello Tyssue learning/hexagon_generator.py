@@ -49,6 +49,7 @@ disty = 1
 noise = 0
 
 grid = hexa_grid2d(nx, ny, distx, disty, noise)
+#grid = np.flip(grid,1)
 datasets = from_2d_voronoi(Voronoi(grid))
 
 vor = Voronoi(grid)
