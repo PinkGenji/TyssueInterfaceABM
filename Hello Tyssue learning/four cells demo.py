@@ -80,14 +80,31 @@ for edge, data in sheet.edge_df.iterrows():
 """ Assign the cell type to the edges in dataframe. """
 
 # Create a list (as the entries) that we want to add into the dataframe.
-test_set = []
+default_entry = []
 for i in list(range(len(sheet.edge_df))):
-	test_set.append("some entry " + str(i))
+	default_entry.append("To be set")
 
-# adding another attribtue called 'test' in the df, and fill the new column.
-sheet.edge_df = sheet.edge_df.assign(test = test_set)
+# adding another attribtue called 'cell_type' in the df, and fill the new column.
+sheet.edge_df = sheet.edge_df.assign(cell_type = default_entry)
 print(sheet.edge_df.head())
 print(sheet.edge_df.keys())
+
+# If the edge associated with face 0 and 1,  cell_type = 'CT', OR, cell_type = 'ST'
+for i in list(range(len(sheet.edge_df))):
+    if sheet.edge_df.loc[i,'face'] == 0 or sheet.edge_df.loc[i,'face'] == 1:
+        sheet.edge_df.loc[i,'cell_type'] = 'CT'
+    else: 
+        sheet.edge_df.loc[i,'cell_type'] = 'ST'
+    
+print(sheet.edge_df)
+
+""" Develope the algorithm that splits the cell approximately in half. """
+
+
+
+
+
+
 
 
 """ Add mechanical properties for energy minimization """
