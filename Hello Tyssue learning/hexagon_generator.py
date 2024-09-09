@@ -57,25 +57,6 @@ fig = voronoi_plot_2d(vor)
 plt.show()
 
 
-
-""" try: with trium, then remove the nonhexagons. """
-bilayer=Sheet.planar_sheet_2d(identifier='bilayer', nx = 4, ny = 6, distx = 1, disty = 1)
-bilayer.sanitize(trim_borders=True)
-geom.update_all(bilayer)
-
-# Have a look of the generated bilayer.
-fig, ax = sheet_view(bilayer)
-for face, data in bilayer.face_df.iterrows():
-    ax.text(data.x, data.y, face)
-
-cleaned = remove_face(bilayer, 0)
-geom.update_all(bilayer)
-
-fig, ax = sheet_view(bilayer)
-for face, data in bilayer.face_df.iterrows():
-    ax.text(data.x, data.y, face)
-
-
 """ Try: without using trim, just delete the outside faces """
 bilayer=Sheet.planar_sheet_2d(identifier='bilayer', nx = 4, ny = 4, distx = 1, disty = 1)
 geom.update_all(bilayer)
@@ -84,16 +65,6 @@ geom.update_all(bilayer)
 fig, ax = sheet_view(bilayer, edge = {'head_width':0.1})
 for face, data in bilayer.face_df.iterrows():
     ax.text(data.x, data.y, face)
-
-# Find the outside-edges and faces associated with them, and get rid off them.
-invalid_edge = bilayer.get_invalid()   
-bilayer.remove(invalid_edge)  
-
-fig, ax = sheet_view(bilayer, edge = {'head_width':0.1})
-for face, data in bilayer.face_df.iterrows():
-    ax.text(data.x, data.y, face) 
-
-
 
 def delete_face(sheet_obj, face_deleting):
     """
@@ -119,10 +90,21 @@ def delete_face(sheet_obj, face_deleting):
     # All associated edges are removed, now remove the 'empty' face and reindex.
     sheet_obj.face_df.drop(face_deleting , inplace =True)
 
+# Find the outside-edges and faces associated with them, and get rid off them.
+invalid_edge = bilayer.get_invalid()   
+bilayer.remove(invalid_edge)  
 
+fig, ax = sheet_view(bilayer, edge = {'head_width':0.1})
+for face, data in bilayer.face_df.iterrows():
+    ax.text(data.x, data.y, face) 
 
+# Use the defined delet_face function to delete the face.
 delete_face(bilayer, 3)
 delete_face(bilayer,2)
+
+# reset the indices.
+bilayer.reset_index()
+
 # Plot the figure to check.
 fig, ax = sheet_view(bilayer, edge = {'head_width':0.1})
 for face, data in bilayer.face_df.iterrows():

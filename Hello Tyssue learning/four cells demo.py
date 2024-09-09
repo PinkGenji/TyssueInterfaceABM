@@ -40,19 +40,22 @@ from tyssue.topology.sheet_topology import remove_face, cell_division
 # 2D plotting
 from tyssue.draw import sheet_view, highlight_cells
 
+# import my own functions
+from hexagon_generator import delete_face
 
 """ start the project """
 # Generate the cell sheet as three cells.
-sheet = Sheet.planar_sheet_2d('face', nx = 3, ny=4, distx=2, disty=2)
-sheet.sanitize(trim_borders=True)
+sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = 4, ny = 4, distx = 1, disty = 1)
 geom.update_all(sheet)
-sheet_view(sheet, mode = '2D')
-# Add more mechanical properties, take four factors
-# line tensions; edge length elasticity; face contractility and face area elasticity
-new_specs = model_factory([effectors.LineTension, effectors.LengthElasticity, effectors.FaceContractility, effectors.FaceAreaElasticity])
 
-sheet.update_specs(new_specs.specs, reset = True)
-geom.update_all(sheet)
+# remove non-enclosed faces
+sheet.remove(sheet.get_invalid())
+
+# Plot figures to check.
+# Draw the cell mesh with face labelling.
+fig, ax = sheet_view(sheet)
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
 
 # Draw with vertex labelling.
 fig, ax= sheet_view(sheet)
@@ -60,25 +63,17 @@ for vert, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y+0.1, vert)
 
 # Draw with edge labelling.
-# =============================================================================
-# fig, ax= sheet_view(sheet)
-# for edge, data in sheet.edge_df.iterrows():
-#     ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
-# =============================================================================
-
-# Show the half-edges that are at the boundary
-sheet.get_extra_indices()
-print('half eges at the boundary: ' + str(sheet.free_edges))
-# Double check with the edge dataframe.
-sheet.edge_df.loc[:,['trgt','srce']]
-
-sheet.reset_index(order = True)
-len(sheet.edge_df)
+fig, ax= sheet_view(sheet)
+for edge, data in sheet.edge_df.iterrows():
+    ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
 
 
-# So we need to sinactivate vert 0,2,3 and 5.
-sheet.vert_df.loc[[0,2,3,5], 'is_active'] = 0
-sheet.vert_df.loc[[0,2,3,5], 'is_active']
+# Add more mechanical properties, take four factors
+# line tensions; edge length elasticity; face contractility and face area elasticity
+new_specs = model_factory([effectors.LineTension, effectors.LengthElasticity, effectors.FaceContractility, effectors.FaceAreaElasticity])
+
+sheet.update_specs(new_specs.specs, reset = True)
+geom.update_all(sheet)
 
 # energy minimisation.
 solver = QSSolver()
@@ -91,11 +86,6 @@ sheet_view(sheet)   # Draw cell mesh.
 from tyssue.draw.plt_draw import plot_forces
 fig, ax = plot_forces(sheet, geom, smodel, ['x', 'y'], scaling=0.1)
 fig.set_size_inches(10, 12)
-
-# Draw the cell mesh with face labelling.
-fig, ax = sheet_view(sheet)
-for face, data in sheet.face_df.iterrows():
-    ax.text(data.x, data.y, face)
 
 # Do cell division
 daughter = cell_division(sheet, 1, geom, angle= np.pi)
