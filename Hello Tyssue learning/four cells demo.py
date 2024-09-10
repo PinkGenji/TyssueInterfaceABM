@@ -45,7 +45,7 @@ from my_headers import delete_face
 
 """ start the project """
 # Generate the cell sheet as three cells.
-sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = 4, ny = 4, distx = 1, disty = 1)
+sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = 3, ny = 2, distx = 1, disty = 1)
 geom.update_all(sheet)
 
 # remove non-enclosed faces
@@ -56,7 +56,7 @@ fig, ax = sheet_view(sheet)
 for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
     
-delete_face(sheet, 2)
+delete_face(sheet, 4)
 delete_face(sheet, 3)
 sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
 

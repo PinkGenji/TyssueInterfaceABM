@@ -42,8 +42,8 @@ from tyssue.io import hdf5
 from scipy.spatial import Voronoi, voronoi_plot_2d
 from tyssue.generation import hexa_grid2d, from_2d_voronoi
 
-nx = 4
-ny=4
+nx = 3
+ny=2
 distx=1
 disty = 1
 noise = 0
@@ -59,13 +59,17 @@ plt.show()
 
 
 """ Try: without using trim, just delete the outside faces """
-bilayer=Sheet.planar_sheet_2d(identifier='bilayer', nx = 4, ny = 4, distx = 1, disty = 1)
+bilayer=Sheet.planar_sheet_2d(identifier='bilayer', nx = 3, ny = 2, distx = 1, disty = 1)
 geom.update_all(bilayer)
 
-# Have a look of the generated bilayer.
+# Find the outside-edges and faces associated with them, and get rid off them.
+invalid_edge = bilayer.get_invalid()   
+bilayer.remove(invalid_edge)  
+
 fig, ax = sheet_view(bilayer, edge = {'head_width':0.1})
 for face, data in bilayer.face_df.iterrows():
-    ax.text(data.x, data.y, face)
+    ax.text(data.x, data.y, face) 
+
 
 def delete_face(sheet_obj, face_deleting):
     """
@@ -91,17 +95,11 @@ def delete_face(sheet_obj, face_deleting):
     # All associated edges are removed, now remove the 'empty' face and reindex.
     sheet_obj.face_df.drop(face_deleting , inplace =True)
 
-# Find the outside-edges and faces associated with them, and get rid off them.
-invalid_edge = bilayer.get_invalid()   
-bilayer.remove(invalid_edge)  
-
-fig, ax = sheet_view(bilayer, edge = {'head_width':0.1})
-for face, data in bilayer.face_df.iterrows():
-    ax.text(data.x, data.y, face) 
 
 # Use the defined delet_face function to delete the face.
-delete_face(bilayer, 3)
-delete_face(bilayer,2)
+delete_face(bilayer, 2)
+delete_face(bilayer,3)
+
 
 # reset the indices.
 bilayer.reset_index()
