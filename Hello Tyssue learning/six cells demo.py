@@ -120,7 +120,15 @@ print(sheet.edge_df.loc[:,['face','cell_type']])
 
 
 
-""" The daugther cells grow. """
+""" The daugther cells grow. Trial by 1-step adding area value. """
+sheet.face_df.loc[6] *= 1.5
+geom.update_all(sheet)
+fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
+# Not working.
+
+
 
 
 
