@@ -119,7 +119,23 @@ for face, data in sheet.face_df.iterrows():
 print(sheet.edge_df.loc[:,['face','cell_type']])
 
 
-""" The daugther cells should grow with growth speed. """
+
+""" The daugther cells grow. """
+
+
+
+
+""" cell fusion, starts with a removal of a shared edge. """
+sheet.get_opposite() #computes the 'twin' half edge.
+sheet.edge_df
+face2_edges = sheet.edge_df[sheet.edge_df['face'] == 2]
+face2_edges.index[face2_edges['opposite' ]!=-1][0]
+# Draw with edge labelling.
+fig, ax= sheet_view(sheet, edge = {'head_width':0.1})
+for edge, data in face2_edges.iterrows():
+    ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
+
+
 
 
 
