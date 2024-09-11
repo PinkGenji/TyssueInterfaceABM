@@ -35,7 +35,7 @@ from tyssue.dynamics.planar_vertex_model import PlanarModel as smodel
 from tyssue.solvers.quasistatic import QSSolver
 from tyssue.generation import extrude
 from tyssue.dynamics import model_factory, effectors
-from tyssue.topology.sheet_topology import remove_face, cell_division
+from tyssue.topology.sheet_topology import remove_face, cell_division, face_division
 
 # 2D plotting
 from tyssue.draw import sheet_view, highlight_cells
@@ -91,7 +91,7 @@ print(sheet.edge_df.keys())
 
 # If the edge associated with face 0 and 1,  cell_type = 'CT', OR, cell_type = 'ST'
 for i in list(range(len(sheet.edge_df))):
-    if sheet.edge_df.loc[i,'face'] == 0 or sheet.edge_df.loc[i,'face'] == 1:
+    if sheet.edge_df.loc[i,'face'] <3:
         sheet.edge_df.loc[i,'cell_type'] = 'CT'
     else: 
         sheet.edge_df.loc[i,'cell_type'] = 'ST'
@@ -101,9 +101,25 @@ print(sheet.edge_df)
 """ Develope a algorithm splits a cell approximately in half laterally. """
 
 # First we check the edge faces within the cell
-pd.set_option('display.max_columns', None)
-face0_edges = sheet.edge_df[sheet.edge_df['face'] == 0]
-print(face0_edges)
+# pd.set_option('display.max_columns', 7)
+face1_edges = sheet.edge_df[sheet.edge_df['face'] == 1]
+print(face1_edges)
+# Get the vertex index with minimum y-value.
+vert_1 = face1_edges.loc[face1_edges['sy'].idxmin()]['srce']
+# Since the df is clockwisely ordered, we get the opposite vertex index.
+vert_2 = face1_edges.loc[face1_edges['sy'].idxmin()+3]['srce']
+#divide the face with the two vert.
+face_division(sheet = sheet, mother=1, vert_a = vert_1, vert_b = vert_2)
+geom.update_all(sheet)
+# Draw the cell mesh with face labelling and edge arrows.
+fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
+
+print(sheet.edge_df.loc[:,['face','cell_type']])
+
+
+""" The daugther cells should grow with growth speed. """
 
 
 
