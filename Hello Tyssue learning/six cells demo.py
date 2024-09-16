@@ -118,6 +118,9 @@ for face, data in sheet.face_df.iterrows():
 
 print(sheet.edge_df.loc[:,['face','cell_type']])
 
+""" Add a vertex in the middle of split edge and another one in the bot half. """
+
+
 
 
 """ The daugther cells grow. Trial by 1-step adding area value. """
