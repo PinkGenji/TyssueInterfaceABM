@@ -25,7 +25,7 @@ from tyssue import PlanarGeometry as geom #for simple 2d geometry
 
 # For cell topology/configuration
 from tyssue.topology.sheet_topology import type1_transition
-from tyssue.topology.base_topology import collapse_edge, remove_face
+from tyssue.topology.base_topology import collapse_edge, remove_face, add_vert
 from tyssue.topology.sheet_topology import split_vert as sheet_split
 from tyssue.topology.bulk_topology import split_vert as bulk_split
 from tyssue.topology import condition_4i, condition_4ii
@@ -109,7 +109,8 @@ vert_1 = face1_edges.loc[face1_edges['sy'].idxmin()]['srce']
 # Since the df is clockwisely ordered, we get the opposite vertex index.
 vert_2 = face1_edges.loc[face1_edges['sy'].idxmin()+3]['srce']
 #divide the face with the two vert.
-face_division(sheet = sheet, mother=1, vert_a = vert_1, vert_b = vert_2)
+new = face_division(sheet = sheet, mother=1, vert_a = vert_1, vert_b = vert_2)
+print(f'The newly added edge has number: {new}.')
 geom.update_all(sheet)
 # Draw the cell mesh with face labelling and edge arrows.
 fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
@@ -119,6 +120,62 @@ for face, data in sheet.face_df.iterrows():
 print(sheet.edge_df.loc[:,['face','cell_type']])
 
 """ Add a vertex in the middle of split edge and another one in the bot half. """
+print(sheet.edge_df.loc[sheet.edge_df.index[-1],])
+add_vert(sheet, sheet.edge_df.index[-1])
+geom.update_all(sheet)
+fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
+
+# add another vertex on the new edge.
+add_vert(sheet, sheet.edge_df.index[-1])
+geom.update_all(sheet)
+
+# Plot the geometry
+from tyssue.config.draw import sheet_spec
+draw_specs = sheet_spec()
+sheet.vert_df['rand'] = np.linspace(0.0, 1.0, num=sheet.vert_df.shape[0])
+cmap = plt.cm.get_cmap('viridis')
+color_cmap = cmap(sheet.vert_df.rand)
+draw_specs['vert']['visible'] = True
+
+draw_specs['vert']['color'] = color_cmap
+draw_specs['vert']['alpha'] = 0.5
+draw_specs['vert']['s'] = 50
+fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
+
+# Perform energy minimization
+specs = {
+    'edge': {
+        'is_active': 1,
+        'line_tension': 0.12,
+        'ux': 0.0,
+        'uy': 0.0,
+        'uz': 0.0
+    },
+   'face': {
+       'area_elasticity': 1.0,
+       'contractility': 0.04,
+       'is_alive': 1,
+       'prefered_area': 1.0},
+   'settings': {
+       'grad_norm_factor': 1.0,
+       'nrj_norm_factor': 1.0
+   },
+   'vert': {
+       'is_active': 1
+   }
+}
+sheet.update_specs(specs, reset = True)
+geom.update_all(sheet)
+solver = QSSolver()
+res = solver.find_energy_min(sheet, geom, smodel)
+
+fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
+
+""" Now, we tweak the position of the two vertices on the spliting edge. """
+
+
 
 
 
