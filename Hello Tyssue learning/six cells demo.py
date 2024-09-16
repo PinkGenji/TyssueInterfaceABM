@@ -149,16 +149,56 @@ for edge, data in face2_edges.iterrows():
 
 
 """ Add mechanical properties for energy minimization """
-new_specs = model_factory([effectors.LineTension, effectors.FaceContractility, effectors.FaceAreaElasticity])
+#new_specs = model_factory([effectors.LineTension, effectors.FaceContractility, effectors.FaceAreaElasticity])
 
-sheet.update_specs(new_specs.specs, reset = True)
+# We are using the specs from 2007 Farhadifar model.
+specs = {
+    'edge': {
+        'is_active': 1,
+        'line_tension': 0.12,
+        'ux': 0.0,
+        'uy': 0.0,
+        'uz': 0.0
+    },
+   'face': {
+       'area_elasticity': 1.0,
+       'contractility': 0.04,
+       'is_alive': 1,
+       'prefered_area': 1.0},
+   'settings': {
+       'grad_norm_factor': 1.0,
+       'nrj_norm_factor': 1.0
+   },
+   'vert': {
+       'is_active': 1
+   }
+}
+sheet.update_specs(specs, reset = True)
 geom.update_all(sheet)
+
+
+
+# Select all edges within cell 3.
+sheet.edge_df[(sheet.edge_df['face'] == 3)]
+# Deactivate the edges within cell 3.
+sheet.edge_df.loc[sheet.edge_df[(sheet.edge_df['face'] == 3)].index,'is_active'] = 0
+sheet.edge_df.loc[sheet.edge_df[(sheet.edge_df['face'] == 4)].index,'is_active'] = 0
+sheet.edge_df.loc[sheet.edge_df[(sheet.edge_df['face'] == 5)].index,'is_active'] = 0
+sheet.edge_df.loc[sheet.edge_df[(sheet.edge_df['face'] == 0)].index,'is_active'] = 0
+sheet.edge_df.loc[sheet.edge_df[(sheet.edge_df['face'] == 2)].index,'is_active'] = 0
+
+
+print(sheet.edge_df)
 
 # energy minimisation.
 solver = QSSolver()
 res = solver.find_energy_min(sheet, geom, smodel)
 
 sheet_view(sheet)   # Draw cell mesh.
+
+print(sheet.face_df)
+
+
 
 #plot forces
 from tyssue.draw.plt_draw import plot_forces
