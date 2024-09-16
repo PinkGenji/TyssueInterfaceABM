@@ -149,8 +149,6 @@ for edge, data in face2_edges.iterrows():
 
 
 """ Add mechanical properties for energy minimization """
-#new_specs = model_factory([effectors.LineTension, effectors.FaceContractility, effectors.FaceAreaElasticity])
-
 # We are using the specs from 2007 Farhadifar model.
 specs = {
     'edge': {
