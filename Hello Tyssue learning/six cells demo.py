@@ -174,6 +174,57 @@ res = solver.find_energy_min(sheet, geom, smodel)
 fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
 
 """ Now, we tweak the position of the two vertices on the spliting edge. """
+# Reset the cell sheet.
+sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = 3, ny = 2, distx = 1, disty = 1)
+geom.update_all(sheet)
+
+# remove non-enclosed faces
+sheet.remove(sheet.get_invalid())
+
+# Plot the figure to see the index.
+fig, ax = sheet_view(sheet)
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
+    
+delete_face(sheet, 4)
+delete_face(sheet, 3)
+sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
+
+face1_edges = sheet.edge_df[sheet.edge_df['face'] == 1]
+print(face1_edges)
+# Get the vertex index with minimum y-value.
+vert_1 = face1_edges.loc[face1_edges['sy'].idxmin()]['srce']
+# Since the df is clockwisely ordered, we get the opposite vertex index.
+vert_2 = face1_edges.loc[face1_edges['sy'].idxmin()+3]['srce']
+#divide the face with the two vert.
+new = face_division(sheet = sheet, mother=1, vert_a = vert_1, vert_b = vert_2)
+print(f'The newly added edge has number: {new}.')
+geom.update_all(sheet)
+
+add_vert(sheet, sheet.edge_df.index[-1])
+geom.update_all(sheet)
+
+# add another vertex on the new edge.
+add_vert(sheet, sheet.edge_df.index[-1])
+geom.update_all(sheet)
+fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
+
+# Draw with vertex labelling.
+fig, ax= sheet_view(sheet, edge = {'head_width':0.1})
+for vert, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y+0.1, vert)
+
+print(sheet.vert_df.loc[[22,23],:])
+# I need to add 0.1 and minus 0.1 on the x-value of the two vertices respectively.
+sheet.vert_df.loc[22,'x']=2.1
+sheet.vert_df.loc[23,'x']=1.9
+geom.update_all(sheet)
+fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
+
+# Do energy minimization.
+res = solver.find_energy_min(sheet, geom, smodel)
+
+fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
 
 
 
