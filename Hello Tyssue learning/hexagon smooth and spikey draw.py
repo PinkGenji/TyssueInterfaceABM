@@ -9,6 +9,8 @@ import matplotlib.pylab as plt
 from scipy.spatial import Voronoi, voronoi_plot_2d
 from tyssue.generation import  from_2d_voronoi
 
+
+""" Code for spikey top """
 nx = 3
 ny=2
 distx=1
@@ -43,7 +45,7 @@ vor = Voronoi(grid)
 fig = voronoi_plot_2d(vor)
 plt.show()
 
-
+""" Code for smooth top. """
 
 
 
