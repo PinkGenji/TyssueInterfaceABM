@@ -228,6 +228,10 @@ fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
 
 
 
+""" vertex-vertex division, connect vertex 8 and 11 """
+
+
+
 
 
 
