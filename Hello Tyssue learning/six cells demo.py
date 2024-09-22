@@ -173,6 +173,23 @@ res = solver.find_energy_min(sheet, geom, smodel)
 
 fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
 
+
+# Draw with vertex labelling.
+fig, ax= sheet_view(sheet, edge = {'head_width':0.1})
+for vert, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y+0.1, vert)
+
+# Split cell 1 again
+new = face_division(sheet = sheet, mother=1, vert_a = 11, vert_b = 10)
+print(f'The newly added edge has number: {new}.')
+geom.update_all(sheet)
+# Draw the cell mesh with face labelling and edge arrows.
+fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
+sheet.edge_df.loc[7]
+
+
 """ Now, we tweak the position of the two vertices on the spliting edge. """
 # Reset the cell sheet.
 sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = 3, ny = 2, distx = 1, disty = 1)
@@ -330,11 +347,61 @@ fig.set_size_inches(10, 12)
 
 
 
+""" Try edge-edge algorithm """
+# Generate the cell sheet as three cells.
+sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = 3, ny = 2, distx = 1, disty = 1)
+geom.update_all(sheet)
+
+# remove non-enclosed faces
+sheet.remove(sheet.get_invalid())
+
+# Plot the figure to see the index.
+fig, ax = sheet_view(sheet)
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
+    
+delete_face(sheet, 4)
+delete_face(sheet, 3)
+sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
+
+# Plot figures to check.
+# Draw the cell mesh with face labelling and edge arrows.
+fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
+
+daughter = cell_division(sheet, 1, geom, angle = np.pi)
+geom.update_all(sheet)
+sheet_view(sheet)
 
 
-
-
-
+# Energy minimization
+specs = {
+    'edge': {
+        'is_active': 1,
+        'line_tension': 0.12,
+        'ux': 0.0,
+        'uy': 0.0,
+        'uz': 0.0
+    },
+   'face': {
+       'area_elasticity': 1.0,
+       'contractility': 0.04,
+       'is_alive': 1,
+       'prefered_area': 1.0},
+   'settings': {
+       'grad_norm_factor': 1.0,
+       'nrj_norm_factor': 1.0
+   },
+   'vert': {
+       'is_active': 1
+   }
+}
+sheet.update_specs(specs, reset = True)
+geom.update_all(sheet)
+solver = QSSolver()
+res = solver.find_energy_min(sheet, geom, smodel)
+sheet_view(sheet) 
 
 
 
