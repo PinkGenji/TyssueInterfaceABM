@@ -405,13 +405,7 @@ for vert, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y+0.1, vert)
 
 # Now store the centroid of cell 1 to be a vertex.
-condition = sheet.edge_df.loc[:,'face'] == 1
-edge_in_cell = sheet.edge_df[condition]
-cx = edge_in_cell.iloc[1]['fx']
-cy = edge_in_cell.iloc[1]['fy']
-# add the cx and cy as a new row into vert_df
-ct_index = len(sheet.vert_df)
-sheet.vert_df.loc[ct_index] = [cy, 1, cx]
+
 
 sheet.get_opposite()
 condition = sheet.edge_df.loc[:,'face'] == 1
@@ -419,6 +413,14 @@ edge_in_cell = sheet.edge_df[condition]
 basal_edge_index = edge_in_cell[ edge_in_cell.loc[:,'opposite']==-1 ].index[0]
 #get the vertex index of the newly added mid point.
 basal_mid = add_vert(sheet, edge = basal_edge_index)[0]
+
+condition = sheet.edge_df.loc[:,'face'] == 1
+edge_in_cell = sheet.edge_df[condition]
+cx = edge_in_cell.iloc[1]['fx']
+cy = edge_in_cell.iloc[1]['fy']
+# add the cx and cy as a new row into vert_df
+ct_index = len(sheet.vert_df)
+sheet.vert_df.loc[ct_index] = [cy, 1, cx]
 
 face_division(sheet, mother = 1 , vert_a = 22 , vert_b = 23)
 geom.update_all(sheet)
