@@ -404,6 +404,7 @@ fig, ax= sheet_view(sheet, edge = {'head_width':0.1})
 for vert, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y+0.1, vert)
 
+""" Draw from basal to centre. """
 # Compute the basal boundary edge.
 sheet.get_opposite()
 condition = sheet.edge_df.loc[:,'face'] == 1
@@ -428,6 +429,9 @@ face_division(sheet, mother = 1 , vert_a = basal_mid , vert_b = ct_index)
 geom.update_all(sheet)
 sheet_view(sheet)
 sheet.face_df
+
+""" Draw from centre to the opposite """
+
 
 
 
