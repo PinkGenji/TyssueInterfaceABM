@@ -412,6 +412,13 @@ edge_in_cell = sheet.edge_df[condition]
 basal_edge_index = edge_in_cell[ edge_in_cell.loc[:,'opposite']==-1 ].index[0]
 #get the vertex index of the newly added mid point.
 basal_mid = add_vert(sheet, edge = basal_edge_index)[0]
+print(basal_mid)
+geom.update_all(sheet)
+
+# Draw with vertex labelling.
+fig, ax= sheet_view(sheet, edge = {'head_width':0.1})
+for vert, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y+0.1, vert)
 
 # Compute the centroid coordinates.
 condition = sheet.edge_df.loc[:,'face'] == 1
@@ -426,11 +433,56 @@ edge_in_cell.iloc[1,]
 
 centroid
 
+# Without need to set centroid attempt.
+
+condition = sheet.edge_df.loc[:,'face'] == 1
+edge_in_cell = sheet.edge_df[condition]
+# We use the notation: line = P0 + dt, where P0 is the offset point and d is
+# the direction vector, t is the lambda variable.
+condition = sheet.edge_df.loc[:,'srce'] == basal_mid
+p0x = edge_in_cell[condition].loc[:,'sx'].values
+p0y = edge_in_cell[condition].loc[:,'sy'].values
+p0 = [float(p0x), float(p0y)]
+p0x = p0[0]
+p0y = p0[1]
+print(p0)
+
+rx = edge_in_cell[condition].loc[:,'rx'].values
+ry = edge_in_cell[condition].loc[:,'ry'].values
+r  = [-float(rx), -float(ry)]   # use the line in opposite direction.
+print(r)
+
+
+for index,row in edge_in_cell.iterrows():
+    print(type(row['sx']))
+
 # We need to use iterrows to iterate over rows in pandas df
 # The iteration has the form of (index, series)
 # The series can be sliced.
 for index, row in edge_in_cell.iterrows():
-    print(row['fx'])
+    s0x = row['sx']
+    s0y = row['sy']
+    t0x = row['tx']
+    t0y = row['ty']
+    v1 = [s0x-p0x,s0y-p0y]
+    v2 = [t0x-p0x,t0y-p0y]
+    # if the xprod_2d returns negative, then line intersects the line segment.
+    if xprod_2d(r, v1)*xprod_2d(r, v2) < 0:
+        print(f'The edge that is intersecting is: {index}')
+#         dx = row['dx']
+#         dy = row['dy']
+#         c1 = (dx*ry/rx)-dy
+#         c2 = s0y-p0y - (s0x*ry/rx) + (p0x*ry/rx)
+#         k=c2/c1
+#         intersection = [s0x+k*dx, s0y+k*dy]
+# print(f'The intersection has coordinates: {intersection}')
+
+        
+        
+fig, ax= sheet_view(sheet)
+for edge, data in edge_in_cell.iterrows():
+    ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
+        
 
 
 # draw the line from mid of basal edge to centroid.
