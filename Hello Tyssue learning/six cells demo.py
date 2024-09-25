@@ -421,6 +421,17 @@ cy = edge_in_cell.iloc[1]['fy']
 # add the cx and cy as a new row into vert_df
 ct_index = len(sheet.vert_df)
 sheet.vert_df.loc[ct_index] = [cy, 1, cx]
+centroid = [cx,cy]
+edge_in_cell.iloc[1,]
+
+centroid
+
+# We need to use iterrows to iterate over rows in pandas df
+# The iteration has the form of (index, series)
+# The series can be sliced.
+for index, row in edge_in_cell.iterrows():
+    print(row['fx'])
+
 
 # draw the line from mid of basal edge to centroid.
 face_division(sheet, mother = 1 , vert_a = basal_mid , vert_b = ct_index)
