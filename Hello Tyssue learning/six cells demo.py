@@ -420,18 +420,6 @@ fig, ax= sheet_view(sheet, edge = {'head_width':0.1})
 for vert, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y+0.1, vert)
 
-# Compute the centroid coordinates.
-condition = sheet.edge_df.loc[:,'face'] == 1
-edge_in_cell = sheet.edge_df[condition]
-cx = edge_in_cell.iloc[1]['fx']
-cy = edge_in_cell.iloc[1]['fy']
-# add the cx and cy as a new row into vert_df
-ct_index = len(sheet.vert_df)
-sheet.vert_df.loc[ct_index] = [cy, 1, cx]
-centroid = [cx,cy]
-edge_in_cell.iloc[1,]
-
-centroid
 
 # Without need to set centroid attempt.
 
@@ -439,22 +427,16 @@ condition = sheet.edge_df.loc[:,'face'] == 1
 edge_in_cell = sheet.edge_df[condition]
 # We use the notation: line = P0 + dt, where P0 is the offset point and d is
 # the direction vector, t is the lambda variable.
-condition = sheet.edge_df.loc[:,'srce'] == basal_mid
-p0x = edge_in_cell[condition].loc[:,'sx'].values
-p0y = edge_in_cell[condition].loc[:,'sy'].values
-p0 = [float(p0x), float(p0y)]
-p0x = p0[0]
-p0y = p0[1]
-print(p0)
+condition = edge_in_cell.loc[:,'srce'] == basal_mid
+# extract the x-coordiante from array, then convert to a float type.
+p0x = float(edge_in_cell[condition].loc[:,'sx'].values[0])
+p0y = float(edge_in_cell[condition].loc[:,'sy'].values[0])
+p0 = [p0x, p0y]
 
-rx = edge_in_cell[condition].loc[:,'rx'].values
-ry = edge_in_cell[condition].loc[:,'ry'].values
-r  = [-float(rx), -float(ry)]   # use the line in opposite direction.
-print(r)
+rx = float(edge_in_cell[condition].loc[:,'rx'].values[0])
+ry = float(edge_in_cell[condition].loc[:,'ry'].values[0])
+r  = [-rx, -ry]   # use the line in opposite direction.
 
-
-for index,row in edge_in_cell.iterrows():
-    print(type(row['sx']))
 
 # We need to use iterrows to iterate over rows in pandas df
 # The iteration has the form of (index, series)
@@ -468,24 +450,46 @@ for index, row in edge_in_cell.iterrows():
     v2 = [t0x-p0x,t0y-p0y]
     # if the xprod_2d returns negative, then line intersects the line segment.
     if xprod_2d(r, v1)*xprod_2d(r, v2) < 0:
-        print(f'The edge that is intersecting is: {index}')
-#         dx = row['dx']
-#         dy = row['dy']
-#         c1 = (dx*ry/rx)-dy
-#         c2 = s0y-p0y - (s0x*ry/rx) + (p0x*ry/rx)
-#         k=c2/c1
-#         intersection = [s0x+k*dx, s0y+k*dy]
-# print(f'The intersection has coordinates: {intersection}')
+        #print(f'The edge that is intersecting is: {index}')
+        dx = row['dx']
+        dy = row['dy']
+        c1 = (dx*ry/rx)-dy
+        c2 = s0y-p0y - (s0x*ry/rx) + (p0x*ry/rx)
+        k=c2/c1
+        intersection = [s0x+k*dx, s0y+k*dy]
+print(f'The intersection has coordinates: {intersection}')
 
-        
+# Add the intersection point.
+new_index = len(sheet.vert_df)
+# Note the order is y,x coordinate in the data frame.
+sheet.vert_df.loc[new_index] = [intersection[1], 1, intersection[0]]
+
+#draw the line without the coordiante of centroid.
+face_division(sheet, mother = 1, vert_a = basal_mid, vert_b = new_index)
+geom.update_all(sheet)
         
 fig, ax= sheet_view(sheet)
 for edge, data in edge_in_cell.iterrows():
     ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
         
-
+fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
 
 # draw the line from mid of basal edge to centroid.
+
+# Compute the centroid coordinates.
+condition = sheet.edge_df.loc[:,'face'] == 1
+edge_in_cell = sheet.edge_df[condition]
+cx = edge_in_cell.iloc[1]['fx']
+cy = edge_in_cell.iloc[1]['fy']
+# add the cx and cy as a new row into vert_df
+ct_index = len(sheet.vert_df)
+sheet.vert_df.loc[ct_index] = [cy, 1, cx]
+centroid = [cx,cy]
+edge_in_cell.iloc[1,]
+
+centroid
 face_division(sheet, mother = 1 , vert_a = basal_mid , vert_b = ct_index)
 
 
