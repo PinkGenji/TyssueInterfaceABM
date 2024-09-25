@@ -41,7 +41,7 @@ from tyssue.topology.sheet_topology import remove_face, cell_division, face_divi
 from tyssue.draw import sheet_view, highlight_cells
 
 # import my own functions
-from my_headers import delete_face
+from my_headers import delete_face, xprod_2d
 
 """ start the project """
 # Generate the cell sheet as three cells.

@@ -28,6 +28,30 @@ def delete_face(sheet_obj, face_deleting):
     sheet_obj.face_df.drop(face_deleting , inplace =True)
 
 
+def xprod_2d(vec1, vec2):
+    """
+    
+
+    Parameters
+    ----------
+    vec1 : Iterable
+        First vector
+    vec2 : Iterable
+        Second vector
+
+    Returns
+    -------
+    A scalar value that is the 2D cross product,
+    equivalent to setting z=0 in 3D.
+
+    """
+    scalar = vec1[0]*vec2[1] - vec1[1]*vec2[0]
+    return scalar
+
+
+
+
+
 
 
 
