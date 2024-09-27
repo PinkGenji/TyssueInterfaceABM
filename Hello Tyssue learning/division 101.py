@@ -155,7 +155,7 @@ new_index = len(sheet.vert_df)
 sheet.vert_df.loc[new_index] = [intersection[1], 1, intersection[0]]
 sheet.vert_df.index.name = "vert"
 #draw the line without the coordiante of centroid.
-face_division(sheet, mother = 1, vert_a = basal_mid, vert_b = new_index)
+daughter = face_division(sheet, mother = 1, vert_a = basal_mid, vert_b = new_index)
 geom.update_all(sheet)
         
 fig, ax= sheet_view(sheet)
@@ -166,17 +166,54 @@ fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
 
-# Need to rearrange the edges into the correct cells.
-sheet.edge_df.index
 
 # created a new row for daughter cell in face_df
+
+""" Following is the code from face_division from package. """
+mother = 1   # This is passed as a function argument.
+vert_a = basal_mid   # This is passed as source vertex
+vert_b = new_index      # This is passed as the target vertex
+
+# Extract face columns of the mother cell.
+face_cols = sheet.face_df.loc[mother:mother]
+# Create new rows for the new face.
 sheet.face_df = pd.concat([sheet.face_df,sheet.face_df.loc[0:0] ], ignore_index=True)
 sheet.face_df.index.name = "face"
 # Assign the index for daughter
 daughter = int(sheet.face_df.index[-1])
-edge_cols = sheet.edge_df[sheet.edge_df["face"] == 0].iloc[0:1]
+
+# Get ready for edge dataframe too.
+edge_cols = sheet.edge_df[sheet.edge_df["face"] == mother].iloc[0:1]
+sheet.edge_df = sheet.edge_df.append(edge_cols, ignore_index=True)
+new_edge_m = sheet.edge_df.index[-1]
+sheet.edge_df.loc[new_edge_m, "srce"] = vert_b
+sheet.edge_df.loc[new_edge_m, "trgt"] = vert_a
 
 
+sheet.edge_df = sheet.edge_df.append(edge_cols, ignore_index=True)
+new_edge_d = sheet.edge_df.index[-1]
+sheet.edge_df.loc[new_edge_d, "srce"] = vert_a
+sheet.edge_df.loc[new_edge_d, "trgt"] = vert_b
+
+# Then we need to create a df for the edges.
+m_data = sheet.edge_df[sheet.edge_df["face"] == mother]
+daughter_edges = [new_edge_d]
+srce, trgt = vert_a, vert_b
+srces, trgts = m_data[["srce", "trgt"]].values.T
+spins = 0
+
+while trgt != vert_a:
+        srce, trgt = trgt, trgts[srces == trgt][0]
+        daughter_edges.append(m_data[(m_data["srce"] == srce) & (m_data["trgt"] == trgt)].index[0])
+        spins += 1
+        if spins > m_data.shape[0]:
+            raise ValueError(f"The face {mother} has an invalid topology, \n")
+sheet.edge_df.loc[daughter_edges, "face"] = daughter
+sheet.edge_df.index.name = "edge"
+sheet.reset_topo()
+
+geom.update_all(sheet)
+sheet_view(sheet)
 
 
 
