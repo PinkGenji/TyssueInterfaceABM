@@ -49,7 +49,7 @@ def xprod_2d(vec1, vec2):
     return scalar
 
 
-def put_vert(eptm, edge, new_coord):
+def put_vert(eptm, edge, coord_put):
     """Adds a vertex somewhere in the an edge,
 
     which is split as is its opposite(s)
@@ -59,6 +59,8 @@ def put_vert(eptm, edge, new_coord):
     eptm : a :class:`Epithelium` instance
     edge : int
     the index of one of the half-edges to split
+    coord_put: list
+    the coordinate of the new vertex to be put
 
     Returns
     -------
@@ -103,8 +105,7 @@ def put_vert(eptm, edge, new_coord):
     new_vert = eptm.vert_df.loc[srce:srce]
     eptm.vert_df = eptm.vert_df.append(new_vert, ignore_index=True)
     new_vert = eptm.vert_df.index[-1]
-    eptm.vert_df.loc[new_vert, eptm.coords] = new_coord
-
+    eptm.vert_df.loc[new_vert, eptm.coords] = coord_put
     new_edges = []
 
     for p, p_data in parallels.iterrows():

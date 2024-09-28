@@ -40,7 +40,7 @@ from tyssue.topology.sheet_topology import remove_face, cell_division, face_divi
 from tyssue.draw import sheet_view, highlight_cells
 
 # import my own functions
-from my_headers import delete_face, xprod_2d
+from my_headers import delete_face, xprod_2d, put_vert
 
 # Generate the cell sheet as three cells.
 sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = 3, ny = 2, distx = 1, disty = 1)
@@ -147,16 +147,9 @@ for index, row in edge_in_cell.iterrows():
         c2 = s0y-p0y - (s0x*ry/rx) + (p0x*ry/rx)
         k=c2/c1
         intersection = [s0x+k*dx, s0y+k*dy]
-print(f'The intersection has coordinates: {intersection}')
+        new_index = put_vert(sheet, index, intersection)[0]
+print(f'The intersection has coordinates: {intersection} with edge: {index}. ')
 
-# Add the intersection point.
-new_index = len(sheet.vert_df)
-# Note the order is y,x coordinate in the data frame.
-sheet.vert_df.loc[new_index] = [intersection[1], 1, intersection[0]]
-sheet.vert_df.index.name = "vert"
-#draw the line without the coordiante of centroid.
-daughter = face_division(sheet, mother = 1, vert_a = basal_mid, vert_b = new_index)
-geom.update_all(sheet)
         
 fig, ax= sheet_view(sheet)
 for edge, data in edge_in_cell.iterrows():
