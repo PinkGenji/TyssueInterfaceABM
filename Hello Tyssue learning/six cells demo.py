@@ -128,12 +128,19 @@ for i in list(range(len(sheet.edge_df))):
     sheet.edge_df.loc[i, 'cell_type'] = sheet.face_df.loc[sheet.edge_df.loc[i,'face'],'cell_type']
 
 
-""" Delete internal edges within ST cell. """
+""" Evolve the cell division and see the behaviour. """
+# =============================================================================
+# The logic of cell proliferation is:
+# Over "x" amount of time, we have a division rate "y" for CT cells. (Division)
+# The range of growth time varies within a range or mean +- SD. (Growth)
+# =============================================================================
 
-# Get the opposite edges, if opposite = -1, then it's a boundary edge.
-sheet.get_opposite()
 
-print(sheet.face_df.keys())
+division_rate = 0.01
+
+
+
+
 
 
 
