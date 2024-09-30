@@ -45,7 +45,9 @@ from my_headers import delete_face, xprod_2d, put_vert
 
 """ start the project """
 # Generate the cell sheet as three cells.
-sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = 3, ny = 2, distx = 1, disty = 1)
+num_x = 3
+num_y = 2
+sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = num_x, ny = num_y, distx = 1, disty = 1)
 geom.update_all(sheet)
 
 # remove non-enclosed faces
@@ -115,7 +117,7 @@ for vert, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y+0.1, vert)
 
 """ Assign the cell type to face_df and edge_df """
-num_ct = int(input('How many CT are there?'))
+num_ct = num_x
 # First we assign cell type in face data frame.
 sheet.face_df.loc[0:num_ct-1, "cell_type"] = 'CT'
 sheet.face_df.loc[num_ct:, "cell_type"] = 'ST'
