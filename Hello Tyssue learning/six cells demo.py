@@ -45,7 +45,7 @@ from my_headers import delete_face, xprod_2d, put_vert
 
 """ start the project """
 # Generate the cell sheet as three cells.
-num_x = 10
+num_x = 3
 num_y = 2
 sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = num_x, ny = num_y, distx = 1, disty = 1)
 geom.update_all(sheet)
@@ -130,15 +130,7 @@ for i in list(range(len(sheet.edge_df))):
     sheet.edge_df.loc[i, 'cell_type'] = sheet.face_df.loc[sheet.edge_df.loc[i,'face'],'cell_type']
 
 
-""" Evolve the cell division and see the behaviour. """
-# =============================================================================
-# The logic of cell proliferation is:
-# Over "x" amount of time, we have a division rate "y" for CT cells. (Division)
-# The range of growth time varies within a range or mean +- SD. (Growth)
-# =============================================================================
 
-
-division_rate = 0.01
 
 
 
