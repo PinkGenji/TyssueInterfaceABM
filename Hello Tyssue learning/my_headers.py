@@ -155,7 +155,7 @@ def lateral_split(eptm, mother):
 
     Returns
     -------
-    None.
+    daughter: face index of new cell.
 
     """
     eptm.get_opposite()
@@ -200,6 +200,9 @@ def lateral_split(eptm, mother):
             new_index = int(put_vert(eptm, index, intersection)[0])
     daughter = face_division(eptm, mother = mother, vert_a = basal_mid, vert_b = new_index)
     return daughter
+
+
+
 
 
 
