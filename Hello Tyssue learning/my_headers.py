@@ -163,7 +163,8 @@ def lateral_split(eptm, mother):
     eptm.get_opposite()
     edge_in_cell = eptm.edge_df[eptm.edge_df.loc[:,'face'] == mother]
     # Obtain the index for one of the basal edges.
-    basal_edge_index = edge_in_cell[ edge_in_cell.loc[:,'opposite']==-1 ].index[0]
+    basal_edges = edge_in_cell[ edge_in_cell.loc[:,'opposite']==-1 ]
+    basal_edge_index = basal_edges.index[np.random.randint(0,len(basal_edges))]
     #get the vertex index of the newly added mid point.
     basal_mid = add_vert(eptm, edge = basal_edge_index)[0]
     geom.update_all(eptm)
@@ -225,7 +226,7 @@ def lateral_division(sheet, manager, cell_id, division_rate):
     """
 
     # if the cell area is larger than the crit_area, we let the cell divide.
-    if sheet.face_df.loc[cell_id, 'division_status'] == 'ready':
+    if sheet.face_df.loc[cell_id, "cell_type"] == 'CT' and sheet.face_df.loc[cell_id, 'division_status'] == 'ready':
         # A random float number is generated between (0,1)
         prob = np.random.uniform(0,1)
         if prob < division_rate:
@@ -239,14 +240,14 @@ def lateral_division(sheet, manager, cell_id, division_rate):
         else:
             pass
             
-    else:
-        sheet.face_df.loc[cell_id,'area'] = sheet.face_df.loc[cell_id,'area'] + sheet.face_df.loc[cell_id,'growth_speed']
+    elif sheet.face_df.loc[cell_id, "cell_type"] == 'CT' and sheet.face_df.loc[cell_id, 'division_status'] == 'growing':
+        sheet.face_df.loc[cell_id,'prefered_area'] = sheet.face_df.loc[cell_id,'area'] + sheet.face_df.loc[cell_id,'growth_speed']
         if sheet.face_df.loc[cell_id,'area'] <= sheet.face_df.loc[cell_id,'prefered_area']:
             # restore division_status and prefered_area
             sheet.face_df.loc[cell_id, 'division_status'] = 'ready'
             sheet.face_df.loc[cell_id, "prefered_area"] = 1.0
-        # update geometry
-        geom.update_all(sheet)
+    else:
+        pass
         
 
 
