@@ -102,7 +102,8 @@ for vert, data in sheet.vert_df.iterrows():
 sheet.get_opposite()
 condition = sheet.edge_df.loc[:,'face'] == 1
 edge_in_cell = sheet.edge_df[condition]
-basal_edge_index = edge_in_cell[ edge_in_cell.loc[:,'opposite']==-1 ].index[0]
+basal_edges = edge_in_cell[ edge_in_cell.loc[:,'opposite']==-1 ]
+basal_edge_index = basal_edges.index[np.random.randint(0,len(basal_edges))]
 #get the vertex index of the newly added mid point.
 basal_mid = add_vert(sheet, edge = basal_edge_index)[0]
 print(basal_mid)
