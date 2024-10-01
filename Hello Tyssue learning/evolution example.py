@@ -43,7 +43,7 @@ from tyssue.topology.sheet_topology import remove_face, cell_division, face_divi
 from tyssue.draw import sheet_view, highlight_cells
 
 # import my own functions
-from my_headers import delete_face, xprod_2d, put_vert, lateral_split
+from my_headers import delete_face, xprod_2d, put_vert, lateral_split, lateral_division
 
 """ Start programming. """
 # Generate the cell sheet as three cells.
@@ -86,6 +86,8 @@ for i in list(range(len(sheet.edge_df))):
 
 """ Add another column for division status """
 sheet.face_df['division_status'] = 'ready'
+
+# Change the division_status for ST cells.
 for i in list(range(len(sheet.face_df))):
     if sheet.face_df.loc[i, 'cell_type'] == 'ST':
         sheet.face_df.loc[i, 'division_status'] = 'N/A'
@@ -126,32 +128,74 @@ sheet_view(sheet)
 fig,ax = sheet_view(sheet)
 ax.title.set_text('test')
 
-""" Modelling tissue evolution """
+""" Modelling the tissue evolution """
+
+from tyssue.behaviors import EventManager
+
+# Initialisation of manager 
+manager = EventManager("face")
+
+from tyssue import History# The History object records all the time steps 
+history = History(sheet)
+
 # We assume one time step is 6 hours.
 # At time t = 0, the cells are created.
 # Then at each time step, 12/4 = 3% of CT cells laterally split.
 # After spliting, the cells grow to preferred area within 5 time steps.
 
-time_window = list(range(0,72,6))
-for t in time_window:
+t = 0
+stop = 10
+
+while manager.current and t < stop:
+    CT_condition = sheet.face_df.loc[:,'cell_type'] == 'CT'
+    CT_cells = sheet.face_df[CT_condition]
+    for i in CT_cells.index.tolist():
+        print(f'we are at time step {t}, cell {i} is being checked.')
+        manager.append(lateral_division, cell_id = i, division_rate = 0.03)
+        manager.execute(sheet)
+        res = solver.find_energy_min(sheet, geom, smodel)
+        history.record()
+        manager.update()
     fig, ax = sheet_view(sheet)
     ax.title.set_text(f'Snapshot at t = {t}')
-    CT_cells = sheet.face_df[sheet.face_df.loc[:,'cell_type'] == 'CT']
+    t += 1
+
+
+
+
+
+
+
+
+
+
+
+
+time_window = list(range(0,48,6))
+for t in time_window:
+    # Draw the plot at the starting of each time step.
+    fig, ax = sheet_view(sheet)
+    ax.title.set_text(f'Snapshot at t = {t}')
+    
+    # Do iteration for division check for all CTs.
     for i in list(range(len(sheet.face_df))):
-        if sheet.face_df[sheet.face_df.loc[:,'cell_type'] == 'CT' and sheet.face_df.loc[i, 'division_status'] == 'ready':
+        if sheet.face_df[sheet.face_df.loc[i,'cell_type']] == 'CT' and sheet.face_df.loc[i, 'division_status'] == 'ready':
             # A random float number is generated between (0,1)
-            prob = np.random.random_sample()
-            # If the random number is less than 2%, then this cell divides.
-            if prob <0.03:
+            prob = np.random.uniform(0,1)
+            # If the random number is less than 3%, then this cell divides.
+            # Make sure change the division_status.
+            if prob < 0.03:
                 daughter = lateral_split(sheet, mother = i)
                 sheet.face_df.loc[i,'growth_speed'] = (sheet.face_df.loc[i,'prefered_area'] - sheet.face_df.loc[i, 'area'])/5
                 sheet.face_df.loc[i, 'division_status'] = 'growing'
                 sheet.face_df.loc[daughter,'growth_speed'] = (sheet.face_df.loc[daughter,'prefered_area'] - sheet.face_df.loc[i, 'area'])/5
                 sheet.face_df.loc[daughter, 'division_status'] = 'growing'
-        elif sheet.face_df[sheet.face_df.loc[:,'cell_type'] == 'CT' and sheet.face_df.loc[i, 'division_status'] == 'growing':
+        
+        elif sheet.face_df[sheet.face_df.loc[i,'cell_type']] == 'CT' and sheet.face_df.loc[i, 'division_status'] == 'growing':
             sheet.face_df.loc[i,'area'] = sheet.face_df.loc[i,'area'] + sheet.face_df.loc[i,'growth_speed']
             if sheet.face_df.loc[i,'area'] <= sheet.face_df.loc[i,'prefered_area']:
                 sheet.face_df.loc[i, 'division_status'] = 'ready'
+        
         else:
             continue
 

@@ -2,6 +2,8 @@
 """
 This script contains all my personal defined functions to be used.
 """
+import numpy as np
+
 from tyssue.topology.base_topology import add_vert
 from tyssue.topology.sheet_topology import face_division
 from tyssue import PlanarGeometry as geom
@@ -202,6 +204,50 @@ def lateral_split(eptm, mother):
     return daughter
 
 
+def lateral_division(sheet, manager, cell_id, division_rate):
+    """Defines a lateral division behavior.
+    The function is composed of:
+        1. check if the cell is CT cell and ready to split.
+        2. generate a random number from (0,1), and compare with a threshold.
+        3. two daughter cells starts growing until reach a threshold.
+        
+    
+    Parameters
+    ----------
+    sheet: a :class:`Sheet` object
+    cell_id: int
+        the index of the dividing cell
+    crit_area: float
+        the area at which 
+    growth_speed: float
+        increase in the area per unit time
+        A_0(t + dt) = A0(t) + growth_speed
+    """
+
+    # if the cell area is larger than the crit_area, we let the cell divide.
+    if sheet.face_df.loc[cell_id, 'division_status'] == 'ready':
+        # A random float number is generated between (0,1)
+        prob = np.random.uniform(0,1)
+        if prob < division_rate:
+            daughter = lateral_split(sheet, mother = cell_id)
+            sheet.face_df.loc[cell_id,'growth_speed'] = (sheet.face_df.loc[cell_id,'prefered_area'] - sheet.face_df.loc[cell_id, 'area'])/5
+            sheet.face_df.loc[cell_id, 'division_status'] = 'growing'
+            sheet.face_df.loc[daughter,'growth_speed'] = (sheet.face_df.loc[daughter,'prefered_area'] - sheet.face_df.loc[daughter, 'area'])/5
+            sheet.face_df.loc[daughter, 'division_status'] = 'growing'
+            # update geometry
+            geom.update_all(sheet)
+        else:
+            pass
+            
+    else:
+        sheet.face_df.loc[cell_id,'area'] = sheet.face_df.loc[cell_id,'area'] + sheet.face_df.loc[cell_id,'growth_speed']
+        if sheet.face_df.loc[cell_id,'area'] <= sheet.face_df.loc[cell_id,'prefered_area']:
+            # restore division_status and prefered_area
+            sheet.face_df.loc[cell_id, 'division_status'] = 'ready'
+            sheet.face_df.loc[cell_id, "prefered_area"] = 1.0
+        # update geometry
+        geom.update_all(sheet)
+        
 
 
 
