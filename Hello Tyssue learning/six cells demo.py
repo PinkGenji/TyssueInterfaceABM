@@ -45,7 +45,7 @@ from my_headers import delete_face, xprod_2d, put_vert
 
 """ start the project """
 # Generate the cell sheet as three cells.
-num_x = 3
+num_x = 10
 num_y = 2
 sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = num_x, ny = num_y, distx = 1, disty = 1)
 geom.update_all(sheet)
@@ -58,8 +58,8 @@ fig, ax = sheet_view(sheet)
 for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
     
-delete_face(sheet, 4)
-delete_face(sheet, 3)
+delete_face(sheet, num_x)
+delete_face(sheet, num_x+1)
 sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
 
 # Plot figures to check.
