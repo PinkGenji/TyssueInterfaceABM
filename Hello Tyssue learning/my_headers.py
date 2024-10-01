@@ -2,6 +2,10 @@
 """
 This script contains all my personal defined functions to be used.
 """
+from tyssue.topology.base_topology import add_vert
+from tyssue.topology.sheet_topology import face_division
+from tyssue import PlanarGeometry as geom
+
 
 def delete_face(sheet_obj, face_deleting):
     """
@@ -133,6 +137,69 @@ def put_vert(eptm, edge, coord_put):
     elif len(new_opp_edges) == 0:
         new_opp_edges = None
     return new_vert, new_edges, new_opp_edges
+
+
+
+
+
+def lateral_split(eptm, mother):
+    """
+    Split the cell by choosing one of the edges to be a basal edge.
+
+    Parameters
+    ----------
+    eptm : a: Class: 'Epithelium' instance
+
+    mother : int
+        the index of the mother cell.
+
+    Returns
+    -------
+    None.
+
+    """
+    eptm.get_opposite()
+    edge_in_cell = eptm.edge_df[eptm.edge_df.loc[:,'face'] == mother]
+    # Obtain the index for one of the basal edges.
+    basal_edge_index = edge_in_cell[ edge_in_cell.loc[:,'opposite']==-1 ].index[0]
+    #get the vertex index of the newly added mid point.
+    basal_mid = add_vert(eptm, edge = basal_edge_index)[0]
+    geom.update_all(eptm)
+
+    # re-rewite the edge_in_cell to include the new vertex.
+    edge_in_cell = eptm.edge_df[eptm.edge_df.loc[:,'face'] == mother]
+    condition = edge_in_cell.loc[:,'srce'] == basal_mid
+    # extract the x-coordiante from array, then convert to a float type.
+    p0x = float(edge_in_cell[condition].loc[:,'sx'].values[0])
+    p0y = float(edge_in_cell[condition].loc[:,'sy'].values[0])
+    p0 = [p0x, p0y]
+
+    rx = float(edge_in_cell[condition].loc[:,'rx'].values[0])
+    ry = float(edge_in_cell[condition].loc[:,'ry'].values[0])
+    r  = [-rx, -ry]   # use the line in opposite direction.
+    
+    # We need to use iterrows to iterate over rows in pandas df
+    # The iteration has the form of (index, series)
+    # The series can be sliced.
+    for index, row in edge_in_cell.iterrows():
+        s0x = row['sx']
+        s0y = row['sy']
+        t0x = row['tx']
+        t0y = row['ty']
+        v1 = [s0x-p0x,s0y-p0y]
+        v2 = [t0x-p0x,t0y-p0y]
+        # if the xprod_2d returns negative, then line intersects the line segment.
+        if xprod_2d(r, v1)*xprod_2d(r, v2) < 0:
+            #print(f'The edge that is intersecting is: {index}')
+            dx = row['dx']
+            dy = row['dy']
+            c1 = (dx*ry/rx)-dy
+            c2 = s0y-p0y - (s0x*ry/rx) + (p0x*ry/rx)
+            k=c2/c1
+            intersection = [s0x+k*dx, s0y+k*dy]
+            new_index = int(put_vert(eptm, index, intersection)[0])
+    daughter = face_division(eptm, mother = mother, vert_a = basal_mid, vert_b = new_index)
+    return daughter
 
 
 
