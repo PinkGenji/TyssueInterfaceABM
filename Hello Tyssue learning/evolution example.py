@@ -128,6 +128,10 @@ sheet_view(sheet)
 fig,ax = sheet_view(sheet)
 ax.title.set_text('test')
 
+
+sheet.face_df.loc[1,'growth_speed']
+
+
 """ Modelling the tissue evolution """
 
 from tyssue.behaviors import EventManager
@@ -144,17 +148,17 @@ history = History(sheet)
 # After spliting, the cells grow to preferred area within 5 time steps.
 
 t = 0
-stop = 10
+stop = 30
 
 while manager.current and t < stop:
-    CT_condition = sheet.face_df.loc[:,'cell_type'] == 'CT'
-    CT_cells = sheet.face_df[CT_condition]
-    for i in CT_cells.index.tolist():
+    for i in sheet.face_df.index:
         print(f'we are at time step {t}, cell {i} is being checked.')
         manager.append(lateral_division, cell_id = i, division_rate = 0.03)
         manager.execute(sheet)
+        # Find energy min state and record.
         res = solver.find_energy_min(sheet, geom, smodel)
         history.record()
+        # Switch event list from the next list to the current list
         manager.update()
     fig, ax = sheet_view(sheet)
     ax.title.set_text(f'Snapshot at t = {t}')
