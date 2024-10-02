@@ -148,9 +148,9 @@ history = History(sheet)
 # After spliting, the cells grow to preferred area within 5 time steps.
 
 t = 0
-stop = 30
+stop = 8
 
-while manager.current and t < stop:
+while manager.current and t <= stop:
     for i in sheet.face_df.index:
         print(f'we are at time step {t}, cell {i} is being checked.')
         manager.append(lateral_division, cell_id = i, division_rate = 0.03)

@@ -170,6 +170,12 @@ while manager.current and t <= stop:
     t += 1
 
 
+# Double check the energy minimization process at t=0 and t = 1
+
+# Need to quantify the evolution of different algorithms
+# by looking at some parameters from literature. 
+#e.g. cell size in the cell packing paper.
+
 
 
 
