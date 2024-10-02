@@ -193,7 +193,7 @@ def division(sheet, manager, cell_id, crit_area, growth_rate=0.1, dt=1.):
         print(f"cell num: {daughter} is born")
     # if the cell area is less than the threshold, update the area by growth.
     else:
-        sheet.face_df.loc[cell_id, "area"] *= (1 + dt * growth_rate)
+        sheet.face_df.loc[cell_id, "prefered_area"] *= (1 + dt * growth_rate)
 
 
 from tyssue.behaviors import EventManager
