@@ -150,6 +150,17 @@ stop = 3
 # The History object records all the time steps 
 history = History(sheet)
 
+# Minimize the potential engery
+solver = QSSolver()
+res = solver.find_energy_min(sheet, geom, smodel)
+
+# Visualize the sheet.
+cell_ave = sheet.face_df.loc[:,'area'].mean()
+fig, ax = sheet_view(sheet,  mode = '2D')
+ax.title.set_text('Initial setup')
+ax.text(0.05, 0.95, f'Mean cell area = {cell_ave:.4f}', transform=ax.transAxes, fontsize=8, va='top', ha='left')
+
+
 while manager.current and t <= stop:
     for i in sheet.face_df.index:
         print(f'we are at time step {t}, cell {i} is being checked.')
@@ -157,7 +168,7 @@ while manager.current and t <= stop:
     # Execute the event in the current list
         manager.execute(sheet)
         res = solver.find_energy_min(sheet, geom, smodel)
-    
+        cell_ave = sheet.face_df.loc[:,'area'].mean()
     # Find energy min
     #res = solver.find_energy_min(bilayer, geom, smodel)
         history.record()
@@ -165,7 +176,11 @@ while manager.current and t <= stop:
     # Switch event list from the next list to the current list
         manager.update()
     fig, ax = sheet_view(sheet, mode="2D")
-    ax.title.set_text(f'Snapshot at t = {t}')
+    ax.title.set_text(f'Snapshot at the starting of t = {t}')
+    ax.text(0.05, 0.95, f'Mean cell area = {cell_ave:.4f}', transform=ax.transAxes, fontsize=8, va='top', ha='left')
+
+    t += 1
+    ax.text(0.05, 0.95, f'Mean cell area = {cell_ave:.4f}', transform=ax.transAxes, fontsize=8, va='top', ha='left')
         
     t += 1
 
