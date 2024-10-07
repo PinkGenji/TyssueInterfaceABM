@@ -148,7 +148,7 @@ history = History(sheet)
 # After spliting, the cells grow to preferred area within 5 time steps.
 
 t = 0
-stop = 8
+stop = 30
 
 while manager.current and t <= stop:
     for i in sheet.face_df.index:
@@ -165,8 +165,11 @@ while manager.current and t <= stop:
     t += 1
 
 
+""" Check if the growth rate is aligned with the division timescale? """
 
+""" Double check the division function with division 101. """
 
+""" Add the visibility to verticies during evolution. """
 
 
 
