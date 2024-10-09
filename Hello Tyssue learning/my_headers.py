@@ -173,10 +173,24 @@ def lateral_split(eptm, mother):
     edge_in_cell = eptm.edge_df[eptm.edge_df.loc[:,'face'] == mother]
     condition = edge_in_cell.loc[:,'srce'] == basal_mid
     # extract the x-coordiante from array, then convert to a float type.
+    
+    # Extract the centre vertex.
+    c0x = float(edge_in_cell[condition].loc[:,'fx'].values[0])
+    c0y = float(edge_in_cell[condition].loc[:,'fy'].values[0])
+    c0 = [c0x, c0y]
+    cent_dict = {'y': c0y, 'is_active': 1, 'x': c0x}
+    eptm.vert_df = eptm.vert_df.append(cent_dict, ignore_index = True)
+    # The append function adds the new row in the last row, we the use iloc to 
+    # get the index of the last row, hence the index of the centre point.
+    cent_index = eptm.vert_df.index[-1]
+    
+    
+    # Extract for source vertex coordinates
     p0x = float(edge_in_cell[condition].loc[:,'sx'].values[0])
     p0y = float(edge_in_cell[condition].loc[:,'sy'].values[0])
     p0 = [p0x, p0y]
 
+    # Extract the directional vector.
     rx = float(edge_in_cell[condition].loc[:,'rx'].values[0])
     ry = float(edge_in_cell[condition].loc[:,'ry'].values[0])
     r  = [-rx, -ry]   # use the line in opposite direction.
@@ -200,9 +214,10 @@ def lateral_split(eptm, mother):
             c2 = s0y-p0y - (s0x*ry/rx) + (p0x*ry/rx)
             k=c2/c1
             intersection = [s0x+k*dx, s0y+k*dy]
-            new_index = int(put_vert(eptm, index, intersection)[0])
-    daughter = face_division(eptm, mother = mother, vert_a = basal_mid, vert_b = new_index)
-    return daughter
+            oppo_index = int(put_vert(eptm, index, intersection)[0])
+    first_half = face_division(eptm, mother = mother, vert_a = basal_mid, vert_b = cent_index )
+    second_half = face_division(eptm, mother = mother, vert_a = oppo_index, vert_b = cent_index)
+    print(f'The new edge has first half as: {first_half} and second half as: {second_half} ')
 
 
 def lateral_division(sheet, manager, cell_id, division_rate):

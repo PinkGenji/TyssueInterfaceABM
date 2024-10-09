@@ -120,6 +120,16 @@ edge_in_cell = sheet.edge_df[condition]
 # the direction vector, t is the lambda variable.
 condition = edge_in_cell.loc[:,'srce'] == basal_mid
 # extract the x-coordiante from array, then convert to a float type.
+
+c0x = float(edge_in_cell[condition].loc[:,'fx'].values[0])
+c0y = float(edge_in_cell[condition].loc[:,'fy'].values[0])
+c0 = [c0x, c0y]
+cent_dict = {'y': c0y, 'is_active': 1, 'x': c0x}
+sheet.vert_df = sheet.vert_df.append(cent_dict, ignore_index = True)
+# The append function adds the new row in the last row, we the use iloc to 
+# get the index of the last row, hence the index of the centre point.
+cent_index = sheet.vert_df.index[-1]
+
 p0x = float(edge_in_cell[condition].loc[:,'sx'].values[0])
 p0y = float(edge_in_cell[condition].loc[:,'sy'].values[0])
 p0 = [p0x, p0y]
@@ -151,16 +161,19 @@ for index, row in edge_in_cell.iterrows():
         new_index = put_vert(sheet, index, intersection)[0]
 print(f'The intersection has coordinates: {intersection} with edge: {index}. ')
 
-face_division(sheet, mother = 1, vert_a = basal_mid, vert_b = new_index)
+first_half = face_division(sheet, mother = 1, vert_a = basal_mid, vert_b = cent_index )
+second_half = face_division(sheet, mother = 1, vert_a = new_index, vert_b = cent_index)
 geom.update_all(sheet)
+
+fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
+
 
 fig, ax= sheet_view(sheet)
 for edge, data in edge_in_cell.iterrows():
     ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
         
-fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
-for face, data in sheet.face_df.iterrows():
-    ax.text(data.x, data.y, face)
 
 
 
