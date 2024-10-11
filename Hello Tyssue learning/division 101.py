@@ -161,20 +161,22 @@ for index, row in edge_in_cell.iterrows():
         new_index = put_vert(sheet, index, intersection)[0]
 print(f'The intersection has coordinates: {intersection} with edge: {index}. ')
 
-first_half = face_division(sheet, mother = 1, vert_a = basal_mid, vert_b = cent_index )
-second_half = face_division(sheet, mother = 1, vert_a = new_index, vert_b = cent_index)
+first_half = face_division(sheet, mother = 1, vert_a = basal_mid, vert_b = new_index )
+added = put_vert(sheet, 39, c0)
 geom.update_all(sheet)
+
 
 fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
 
 
+
+
 fig, ax= sheet_view(sheet)
 for edge, data in edge_in_cell.iterrows():
     ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
         
-
 
 
 """ Jump here for shorted. """

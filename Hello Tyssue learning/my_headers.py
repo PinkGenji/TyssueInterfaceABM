@@ -215,9 +215,13 @@ def lateral_split(eptm, mother):
             k=c2/c1
             intersection = [s0x+k*dx, s0y+k*dy]
             oppo_index = int(put_vert(eptm, index, intersection)[0])
-    first_half = face_division(eptm, mother = mother, vert_a = basal_mid, vert_b = cent_index )
-    second_half = face_division(eptm, mother = mother, vert_a = oppo_index, vert_b = cent_index)
-    print(f'The new edge has first half as: {first_half} and second half as: {second_half} ')
+    # Do face division
+    split_line = face_division(eptm, mother = mother, vert_a = basal_mid, vert_b = oppo_index )
+    # The last row of edge df is the newly formed edge.
+    split_line_comp = put_vert(eptm, edge = eptm.edge_df.index[-1], coord_put = c0)
+    return split_line
+    #second_half = face_division(eptm, mother = mother, vert_a = oppo_index, vert_b = cent_index)
+    #print(f'The new edge has first half as: {first_half} and second half as: {second_half} ')
 
 
 def lateral_division(sheet, manager, cell_id, division_rate):
