@@ -25,7 +25,7 @@ from tyssue import PlanarGeometry as geom #for simple 2d geometry
 
 # For cell topology/configuration
 from tyssue.topology.sheet_topology import type1_transition
-from tyssue.topology.base_topology import collapse_edge, remove_face
+from tyssue.topology.base_topology import collapse_edge, remove_face, add_vert
 from tyssue.topology.sheet_topology import split_vert as sheet_split
 from tyssue.topology.bulk_topology import split_vert as bulk_split
 from tyssue.topology import condition_4i, condition_4ii
