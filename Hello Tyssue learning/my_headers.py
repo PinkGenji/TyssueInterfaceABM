@@ -184,7 +184,6 @@ def lateral_split(eptm, mother):
     # get the index of the last row, hence the index of the centre point.
     cent_index = eptm.vert_df.index[-1]
     
-    
     # Extract for source vertex coordinates
     p0x = float(edge_in_cell[condition].loc[:,'sx'].values[0])
     p0y = float(edge_in_cell[condition].loc[:,'sy'].values[0])
@@ -216,10 +215,10 @@ def lateral_split(eptm, mother):
             intersection = [s0x+k*dx, s0y+k*dy]
             oppo_index = int(put_vert(eptm, index, intersection)[0])
     # Do face division
-    split_line = face_division(eptm, mother = mother, vert_a = basal_mid, vert_b = oppo_index )
-    # The last row of edge df is the newly formed edge.
-    split_line_comp = put_vert(eptm, edge = eptm.edge_df.index[-1], coord_put = c0)
-    return split_line
+    new_face_index = face_division(eptm, mother = mother, vert_a = basal_mid, vert_b = oppo_index )
+    # Put a vertex at the centroid, on the newly formed edge (last row in df).
+    put_vert(eptm, edge = eptm.edge_df.index[-1], coord_put = c0)
+    return new_face_index
     #second_half = face_division(eptm, mother = mother, vert_a = oppo_index, vert_b = cent_index)
     #print(f'The new edge has first half as: {first_half} and second half as: {second_half} ')
 
