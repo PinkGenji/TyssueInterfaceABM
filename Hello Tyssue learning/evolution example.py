@@ -148,15 +148,15 @@ history = History(sheet)
 # After spliting, the cells grow to preferred area within 5 time steps.
 
 t = 0
-stop = 30
+stop = 10
 
-while manager.current and t <= stop:
+while manager.current and t < stop:
     for i in sheet.face_df.index:
         print(f'we are at time step {t}, cell {i} is being checked.')
         manager.append(lateral_division, cell_id = i, division_rate = 0.03)
         manager.execute(sheet)
         # Find energy min state and record.
-        res = solver.find_energy_min(sheet, geom, smodel)
+        #res = solver.find_energy_min(sheet, geom, smodel)
         history.record()
         # Switch event list from the next list to the current list
         manager.update()

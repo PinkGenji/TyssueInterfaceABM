@@ -35,7 +35,7 @@ from tyssue.dynamics.planar_vertex_model import PlanarModel as smodel
 from tyssue.solvers.quasistatic import QSSolver
 from tyssue.generation import extrude
 from tyssue.dynamics import model_factory, effectors
-from tyssue.topology.sheet_topology import remove_face, cell_division
+from tyssue.topology.sheet_topology import remove_face, cell_division, face_division
 
 # Event manager
 from tyssue.behaviors import EventManager
@@ -48,8 +48,8 @@ from my_headers import delete_face, xprod_2d, put_vert
 
 """ start the project. """
 # Generate the cell sheet as three cells.
-num_x = 9
-num_y = 8
+num_x = 4
+num_y = 4
 
 sheet = Sheet.planar_sheet_2d('face', nx = num_x, ny=num_y, distx=2, disty=2)
 
@@ -109,7 +109,7 @@ fig, ax = sheet_view(sheet,  mode = '2D')
 """ Grow first, then cells divide. """
 
 # Write behavior function for division_1.
-def division_1(sheet, manager, cell_id, crit_area, growth_rate=0.7, dt=1):
+def division_1(sheet, manager, cell_id, crit_area, growth_rate=0.8, dt=1):
     """The cells keep growing, when the area exceeds a critical area, then
     the cell divides.
     
@@ -127,12 +127,18 @@ def division_1(sheet, manager, cell_id, crit_area, growth_rate=0.7, dt=1):
 
     # if the cell area is larger than the crit_area, we let the cell divide.
     if sheet.face_df.loc[cell_id, "area"] > crit_area:
-        # restore prefered_area
-        sheet.face_df.loc[cell_id, "prefered_area"] = 1.0
         # Do division
-        daughter = cell_division(sheet, cell_id, geom)
+        edge_in_cell = sheet.edge_df[sheet.edge_df.loc[:,'face'] == cell_id]
+        edge_in_cell_index = list(edge_in_cell.index)
+        chosen_index = int(np.random.choice(edge_in_cell_index, 1))
+        # add a vertex in the middle of the chosen edge.
+        new_mid_index = add_vert(sheet, edge = chosen_index)[0]
+        
+        # Now compute the opposite edge.
+        
+        
         # update geometry
-        geom.update_all(sheet)
+        #geom.update_all(sheet)
         print(f"cell num: {daughter} is born")
     # if the cell area is less than the threshold, update the area by growth.
     else:
@@ -160,29 +166,47 @@ fig, ax = sheet_view(sheet,  mode = '2D')
 ax.title.set_text('Initial setup')
 ax.text(0.05, 0.95, f'Mean cell area = {cell_ave:.4f}', transform=ax.transAxes, fontsize=8, va='top', ha='left')
 
-
+np.random.seed(70)
 while manager.current and t <= stop:
+    
+    manager.execute(sheet)
+    t += 1
+    sheet.reset_index(order=True)
+    
     for i in sheet.face_df.index:
-        print(f'we are at time step {t}, cell {i} is being checked.')
-        manager.append(division_1, cell_id=i, crit_area=2)
-    # Execute the event in the current list
-        manager.execute(sheet)
-        res = solver.find_energy_min(sheet, geom, smodel)
-        cell_ave = sheet.face_df.loc[:,'area'].mean()
+        print(f'we are at time step {t}, cell {i} is being checked, with area: {sheet.')
+        manager.append(division_1, cell_id=i, crit_area=1.5)
     # Find energy min
-    #res = solver.find_energy_min(bilayer, geom, smodel)
-        history.record()
-
+    res = solver.find_energy_min(sheet, geom, smodel)
+    history.record()
+    fig, ax = sheet_view(sheet, mode = 'quick')
     # Switch event list from the next list to the current list
-        manager.update()
-    fig, ax = sheet_view(sheet, mode="2D")
-    ax.title.set_text(f'Snapshot at the starting of t = {t}')
-    ax.text(0.05, 0.95, f'Mean cell area = {cell_ave:.4f}', transform=ax.transAxes, fontsize=8, va='top', ha='left')
+    manager.update()
+    
 
-    t += 1
-    ax.text(0.05, 0.95, f'Mean cell area = {cell_ave:.4f}', transform=ax.transAxes, fontsize=8, va='top', ha='left')
+# =============================================================================
+#     # Execute the event in the current list
+#         manager.execute(sheet)
+#     # Find energy min
+#     #res = solver.find_energy_min(bilayer, geom, smodel)
+#         history.record()
+# 
+#     # Switch event list from the next list to the current list
+#         manager.update()
+# =============================================================================
         
-    t += 1
+# =============================================================================
+#     res = solver.find_energy_min(sheet, geom, smodel)
+#     geom.update_all(sheet)
+#     cell_ave = sheet.face_df.loc[:,'area'].mean()
+#     
+#     fig, ax = sheet_view(sheet, mode="2D")
+#     ax.title.set_text(f'Snapshot at the starting of t = {t}')
+#     ax.text(0.05, 0.95, f'Mean cell area = {cell_ave:.4f}', transform=ax.transAxes, fontsize=8, va='top', ha='left')
+#     t += 1
+# =============================================================================
+
+
 
 
 # Double check the energy minimization process at t=0 and t = 1
