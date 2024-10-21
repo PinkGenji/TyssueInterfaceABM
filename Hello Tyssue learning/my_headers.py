@@ -141,6 +141,27 @@ def put_vert(eptm, edge, coord_put):
     return new_vert, new_edges, new_opp_edges
 
 
+def divisibility_check(eptm, cell_id):
+    """
+    
+
+    Parameters
+    ----------
+    eptm : epithelium object
+        
+    cell_id : int
+        The index of the cell being checked
+
+    Returns
+    -------
+    Boolean, True for 'can divide', False for 'cannot divide'
+
+    """
+    eptm.get_opposite()
+    if any(eptm.edge_df[eptm.edge_df.loc[:,'face'] == cell_id].loc[:,'opposite']==-1) == True:
+        return True
+    else:
+        return False
 
 
 
@@ -160,7 +181,6 @@ def lateral_split(eptm, mother):
     daughter: face index of new cell.
 
     """
-    eptm.get_opposite()
     edge_in_cell = eptm.edge_df[eptm.edge_df.loc[:,'face'] == mother]
     # Obtain the index for one of the basal edges.
     basal_edges = edge_in_cell[ edge_in_cell.loc[:,'opposite']==-1 ]
@@ -218,6 +238,7 @@ def lateral_split(eptm, mother):
     new_face_index = face_division(eptm, mother = mother, vert_a = basal_mid, vert_b = oppo_index )
     # Put a vertex at the centroid, on the newly formed edge (last row in df).
     put_vert(eptm, edge = eptm.edge_df.index[-1], coord_put = c0)
+    eptm.update_num_sides()
     return new_face_index
     #second_half = face_division(eptm, mother = mother, vert_a = oppo_index, vert_b = cent_index)
     #print(f'The new edge has first half as: {first_half} and second half as: {second_half} ')

@@ -40,7 +40,7 @@ from tyssue.topology.sheet_topology import remove_face, cell_division, face_divi
 from tyssue.draw import sheet_view, highlight_cells
 
 # import my own functions
-from my_headers import delete_face, xprod_2d, put_vert, lateral_split
+from my_headers import delete_face, xprod_2d, put_vert, lateral_split, divisibility_check
 
 # Generate the cell sheet as three cells.
 sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = 3, ny = 2, distx = 1, disty = 1)
@@ -177,15 +177,20 @@ fig, ax= sheet_view(sheet)
 for edge, data in edge_in_cell.iterrows():
     ax.text((data.sx+data.tx)/2, (data.sy+data.ty)/2, edge)
         
-
+sheet.face_df.loc[1]
+sheet.edge_df.loc[sheet.edge_df.loc[:,'face'] == 1]
+sheet.update_num_sides()
 
 """ Jump here for shorted. """
-daughter = lateral_split(sheet, mother = 1)
-geom.update_all(sheet)
-
-
-fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
-for face, data in sheet.face_df.iterrows():
-    ax.text(data.x, data.y, face)
+if divisibility_check(sheet, cell_id = 1):
+    daughter = lateral_split(sheet, mother = 1)
+    geom.update_all(sheet)
+    
+    fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+    for face, data in sheet.face_df.iterrows():
+        ax.text(data.x, data.y, face)
+else:
+    print('Not appropriate cell to divide.')
+    
 
 """ This is the end of the code """

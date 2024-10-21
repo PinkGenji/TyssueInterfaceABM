@@ -3,8 +3,6 @@
 This script draws a cell evolution of 10 cells with lateral split.
 """
 
-
-""" load modules """
 # =============================================================================
 # First we need to surpress the version warnings from Pandas.
 import warnings 

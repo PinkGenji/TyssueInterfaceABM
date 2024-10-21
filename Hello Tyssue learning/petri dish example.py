@@ -134,7 +134,7 @@ def division_1(sheet, manager, cell_id, crit_area, growth_rate=0.8, dt=1):
         # add a vertex in the middle of the chosen edge.
         new_mid_index = add_vert(sheet, edge = chosen_index)[0]
         
-        # Now compute the opposite edge.
+        # We need to determine which edge is the opposite edge
         
         
         # update geometry
@@ -174,7 +174,7 @@ while manager.current and t <= stop:
     sheet.reset_index(order=True)
     
     for i in sheet.face_df.index:
-        print(f'we are at time step {t}, cell {i} is being checked, with area: {sheet.')
+        print(f'we are at time step {t}, cell {i} is being checked')
         manager.append(division_1, cell_id=i, crit_area=1.5)
     # Find energy min
     res = solver.find_energy_min(sheet, geom, smodel)
