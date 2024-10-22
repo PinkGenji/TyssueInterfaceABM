@@ -4,9 +4,10 @@ This script contains an example of vertex modelling for petri dish like tissue
 cells.
 """
 # =============================================================================
-# First we need to surpress the version warnings from Pandas.
+# First we need to surpress the warnings about deprecation or future.
 import warnings 
 warnings.simplefilter(action='ignore', category=FutureWarning) 
+warnings.filterwarnings("ignore", category=DeprecationWarning) 
 # =============================================================================
 
 # Load all required modules.
@@ -48,6 +49,7 @@ from my_headers import delete_face, xprod_2d, put_vert
 
 """ start the project. """
 # Generate the cell sheet as three cells.
+np.random.seed(70)
 num_x = 4
 num_y = 4
 
@@ -124,22 +126,65 @@ def division_1(sheet, manager, cell_id, crit_area, growth_rate=0.8, dt=1):
         increase in the area per unit time
         A_0(t + dt) = A0(t) * (1 + growth_rate * dt)
     """
+    np.random.seed(70)
 
     # if the cell area is larger than the crit_area, we let the cell divide.
     if sheet.face_df.loc[cell_id, "area"] > crit_area:
         # Do division
         edge_in_cell = sheet.edge_df[sheet.edge_df.loc[:,'face'] == cell_id]
-        edge_in_cell_index = list(edge_in_cell.index)
-        chosen_index = int(np.random.choice(edge_in_cell_index, 1))
+        edge_in_cell_ind_list = list(edge_in_cell.index)
+        chosen_index = int(np.random.choice(edge_in_cell_ind_list , 1))
+        
         # add a vertex in the middle of the chosen edge.
         new_mid_index = add_vert(sheet, edge = chosen_index)[0]
         
         # We need to determine which edge is the opposite edge
+        c0x = float(edge_in_cell.loc[chosen_index,'fx'])
+        c0y = float(edge_in_cell.loc[chosen_index,'fy'])
+        c0 = [c0x, c0y]
         
+        sheet.vert_df = sheet.vert_df.append({'y': c0y, 'is_active': 1, 'x': c0x}, ignore_index = True)
+        
+        # Extract for source vertex coordinates
+        p0x = float(edge_in_cell.loc[chosen_index ,'sx'])
+        p0y = float(edge_in_cell.loc[chosen_index ,'sy'])
+
+
+        # Extract the directional vector.
+        rx = float(edge_in_cell.loc[chosen_index ,'rx'])
+        ry = float(edge_in_cell.loc[chosen_index ,'ry'])
+        r  = [-rx, -ry]   # use the line in opposite direction.
+        
+        # We need to use iterrows to iterate over rows in pandas df
+        # The iteration has the form of (index, series)
+        # The series can be sliced.
+        for index, row in edge_in_cell.iterrows():
+            s0x = row['sx']
+            s0y = row['sy']
+            t0x = row['tx']
+            t0y = row['ty']
+            v1 = [s0x-p0x,s0y-p0y]
+            v2 = [t0x-p0x,t0y-p0y]
+            # if the xprod_2d returns negative, then line intersects the line segment.
+            if xprod_2d(r, v1)*xprod_2d(r, v2) < 0:
+                #print(f'The edge that is intersecting is: {index}')
+                dx = row['dx']
+                dy = row['dy']
+                c1 = (dx*ry/rx)-dy
+                c2 = s0y-p0y - (s0x*ry/rx) + (p0x*ry/rx)
+                k=c2/c1
+                intersection = [s0x+k*dx, s0y+k*dy]
+                oppo_index = int(put_vert(sheet, index, intersection)[0])
+        new_face_index = face_division(sheet, mother = cell_id, vert_a = new_mid_index , vert_b = oppo_index )
+        # Put a vertex at the centroid, on the newly formed edge (last row in df).
+        put_vert(sheet, edge = sheet.edge_df.index[-1], coord_put = c0)
+        sheet.update_num_sides()
         
         # update geometry
         #geom.update_all(sheet)
-        print(f"cell num: {daughter} is born")
+        print(f"cell num: {new_face_index} is born ")
+        print(f'{chosen_index} is chosen ')
+        return new_face_index
     # if the cell area is less than the threshold, update the area by growth.
     else:
         sheet.face_df.loc[cell_id, "prefered_area"] *= (1 + dt * growth_rate)
@@ -166,7 +211,7 @@ fig, ax = sheet_view(sheet,  mode = '2D')
 ax.title.set_text('Initial setup')
 ax.text(0.05, 0.95, f'Mean cell area = {cell_ave:.4f}', transform=ax.transAxes, fontsize=8, va='top', ha='left')
 
-np.random.seed(70)
+
 while manager.current and t <= stop:
     
     manager.execute(sheet)
@@ -182,7 +227,14 @@ while manager.current and t <= stop:
     fig, ax = sheet_view(sheet, mode = 'quick')
     # Switch event list from the next list to the current list
     manager.update()
-    
+
+
+
+# Colour the vertices
+from tyssue.config.draw import sheet_spec as draw_specs
+draw_specs = draw_specs()
+
+sheet_view(sheet)
 
 # =============================================================================
 #     # Execute the event in the current list
