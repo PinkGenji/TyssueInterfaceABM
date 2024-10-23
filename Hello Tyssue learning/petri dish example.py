@@ -228,7 +228,8 @@ while manager.current and t <= stop:
     # Switch event list from the next list to the current list
     manager.update()
 
-
+min_sides = sheet.face_df.loc[:,'num_sides'].min()
+print(f'The min number of edges within this configuration is: {min_sides}. ')
 
 # Colour the vertices
 from tyssue.config.draw import sheet_spec as draw_specs

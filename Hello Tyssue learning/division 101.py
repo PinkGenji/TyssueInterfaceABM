@@ -159,6 +159,8 @@ for index, row in edge_in_cell.iterrows():
         k=c2/c1
         intersection = [s0x+k*dx, s0y+k*dy]
         new_index = put_vert(sheet, index, intersection)[0]
+    else:
+        print('Error! No opposite intersection!')
 print(f'The intersection has coordinates: {intersection} with edge: {index}. ')
 
 first_half = face_division(sheet, mother = 1, vert_a = basal_mid, vert_b = new_index )
@@ -169,8 +171,6 @@ geom.update_all(sheet)
 fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
-
-
 
 
 fig, ax= sheet_view(sheet)
@@ -191,6 +191,135 @@ if divisibility_check(sheet, cell_id = 1):
         ax.text(data.x, data.y, face)
 else:
     print('Not appropriate cell to divide.')
+
+
     
+""" Now we do for a non-orientated division """
+# Generate the cell sheet as three cells.
+sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = 3, ny = 2, distx = 1, disty = 1)
+geom.update_all(sheet)
+
+# remove non-enclosed faces
+sheet.remove(sheet.get_invalid())
+
+# Plot the figure to see the index.
+fig, ax = sheet_view(sheet)
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
+    
+delete_face(sheet, 4)
+delete_face(sheet, 3)
+sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
+
+# Plot figures to check.
+# Draw the cell mesh with face labelling and edge arrows.
+fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
+
+# Energy minimization
+specs = {
+    'edge': {
+        'is_active': 1,
+        'line_tension': 0.12,
+        'ux': 0.0,
+        'uy': 0.0,
+        'uz': 0.0
+    },
+   'face': {
+       'area_elasticity': 1.0,
+       'contractility': 0.04,
+       'is_alive': 1,
+       'prefered_area': 1.0},
+   'settings': {
+       'grad_norm_factor': 1.0,
+       'nrj_norm_factor': 1.0
+   },
+   'vert': {
+       'is_active': 1
+   }
+}
+sheet.update_specs(specs, reset = True)
+geom.update_all(sheet)
+solver = QSSolver()
+res = solver.find_energy_min(sheet, geom, smodel)
+sheet_view(sheet) 
+
+# Draw with vertex labelling.
+fig, ax= sheet_view(sheet, edge = {'head_width':0.1})
+for vert, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y+0.1, vert)
+
+
+# Do division, pikc number 2 cell for example.
+condition = sheet.edge_df.loc[:,'face'] == 2
+edge_in_cell = sheet.edge_df[condition]
+
+# We need to randomly choose one of the edges.
+chosen_index = int(np.random.choice(list(edge_in_cell.index) , 1))
+
+# Add a vertex in the middle of the chosen edge.
+new_mid_index = add_vert(sheet, edge = chosen_index)[0]
+
+# update the dataframes and all temperatory storage.
+geom.update_all(sheet)
+condition = sheet.edge_df.loc[:,'face'] == 2
+edge_in_cell = sheet.edge_df[condition]
+
+# Extract and store the centroid coordinate.
+c0x = float(edge_in_cell[condition].loc[chosen_index,'fx'])
+c0y = float(edge_in_cell[condition].loc[chosen_index,'fy'])
+c0 = [c0x, c0y]
+
+sheet.vert_df = sheet.vert_df.append({'y': c0y, 'is_active': 1, 'x': c0x}, ignore_index = True)
+
+# Extract for source vertex coordinates of the newly added vertex.
+condition = edge_in_cell.loc[:,'srce'] == new_mid_index
+
+
+p0x = float(edge_in_cell[condition].loc[:,'sx'].values[0])
+p0y = float(edge_in_cell[condition].loc[:,'sy'].values[0])
+
+
+# Extract the directional vector.
+rx = float(edge_in_cell[condition].loc[:,'rx'].values[0])
+ry = float(edge_in_cell[condition].loc[:,'ry'].values[0])
+r  = [-rx, -ry]   # use the line in opposite direction.
+
+# We need to use iterrows to iterate over rows in pandas df
+# The iteration has the form of (index, series)
+# The series can be sliced.
+for index, row in edge_in_cell.iterrows():
+    s0x = row['sx']
+    s0y = row['sy']
+    t0x = row['tx']
+    t0y = row['ty']
+    v1 = [s0x-p0x,s0y-p0y]
+    v2 = [t0x-p0x,t0y-p0y]
+    # if the xprod_2d returns negative, then line intersects the line segment.
+    if xprod_2d(r, v1)*xprod_2d(r, v2) < 0:
+        dx = row['dx']
+        dy = row['dy']
+        c1 = (dx*ry/rx)-dy
+        c2 = s0y-p0y - (s0x*ry/rx) + (p0x*ry/rx)
+        k=c2/c1
+        intersection = [s0x+k*dx, s0y+k*dy]
+        oppo_index = int(put_vert(sheet, index, intersection)[0])
+    else:
+        continue
+new_face_index = face_division(sheet, mother = 2, vert_a = new_mid_index , vert_b = oppo_index )
+# Put a vertex at the centroid, on the newly formed edge (last row in df).
+put_vert(sheet, edge = sheet.edge_df.index[-1], coord_put = c0)
+sheet.update_num_sides()
+
+# update geometry
+geom.update_all(sheet)
+
+
+# Draw with vertex labelling.
+fig, ax= sheet_view(sheet, edge = {'head_width':0.1})
+for vert, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y+0.1, vert)
+
 
 """ This is the end of the code """
