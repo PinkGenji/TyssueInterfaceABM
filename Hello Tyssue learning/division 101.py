@@ -196,6 +196,7 @@ else:
     
 """ Now we do for a non-orientated division """
 # Generate the cell sheet as three cells.
+
 sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = 3, ny = 2, distx = 1, disty = 1)
 geom.update_all(sheet)
 
@@ -216,34 +217,6 @@ sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwis
 fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
-
-# Energy minimization
-specs = {
-    'edge': {
-        'is_active': 1,
-        'line_tension': 0.12,
-        'ux': 0.0,
-        'uy': 0.0,
-        'uz': 0.0
-    },
-   'face': {
-       'area_elasticity': 1.0,
-       'contractility': 0.04,
-       'is_alive': 1,
-       'prefered_area': 1.0},
-   'settings': {
-       'grad_norm_factor': 1.0,
-       'nrj_norm_factor': 1.0
-   },
-   'vert': {
-       'is_active': 1
-   }
-}
-sheet.update_specs(specs, reset = True)
-geom.update_all(sheet)
-solver = QSSolver()
-res = solver.find_energy_min(sheet, geom, smodel)
-sheet_view(sheet) 
 
 # Draw with vertex labelling.
 fig, ax= sheet_view(sheet, edge = {'head_width':0.1})
@@ -318,7 +291,7 @@ geom.update_all(sheet)
 
 # Draw with vertex labelling.
 fig, ax= sheet_view(sheet, edge = {'head_width':0.1})
-for vert, data in sheet.vert_df.iterrows():
+for vert, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y+0.1, vert)
 
 

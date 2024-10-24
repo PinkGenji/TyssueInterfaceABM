@@ -138,6 +138,10 @@ def division_1(sheet, manager, cell_id, crit_area, growth_rate=0.8, dt=1):
         # add a vertex in the middle of the chosen edge.
         new_mid_index = add_vert(sheet, edge = chosen_index)[0]
         
+        # update global and temporary data storages.
+        geom.update_all(sheet)
+        edge_in_cell = sheet.edge_df[sheet.edge_df.loc[:,'face'] == cell_id]
+        
         # We need to determine which edge is the opposite edge
         c0x = float(edge_in_cell.loc[chosen_index,'fx'])
         c0y = float(edge_in_cell.loc[chosen_index,'fy'])
