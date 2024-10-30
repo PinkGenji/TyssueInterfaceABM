@@ -135,40 +135,40 @@ def division_1(sheet, cell_id, crit_area=1.5, growth_rate=0.5, dt=1):
 
     # if the cell area is larger than the crit_area, we let the cell divide.
     if sheet.face_df.loc[cell_id, "area"] > crit_area:
-        # Do division
-        edge_in_cell = sheet.edge_df[sheet.edge_df.loc[:,'face'] == cell_id]
-        edge_in_cell_ind_list = np.array(edge_in_cell.index)
-        
-        if cell_id ==15:
-            all_vert = sheet.edge_df.loc[edge_in_cell_ind_list, ['sx', 'sy']]
-            print(f'Before division all verts in 15 are:\n {all_vert}')
+        condition = sheet.edge_df.loc[:,'face'] == cell_id
+        edge_in_cell = sheet.edge_df[condition]
 
-        
-        chosen_index = rng.choice(edge_in_cell_ind_list)
-        # add a vertex in the middle of the chosen edge.
+        # We need to randomly choose one of the edges.
+        chosen_index = int(np.random.choice(list(edge_in_cell.index) , 1))
+
+        # Add a vertex in the middle of the chosen edge.
         new_mid_index = add_vert(sheet, edge = chosen_index)[0]
-        
-        # update global and temporary data storages.
+
+        # update the dataframes and all temperatory storage.
         geom.update_all(sheet)
-        edge_in_cell = sheet.edge_df[sheet.edge_df.loc[:,'face'] == cell_id]
-        
-        # We need to determine which edge is the opposite edge
-        c0x = float(edge_in_cell.loc[chosen_index,'fx'])
-        c0y = float(edge_in_cell.loc[chosen_index,'fy'])
+        condition = sheet.edge_df.loc[:,'face'] == cell_id
+        edge_in_cell = sheet.edge_df[condition]
+
+        # Extract and store the centroid coordinate.
+        c0x = float(edge_in_cell[condition].loc[chosen_index,'fx'])
+        c0y = float(edge_in_cell[condition].loc[chosen_index,'fy'])
         c0 = [c0x, c0y]
-        
+
         sheet.vert_df = sheet.vert_df.append({'y': c0y, 'is_active': 1, 'x': c0x}, ignore_index = True)
-        
-        # Extract for source vertex coordinates
-        p0x = float(edge_in_cell.loc[chosen_index ,'sx'])
-        p0y = float(edge_in_cell.loc[chosen_index ,'sy'])
-        p0 = [p0x, p0y]
+
+        # Extract for source vertex coordinates of the newly added vertex.
+        condition = edge_in_cell.loc[:,'srce'] == new_mid_index
+
+
+        p0x = float(edge_in_cell[condition].loc[:,'sx'].values[0])
+        p0y = float(edge_in_cell[condition].loc[:,'sy'].values[0])
+
 
         # Extract the directional vector.
-        rx = float(edge_in_cell.loc[chosen_index ,'rx'])
-        ry = float(edge_in_cell.loc[chosen_index ,'ry'])
+        rx = float(edge_in_cell[condition].loc[:,'rx'].values[0])
+        ry = float(edge_in_cell[condition].loc[:,'ry'].values[0])
         r  = [-rx, -ry]   # use the line in opposite direction.
-        
+
         # We need to use iterrows to iterate over rows in pandas df
         # The iteration has the form of (index, series)
         # The series can be sliced.
@@ -181,7 +181,6 @@ def division_1(sheet, cell_id, crit_area=1.5, growth_rate=0.5, dt=1):
             v2 = [t0x-p0x,t0y-p0y]
             # if the xprod_2d returns negative, then line intersects the line segment.
             if xprod_2d(r, v1)*xprod_2d(r, v2) < 0:
-                #print(f'The edge that is intersecting is: {index}')
                 dx = row['dx']
                 dy = row['dy']
                 c1 = (dx*ry/rx)-dy
@@ -189,6 +188,8 @@ def division_1(sheet, cell_id, crit_area=1.5, growth_rate=0.5, dt=1):
                 k=c2/c1
                 intersection = [s0x+k*dx, s0y+k*dy]
                 oppo_index = int(put_vert(sheet, index, intersection)[0])
+            else:
+                continue
         new_face_index = face_division(sheet, mother = cell_id, vert_a = new_mid_index , vert_b = oppo_index )
         # Put a vertex at the centroid, on the newly formed edge (last row in df).
         put_vert(sheet, edge = sheet.edge_df.index[-1], coord_put = c0)
@@ -224,14 +225,14 @@ all_vert = sheet.edge_df[sheet.edge_df.loc[:,'face'] == 15].loc[:,['sx','sy']]
 print(f'Initially, all verts in 15 are:\n {all_vert}')
 
 t = 0
-stop = 5
+stop = 1
 
 while t <= stop:
     all_cells = sheet.face_df.index
     for i in all_cells:
         #print(f'We are in time step {t}, checking cell {i}.')
         division_1(sheet, cell_id = i)
-    res = solver.find_energy_min(sheet, geom, smodel)
+    #res = solver.find_energy_min(sheet, geom, smodel)
     # Plot configuration with face labels.
     fig, ax = sheet_view(sheet)
     for face, data in sheet.face_df.iterrows():
@@ -244,17 +245,16 @@ while t <= stop:
     fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
     ax.title.set_text(f'time = {t}')
     
-
-    
     min_sides = sheet.face_df.loc[:,'num_sides'].min()
     #print(f'We are at time step {t}, min_side of current configuration is {min_sides}.')
     t +=1
 
 
+""" The following lines highlights the centroids of each cell. """
 
 
 
-# Double check the energy minimization process at t=0 and t = 1
+
 
 # Need to quantify the evolution of different algorithms
 # by looking at some parameters from literature. 
