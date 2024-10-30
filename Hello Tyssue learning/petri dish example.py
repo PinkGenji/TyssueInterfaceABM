@@ -141,7 +141,7 @@ def division_1(sheet, cell_id, crit_area=1.5, growth_rate=0.5, dt=1):
         
         if cell_id ==15:
             all_vert = sheet.edge_df.loc[edge_in_cell_ind_list, ['sx', 'sy']]
-            print(f'all verts are:\n {all_vert}')
+            print(f'Before division all verts in 15 are:\n {all_vert}')
 
         
         chosen_index = rng.choice(edge_in_cell_ind_list)
@@ -201,8 +201,10 @@ def division_1(sheet, cell_id, crit_area=1.5, growth_rate=0.5, dt=1):
         sheet.reset_index(order=True)
         if cell_id == 15:
             starting = [sheet.vert_df.loc[new_mid_index, 'x'], sheet.vert_df.loc[new_face_index,'y']]
-            print(f'starting = {[f"{x:.7f}" for x in starting]}, c0 = {[f"{x:.7f}" for x in c0]}, opposite = {[f"{x:.7f}" for x in intersection]}')
-        
+            print(f'starting = {[f"{x:.5f}" for x in starting]}, c0 = {[f"{x:.5f}" for x in c0]}, opposite = {[f"{x:.5f}" for x in intersection]}')
+            face_15 = sheet.face_df.loc[15,'num_sides']
+            print(f' Now, Face 15 has sides: {face_15} \n')
+            
         return new_face_index
     # if the cell area is less than the threshold, update the area by growth.
     else:
@@ -218,8 +220,11 @@ fig, ax = sheet_view(sheet,  mode = '2D')
 ax.title.set_text('Initial setup')
 ax.text(0.05, 0.95, f'Mean cell area = {cell_ave:.4f}', transform=ax.transAxes, fontsize=8, va='top', ha='left')
 
+all_vert = sheet.edge_df[sheet.edge_df.loc[:,'face'] == 15].loc[:,['sx','sy']]
+print(f'Initially, all verts in 15 are:\n {all_vert}')
+
 t = 0
-stop = 3
+stop = 5
 
 while t <= stop:
     all_cells = sheet.face_df.index
@@ -231,19 +236,21 @@ while t <= stop:
     fig, ax = sheet_view(sheet)
     for face, data in sheet.face_df.iterrows():
         ax.text(data.x, data.y, face)
+    
+    fig, ax = sheet_view(sheet)
+    for face, data in sheet.vert_df.iterrows():
+        ax.text(data.x, data.y, face)
     # Plot configuration with arrows.
     fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
     ax.title.set_text(f'time = {t}')
+    
 
     
     min_sides = sheet.face_df.loc[:,'num_sides'].min()
     #print(f'We are at time step {t}, min_side of current configuration is {min_sides}.')
-    face_15 = sheet.face_df.loc[15,'num_sides']
-    print(f'After time {t} division, Face 15 has sides: {face_15} \n')
     t +=1
 
 
-sheet.face_df.loc[12,'num_sides']
 
 
 
