@@ -110,7 +110,6 @@ res = solver.find_energy_min(sheet, geom, smodel)
 # Visualize the sheet.
 fig, ax = sheet_view(sheet,  mode = '2D')
 
-c = []
 
 """ Grow first, then cells divide. """
 # Write behavior function for division_1.
@@ -138,8 +137,8 @@ def division_1(sheet, cell_id, crit_area=1.5, growth_rate=0.5, dt=1):
         chosen_index =  rng.choice(edge_in_cell.index)
         
         # Extract and store the centroid coordinate.
-        c0x = float(edge_in_cell[condition].loc[chosen_index,'fx'])
-        c0y = float(edge_in_cell[condition].loc[chosen_index,'fy'])
+        c0x = edge_in_cell.loc[edge_in_cell.index[0],'fx']
+        c0y = edge_in_cell.loc[edge_in_cell.index[0],'fy']
         c0 = [c0x, c0y]
         sheet.vert_df = sheet.vert_df.append({'y': c0y, 'is_active': 1, 'x': c0x}, ignore_index = True)
 
@@ -186,7 +185,7 @@ def division_1(sheet, cell_id, crit_area=1.5, growth_rate=0.5, dt=1):
                 continue
         new_face_index = face_division(sheet, mother = cell_id, vert_a = new_mid_index , vert_b = oppo_index )
         # Put a vertex at the centroid, on the newly formed edge (last row in df).
-        put_vert(sheet, edge = sheet.edge_df.index[-1], coord_put = c0)
+        #put_vert(sheet, edge = sheet.edge_df.index[-1], coord_put = c0)
         return new_face_index
     # if the cell area is less than the threshold, update the area by growth.
     else:
