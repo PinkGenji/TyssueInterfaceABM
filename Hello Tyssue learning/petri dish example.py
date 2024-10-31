@@ -34,15 +34,11 @@ from tyssue.topology import condition_4i, condition_4ii
 ## model and solver
 from tyssue.dynamics.planar_vertex_model import PlanarModel as smodel
 from tyssue.solvers.quasistatic import QSSolver
-from tyssue.generation import extrude
-from tyssue.dynamics import model_factory, effectors
-from tyssue.topology.sheet_topology import remove_face, cell_division, face_division
+from tyssue.topology.sheet_topology import face_division
 
-# Event manager
-from tyssue.behaviors import EventManager
 
 # 2D plotting
-from tyssue.draw import sheet_view, highlight_cells
+from tyssue.draw import sheet_view
 
 from my_headers import delete_face, xprod_2d, put_vert
 
@@ -114,6 +110,7 @@ res = solver.find_energy_min(sheet, geom, smodel)
 # Visualize the sheet.
 fig, ax = sheet_view(sheet,  mode = '2D')
 
+c = []
 
 """ Grow first, then cells divide. """
 # Write behavior function for division_1.
@@ -137,32 +134,29 @@ def division_1(sheet, cell_id, crit_area=1.5, growth_rate=0.5, dt=1):
     if sheet.face_df.loc[cell_id, "area"] > crit_area:
         condition = sheet.edge_df.loc[:,'face'] == cell_id
         edge_in_cell = sheet.edge_df[condition]
-
         # We need to randomly choose one of the edges.
-        chosen_index = int(np.random.choice(list(edge_in_cell.index) , 1))
+        chosen_index =  rng.choice(edge_in_cell.index)
+        
+        # Extract and store the centroid coordinate.
+        c0x = float(edge_in_cell[condition].loc[chosen_index,'fx'])
+        c0y = float(edge_in_cell[condition].loc[chosen_index,'fy'])
+        c0 = [c0x, c0y]
+        sheet.vert_df = sheet.vert_df.append({'y': c0y, 'is_active': 1, 'x': c0x}, ignore_index = True)
 
         # Add a vertex in the middle of the chosen edge.
         new_mid_index = add_vert(sheet, edge = chosen_index)[0]
 
         # update the dataframes and all temperatory storage.
         geom.update_all(sheet)
+        
         condition = sheet.edge_df.loc[:,'face'] == cell_id
         edge_in_cell = sheet.edge_df[condition]
-
-        # Extract and store the centroid coordinate.
-        c0x = float(edge_in_cell[condition].loc[chosen_index,'fx'])
-        c0y = float(edge_in_cell[condition].loc[chosen_index,'fy'])
-        c0 = [c0x, c0y]
-
-        sheet.vert_df = sheet.vert_df.append({'y': c0y, 'is_active': 1, 'x': c0x}, ignore_index = True)
-
+        
         # Extract for source vertex coordinates of the newly added vertex.
         condition = edge_in_cell.loc[:,'srce'] == new_mid_index
 
-
         p0x = float(edge_in_cell[condition].loc[:,'sx'].values[0])
         p0y = float(edge_in_cell[condition].loc[:,'sy'].values[0])
-
 
         # Extract the directional vector.
         rx = float(edge_in_cell[condition].loc[:,'rx'].values[0])
@@ -193,67 +187,82 @@ def division_1(sheet, cell_id, crit_area=1.5, growth_rate=0.5, dt=1):
         new_face_index = face_division(sheet, mother = cell_id, vert_a = new_mid_index , vert_b = oppo_index )
         # Put a vertex at the centroid, on the newly formed edge (last row in df).
         put_vert(sheet, edge = sheet.edge_df.index[-1], coord_put = c0)
-        sheet.update_num_sides()
-        
-        
-        # update geometry
-        #geom.update_all(sheet)
-        #print(f"cell num: {new_face_index} is born ")
-        sheet.reset_index(order=True)
-        if cell_id == 15:
-            starting = [sheet.vert_df.loc[new_mid_index, 'x'], sheet.vert_df.loc[new_face_index,'y']]
-            print(f'starting = {[f"{x:.5f}" for x in starting]}, c0 = {[f"{x:.5f}" for x in c0]}, opposite = {[f"{x:.5f}" for x in intersection]}')
-            face_15 = sheet.face_df.loc[15,'num_sides']
-            print(f' Now, Face 15 has sides: {face_15} \n')
-            
         return new_face_index
     # if the cell area is less than the threshold, update the area by growth.
     else:
         sheet.face_df.loc[cell_id, "prefered_area"] *= (1 + dt * growth_rate)
 
-# Minimize the potential engery
-solver = QSSolver()
-res = solver.find_energy_min(sheet, geom, smodel)
 
-# # Visualize the sheet.
-cell_ave = sheet.face_df.loc[:,'area'].mean()
-fig, ax = sheet_view(sheet,  mode = '2D')
-ax.title.set_text('Initial setup')
-ax.text(0.05, 0.95, f'Mean cell area = {cell_ave:.4f}', transform=ax.transAxes, fontsize=8, va='top', ha='left')
+from tyssue.config.draw import sheet_spec as default_spec
+draw_specs = default_spec()
 
-all_vert = sheet.edge_df[sheet.edge_df.loc[:,'face'] == 15].loc[:,['sx','sy']]
-print(f'Initially, all verts in 15 are:\n {all_vert}')
 
 t = 0
 stop = 1
 
 while t <= stop:
+    
+    # Loop over all the faces.
     all_cells = sheet.face_df.index
     for i in all_cells:
         #print(f'We are in time step {t}, checking cell {i}.')
         division_1(sheet, cell_id = i)
-    #res = solver.find_energy_min(sheet, geom, smodel)
-    # Plot configuration with face labels.
-    fig, ax = sheet_view(sheet)
-    for face, data in sheet.face_df.iterrows():
-        ax.text(data.x, data.y, face)
     
-    fig, ax = sheet_view(sheet)
-    for face, data in sheet.vert_df.iterrows():
-        ax.text(data.x, data.y, face)
-    # Plot configuration with arrows.
-    fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+    
+    #res = solver.find_energy_min(sheet, geom, smodel)
+    geom.update_all(sheet)
+    
+    # Plot with highlighted vertices
+    sheet.vert_df['rand'] = np.linspace(0.0, 1.0, num=sheet.vert_df.shape[0])
+    cmap = plt.cm.get_cmap('viridis')
+    color_cmap = cmap(sheet.vert_df.rand)
+    draw_specs['vert']['visible'] = True
+    draw_specs['edge']['head_width'] = 0.1
+    draw_specs['vert']['color'] = color_cmap
+    draw_specs['vert']['alpha'] = 0.5
+    draw_specs['vert']['s'] = 20
+    coords = ['x', 'y']
+    fig, ax = sheet_view(sheet, coords, **draw_specs)
     ax.title.set_text(f'time = {t}')
+    fig.set_size_inches((8, 8))
     
     min_sides = sheet.face_df.loc[:,'num_sides'].min()
-    #print(f'We are at time step {t}, min_side of current configuration is {min_sides}.')
+    print(f'We are at time step {t}, min_side of current configuration is {min_sides}.')
+    
     t +=1
 
 
 """ The following lines highlights the centroids of each cell. """
 
 
+unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
+centre = []
+for index, row in unique_edges_df.iterrows():
+    centre_x = row['fx']
+    centre_y = row['fy']
+    centre.append([centre_x, centre_y])
+    sheet.vert_df = sheet.vert_df.append({'y': centre_y, 'is_active': 1, 'x': centre_x}, ignore_index = True)
 
+## Let's add a column to sheet.vert_df
+sheet.vert_df['rand'] = np.linspace(0.0, 1.0, num=sheet.vert_df.shape[0])
+
+cmap = plt.cm.get_cmap('viridis')
+color_cmap = cmap(sheet.vert_df.rand)
+draw_specs['vert']['visible'] = True
+draw_specs['edge']['head_width'] = 0.1
+
+draw_specs['vert']['color'] = color_cmap
+draw_specs['vert']['alpha'] = 0.5
+draw_specs['vert']['s'] = 20
+
+coords = ['x', 'y']
+
+fig, ax = sheet_view(sheet, coords, **draw_specs)
+ax.title.set_text("Not loop, just plot centroid")
+fig.set_size_inches((8, 8))
+
+# for i in list(range(len(centre))):
+#     print(centre[i] == c[i])
 
 
 # Need to quantify the evolution of different algorithms
