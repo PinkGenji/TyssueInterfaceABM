@@ -140,11 +140,9 @@ def division_1(sheet, cell_id, crit_area=1, growth_rate=0.5, dt=1):
         c0x = float(centre_data.loc[centre_data['face']==cell_id, ['fx']].values[0])
         c0y = float(centre_data.loc[centre_data['face']==cell_id, ['fy']].values[0])
         c0 = [c0x, c0y]
-        print(f'centre is: {c0}')
 
         # Add a vertex in the middle of the chosen edge.
         new_mid_index = add_vert(sheet, edge = chosen_index)[0]
-
         # Extract for source vertex coordinates of the newly added vertex.
         p0x = sheet.vert_df.loc[new_mid_index,'x']
         p0y = sheet.vert_df.loc[new_mid_index,'y']
