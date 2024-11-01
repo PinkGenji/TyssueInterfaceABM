@@ -124,8 +124,7 @@ condition = edge_in_cell.loc[:,'srce'] == basal_mid
 c0x = float(edge_in_cell[condition].loc[:,'fx'].values[0])
 c0y = float(edge_in_cell[condition].loc[:,'fy'].values[0])
 c0 = [c0x, c0y]
-cent_dict = {'y': c0y, 'is_active': 1, 'x': c0x}
-sheet.vert_df = sheet.vert_df.append(cent_dict, ignore_index = True)
+
 # The append function adds the new row in the last row, we the use iloc to 
 # get the index of the last row, hence the index of the centre point.
 cent_index = sheet.vert_df.index[-1]
@@ -223,41 +222,35 @@ fig, ax= sheet_view(sheet, edge = {'head_width':0.1})
 for vert, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y+0.1, vert)
 
+# Store the centroid before iteration.
+unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
+centre_data = unique_edges_df.loc[:,['face','fx','fy']]
 
 # Do division, pikc number 2 cell for example.
 condition = sheet.edge_df.loc[:,'face'] == 2
 edge_in_cell = sheet.edge_df[condition]
-
-# We need to randomly choose one of the edges.
+# We need to randomly choose one of the edges in cell 2.
 chosen_index = int(np.random.choice(list(edge_in_cell.index) , 1))
+# Extract and store the centroid coordinate.
+c0x = float(centre_data.loc[centre_data['face']==2, ['fx']].values[0])
+c0y = float(centre_data.loc[centre_data['face']==2, ['fy']].values[0])
+c0 = [c0x, c0y]
+print(f'centre is: {c0}')
 
 # Add a vertex in the middle of the chosen edge.
 new_mid_index = add_vert(sheet, edge = chosen_index)[0]
 
-# update the dataframes and all temperatory storage.
-geom.update_all(sheet)
-condition = sheet.edge_df.loc[:,'face'] == 2
-edge_in_cell = sheet.edge_df[condition]
-
-# Extract and store the centroid coordinate.
-c0x = float(edge_in_cell[condition].loc[chosen_index,'fx'])
-c0y = float(edge_in_cell[condition].loc[chosen_index,'fy'])
-c0 = [c0x, c0y]
-
-sheet.vert_df = sheet.vert_df.append({'y': c0y, 'is_active': 1, 'x': c0x}, ignore_index = True)
+#geom.update_all(sheet)
 
 # Extract for source vertex coordinates of the newly added vertex.
-condition = edge_in_cell.loc[:,'srce'] == new_mid_index
+p0x = sheet.vert_df.loc[new_mid_index,'x']
+p0y = sheet.vert_df.loc[new_mid_index,'y']
+p0 = [p0x, p0y]
 
-
-p0x = float(edge_in_cell[condition].loc[:,'sx'].values[0])
-p0y = float(edge_in_cell[condition].loc[:,'sy'].values[0])
-
-
-# Extract the directional vector.
-rx = float(edge_in_cell[condition].loc[:,'rx'].values[0])
-ry = float(edge_in_cell[condition].loc[:,'ry'].values[0])
-r  = [-rx, -ry]   # use the line in opposite direction.
+# Compute the directional vector from new_mid_point to centroid.
+rx = c0x - p0x
+ry = c0y - p0y
+r  = [rx, ry]   # use the line in opposite direction.
 
 # We need to use iterrows to iterate over rows in pandas df
 # The iteration has the form of (index, series)
@@ -270,28 +263,27 @@ for index, row in edge_in_cell.iterrows():
     v1 = [s0x-p0x,s0y-p0y]
     v2 = [t0x-p0x,t0y-p0y]
     # if the xprod_2d returns negative, then line intersects the line segment.
-    if xprod_2d(r, v1)*xprod_2d(r, v2) < 0:
+    if xprod_2d(r, v1)*xprod_2d(r, v2) < 0 and index !=chosen_index :
         dx = row['dx']
         dy = row['dy']
         c1 = (dx*ry/rx)-dy
         c2 = s0y-p0y - (s0x*ry/rx) + (p0x*ry/rx)
         k=c2/c1
         intersection = [s0x+k*dx, s0y+k*dy]
-        oppo_index = int(put_vert(sheet, index, intersection)[0])
+        oppo_index = put_vert(sheet, index, intersection)[0]
     else:
         continue
+# Split the cell with a line.
 new_face_index = face_division(sheet, mother = 2, vert_a = new_mid_index , vert_b = oppo_index )
 # Put a vertex at the centroid, on the newly formed edge (last row in df).
-put_vert(sheet, edge = sheet.edge_df.index[-1], coord_put = c0)
-sheet.update_num_sides()
-
+cent_index = put_vert(sheet, edge = sheet.edge_df.index[-1], coord_put = c0)[0]
 # update geometry
 geom.update_all(sheet)
 
 
 # Draw with vertex labelling.
 fig, ax= sheet_view(sheet, edge = {'head_width':0.1})
-for vert, data in sheet.face_df.iterrows():
+for vert, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y+0.1, vert)
 
 

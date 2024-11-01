@@ -113,7 +113,7 @@ fig, ax = sheet_view(sheet,  mode = '2D')
 
 """ Grow first, then cells divide. """
 # Write behavior function for division_1.
-def division_1(sheet, cell_id, crit_area=1.5, growth_rate=0.5, dt=1):
+def division_1(sheet, cell_id, crit_area=1, growth_rate=0.5, dt=1):
     """The cells keep growing, when the area exceeds a critical area, then
     the cell divides.
     
@@ -131,37 +131,29 @@ def division_1(sheet, cell_id, crit_area=1.5, growth_rate=0.5, dt=1):
 
     # if the cell area is larger than the crit_area, we let the cell divide.
     if sheet.face_df.loc[cell_id, "area"] > crit_area:
+        # Do division, pikc number 2 cell for example.
         condition = sheet.edge_df.loc[:,'face'] == cell_id
         edge_in_cell = sheet.edge_df[condition]
-        # We need to randomly choose one of the edges.
-        chosen_index =  rng.choice(edge_in_cell.index)
-        
+        # We need to randomly choose one of the edges in cell 2.
+        chosen_index = int(np.random.choice(list(edge_in_cell.index) , 1))
         # Extract and store the centroid coordinate.
-        c0x = edge_in_cell.loc[edge_in_cell.index[0],'fx']
-        c0y = edge_in_cell.loc[edge_in_cell.index[0],'fy']
+        c0x = float(centre_data.loc[centre_data['face']==cell_id, ['fx']].values[0])
+        c0y = float(centre_data.loc[centre_data['face']==cell_id, ['fy']].values[0])
         c0 = [c0x, c0y]
-        sheet.vert_df = sheet.vert_df.append({'y': c0y, 'is_active': 1, 'x': c0x}, ignore_index = True)
+        print(f'centre is: {c0}')
 
         # Add a vertex in the middle of the chosen edge.
         new_mid_index = add_vert(sheet, edge = chosen_index)[0]
 
-        # update the dataframes and all temperatory storage.
-        geom.update_all(sheet)
-        
-        condition = sheet.edge_df.loc[:,'face'] == cell_id
-        edge_in_cell = sheet.edge_df[condition]
-        
         # Extract for source vertex coordinates of the newly added vertex.
-        condition = edge_in_cell.loc[:,'srce'] == new_mid_index
+        p0x = sheet.vert_df.loc[new_mid_index,'x']
+        p0y = sheet.vert_df.loc[new_mid_index,'y']
+        p0 = [p0x, p0y]
 
-        p0x = float(edge_in_cell[condition].loc[:,'sx'].values[0])
-        p0y = float(edge_in_cell[condition].loc[:,'sy'].values[0])
-
-        # Extract the directional vector.
-        rx = float(edge_in_cell[condition].loc[:,'rx'].values[0])
-        ry = float(edge_in_cell[condition].loc[:,'ry'].values[0])
-        r  = [-rx, -ry]   # use the line in opposite direction.
-
+        # Compute the directional vector from new_mid_point to centroid.
+        rx = c0x - p0x
+        ry = c0y - p0y
+        r  = [rx, ry]   # use the line in opposite direction.
         # We need to use iterrows to iterate over rows in pandas df
         # The iteration has the form of (index, series)
         # The series can be sliced.
@@ -173,19 +165,22 @@ def division_1(sheet, cell_id, crit_area=1.5, growth_rate=0.5, dt=1):
             v1 = [s0x-p0x,s0y-p0y]
             v2 = [t0x-p0x,t0y-p0y]
             # if the xprod_2d returns negative, then line intersects the line segment.
-            if xprod_2d(r, v1)*xprod_2d(r, v2) < 0:
+            if xprod_2d(r, v1)*xprod_2d(r, v2) < 0 and index !=chosen_index :
                 dx = row['dx']
                 dy = row['dy']
                 c1 = (dx*ry/rx)-dy
                 c2 = s0y-p0y - (s0x*ry/rx) + (p0x*ry/rx)
                 k=c2/c1
                 intersection = [s0x+k*dx, s0y+k*dy]
-                oppo_index = int(put_vert(sheet, index, intersection)[0])
+                oppo_index = put_vert(sheet, index, intersection)[0]
             else:
                 continue
-        new_face_index = face_division(sheet, mother = cell_id, vert_a = new_mid_index , vert_b = oppo_index )
+        # Split the cell with a line.
+        new_face_index = face_division(sheet, mother = 2, vert_a = new_mid_index , vert_b = oppo_index )
         # Put a vertex at the centroid, on the newly formed edge (last row in df).
-        #put_vert(sheet, edge = sheet.edge_df.index[-1], coord_put = c0)
+        cent_index = put_vert(sheet, edge = sheet.edge_df.index[-1], coord_put = c0)[0]
+        # update geometry
+        geom.update_all(sheet)
         return new_face_index
     # if the cell area is less than the threshold, update the area by growth.
     else:
@@ -198,19 +193,17 @@ draw_specs = default_spec()
 
 t = 0
 stop = 1
-
-while t <= stop:
-    
+while t < stop:
+    # Store the centroid before iteration of cells.
+    unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
+    centre_data = unique_edges_df.loc[:,['face','fx','fy']]
     # Loop over all the faces.
     all_cells = sheet.face_df.index
     for i in all_cells:
         #print(f'We are in time step {t}, checking cell {i}.')
         division_1(sheet, cell_id = i)
-    
-    
     #res = solver.find_energy_min(sheet, geom, smodel)
     geom.update_all(sheet)
-    
     # Plot with highlighted vertices
     sheet.vert_df['rand'] = np.linspace(0.0, 1.0, num=sheet.vert_df.shape[0])
     cmap = plt.cm.get_cmap('viridis')
@@ -224,15 +217,15 @@ while t <= stop:
     fig, ax = sheet_view(sheet, coords, **draw_specs)
     ax.title.set_text(f'time = {t}')
     fig.set_size_inches((8, 8))
-    
+    # Check the min edges.
     min_sides = sheet.face_df.loc[:,'num_sides'].min()
     print(f'We are at time step {t}, min_side of current configuration is {min_sides}.')
-    
+    # update the time step.
     t +=1
 
 
 """ The following lines highlights the centroids of each cell. """
-
+original = sheet.vert_df
 
 unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
 centre = []
@@ -260,8 +253,8 @@ fig, ax = sheet_view(sheet, coords, **draw_specs)
 ax.title.set_text("Not loop, just plot centroid")
 fig.set_size_inches((8, 8))
 
-# for i in list(range(len(centre))):
-#     print(centre[i] == c[i])
+# Remove added rows by restore to variable original.
+sheet.vert_df = original
 
 
 # Need to quantify the evolution of different algorithms
