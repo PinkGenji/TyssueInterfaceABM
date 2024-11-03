@@ -174,7 +174,7 @@ def division_1(sheet, cell_id, crit_area=1, growth_rate=0.5, dt=1):
             else:
                 continue
         # Split the cell with a line.
-        new_face_index = face_division(sheet, mother = 2, vert_a = new_mid_index , vert_b = oppo_index )
+        new_face_index = face_division(sheet, mother = cell_id, vert_a = new_mid_index , vert_b = oppo_index )
         # Put a vertex at the centroid, on the newly formed edge (last row in df).
         cent_index = put_vert(sheet, edge = sheet.edge_df.index[-1], coord_put = c0)[0]
         # update geometry
