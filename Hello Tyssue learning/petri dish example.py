@@ -35,7 +35,7 @@ from tyssue.topology import condition_4i, condition_4ii
 from tyssue.dynamics.planar_vertex_model import PlanarModel as smodel
 from tyssue.solvers.quasistatic import QSSolver
 from tyssue.topology.sheet_topology import face_division
-
+from tyssue.solvers.viscous import EulerSolver
 
 # 2D plotting
 from tyssue.draw import sheet_view
@@ -70,42 +70,6 @@ for i in list(range(num_x, num_y*(num_x+1), 2*(num_x+1) )):
     delete_face(sheet, i+1)
 sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
 
-# Plot figures to check.
-# Draw the cell mesh with face labelling and edge arrows.
-# =============================================================================
-# fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
-# for face, data in sheet.face_df.iterrows():
-#     ax.text(data.x, data.y, face)
-# =============================================================================
-    
-# add mechanical properties.
-specs = {
-    'edge': {
-        'is_active': 1,
-        'line_tension': 0.12,
-        'ux': 0.0,
-        'uy': 0.0,
-        'uz': 0.0
-    },
-   'face': {
-       'area_elasticity': 1.0,
-       'contractility': 0.04,
-       'is_alive': 1,
-       'prefered_area': 1.0},
-   'settings': {
-       'grad_norm_factor': 1.0,
-       'nrj_norm_factor': 1.0
-   },
-   'vert': {
-       'is_active': 1
-   }
-}
-sheet.update_specs(specs, reset = True)
-geom.update_all(sheet)
-
-# Minimize the potential engery
-solver = QSSolver()
-res = solver.find_energy_min(sheet, geom, smodel)
 
 # Visualize the sheet.
 fig, ax = sheet_view(sheet,  mode = '2D')
@@ -183,6 +147,40 @@ def division_1(sheet, cell_id, crit_area=1, growth_rate=0.5, dt=1):
     # if the cell area is less than the threshold, update the area by growth.
     else:
         sheet.face_df.loc[cell_id, "prefered_area"] *= (1 + dt * growth_rate)
+
+
+
+   
+# add mechanical properties.
+specs = {
+    'edge': {
+        'is_active': 1,
+        'line_tension': 0.12,
+        'ux': 0.0,
+        'uy': 0.0,
+        'uz': 0.0
+    },
+   'face': {
+       'area_elasticity': 1.0,
+       'contractility': 0.04,
+       'is_alive': 1,
+       'prefered_area': 1.0},
+   'settings': {
+       'grad_norm_factor': 1.0,
+       'nrj_norm_factor': 1.0
+   },
+   'vert': {
+       'is_active': 1
+   }
+}
+sheet.update_specs(specs, reset = True)
+geom.update_all(sheet)
+
+# Minimize the potential engery
+solver = EulerSolver(sheet, geom, smodel)
+res = solver.find_energy_min(sheet, geom, smodel)
+
+
 
 
 from tyssue.config.draw import sheet_spec as default_spec

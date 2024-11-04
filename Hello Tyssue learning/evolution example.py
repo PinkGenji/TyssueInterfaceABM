@@ -176,39 +176,6 @@ while manager.current and t < stop:
 
 
 
-time_window = list(range(0,48,6))
-for t in time_window:
-    # Draw the plot at the starting of each time step.
-    fig, ax = sheet_view(sheet)
-    ax.title.set_text(f'Snapshot at t = {t}')
-    
-    # Do iteration for division check for all CTs.
-    for i in list(range(len(sheet.face_df))):
-        if sheet.face_df[sheet.face_df.loc[i,'cell_type']] == 'CT' and sheet.face_df.loc[i, 'division_status'] == 'ready':
-            # A random float number is generated between (0,1)
-            prob = np.random.uniform(0,1)
-            # If the random number is less than 3%, then this cell divides.
-            # Make sure change the division_status.
-            if prob < 0.03:
-                daughter = lateral_split(sheet, mother = i)
-                sheet.face_df.loc[i,'growth_speed'] = (sheet.face_df.loc[i,'prefered_area'] - sheet.face_df.loc[i, 'area'])/5
-                sheet.face_df.loc[i, 'division_status'] = 'growing'
-                sheet.face_df.loc[daughter,'growth_speed'] = (sheet.face_df.loc[daughter,'prefered_area'] - sheet.face_df.loc[i, 'area'])/5
-                sheet.face_df.loc[daughter, 'division_status'] = 'growing'
-        
-        elif sheet.face_df[sheet.face_df.loc[i,'cell_type']] == 'CT' and sheet.face_df.loc[i, 'division_status'] == 'growing':
-            sheet.face_df.loc[i,'area'] = sheet.face_df.loc[i,'area'] + sheet.face_df.loc[i,'growth_speed']
-            if sheet.face_df.loc[i,'area'] <= sheet.face_df.loc[i,'prefered_area']:
-                sheet.face_df.loc[i, 'division_status'] = 'ready'
-        
-        else:
-            continue
-
-
-
-
-
-
 
 """
 This is the end of the script. 
