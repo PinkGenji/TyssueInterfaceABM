@@ -21,7 +21,7 @@ import matplotlib as matplot
 import matplotlib.pylab as plt
 import ipyvolume as ipv
 
-from tyssue import Sheet, config #import core object
+from tyssue import Sheet, config, History #import core object
 from tyssue import PlanarGeometry as geom #for simple 2d geometry
 
 # For cell topology/configuration
@@ -39,6 +39,7 @@ from tyssue.solvers.viscous import EulerSolver
 
 # 2D plotting
 from tyssue.draw import sheet_view
+from tyssue.draw.plt_draw import plot_forces
 
 from my_headers import delete_face, xprod_2d, put_vert
 
@@ -74,6 +75,49 @@ sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwis
 # Visualize the sheet.
 fig, ax = sheet_view(sheet,  mode = '2D')
 
+
+""" Implement the Euler simple forward solver. """
+geom.update_all(sheet)
+sheet.settings['threshold_length'] = 1e-3
+
+sheet.update_specs(config.dynamics.quasistatic_plane_spec())
+sheet.face_df["prefered_area"] = sheet.face_df["area"].mean()
+history = History(sheet) #, extra_cols={"edge":["dx", "dy", "sx", "sy", "tx", "ty"]})
+
+sheet.vert_df['viscosity'] = 1.0
+sheet.edge_df.loc[[0, 17],  'line_tension'] *= 4
+sheet.face_df.loc[1,  'prefered_area'] *= 1.2
+
+fig, ax = plot_forces(sheet, geom, smodel, ['x', 'y'], 1)
+
+
+# Solver instanciation: contrary to the quasistatic solver, this sovler needs 
+# the sheet, goemetry and model at instanciation time.
+solver = EulerSolver(
+    sheet,
+    geom,
+    smodel,
+    history=history,
+    auto_reconnect=True)
+
+'''
+The solver's solve method accepts a on_topo_change function as argument.
+This function is executed each time a topology change occurs.
+Here, we reset the line tension to its original value.
+
+'''
+def on_topo_change(sheet):
+    print('Topology changed!\n')
+    print("reseting tension")
+    sheet.edge_df["line_tension"] = sheet.specs["edge"]["line_tension"]
+
+# Solving from t = 0 to t = 15.
+
+res = solver.solve(tf=15, dt=0.05, on_topo_change=on_topo_change,
+                   topo_change_args=(solver.eptm,))
+
+# Showing the result via picture.
+sheet_view(sheet)
 
 """ Grow first, then cells divide. """
 # Write behavior function for division_1.
@@ -149,36 +193,6 @@ def division_1(sheet, cell_id, crit_area=1, growth_rate=0.5, dt=1):
         sheet.face_df.loc[cell_id, "prefered_area"] *= (1 + dt * growth_rate)
 
 
-
-   
-# add mechanical properties.
-specs = {
-    'edge': {
-        'is_active': 1,
-        'line_tension': 0.12,
-        'ux': 0.0,
-        'uy': 0.0,
-        'uz': 0.0
-    },
-   'face': {
-       'area_elasticity': 1.0,
-       'contractility': 0.04,
-       'is_alive': 1,
-       'prefered_area': 1.0},
-   'settings': {
-       'grad_norm_factor': 1.0,
-       'nrj_norm_factor': 1.0
-   },
-   'vert': {
-       'is_active': 1
-   }
-}
-sheet.update_specs(specs, reset = True)
-geom.update_all(sheet)
-
-# Minimize the potential engery
-solver = EulerSolver(sheet, geom, smodel)
-res = solver.find_energy_min(sheet, geom, smodel)
 
 
 

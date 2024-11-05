@@ -238,7 +238,10 @@ def on_topo_change(sheet):
 res = solver.solve(tf=15, dt=0.05, on_topo_change=on_topo_change,
                    topo_change_args=(solver.eptm,))
 
-# Showing the results
+# Showing the result via picture.
+sheet_view(sheet)
+
+# Showing the results via .gif
 
 create_gif(solver.history, "sheet3.gif", num_frames=120)
 
