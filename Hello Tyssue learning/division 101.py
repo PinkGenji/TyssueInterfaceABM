@@ -198,7 +198,6 @@ else:
     
 """ Now we do for a non-orientated division """
 # Generate the cell sheet as three cells.
-
 sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = 3, ny = 2, distx = 1, disty = 1)
 geom.update_all(sheet)
 
@@ -212,6 +211,7 @@ for face, data in sheet.face_df.iterrows():
     
 delete_face(sheet, 4)
 delete_face(sheet, 3)
+sheet.get_extra_indices()
 sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
 
 # Plot figures to check.
@@ -289,6 +289,28 @@ for vert, data in sheet.vert_df.iterrows():
 
 
 """ Implement an Euler simple forward solver. """
+# Generate the cell sheet as three cells.
+sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = 3, ny = 2, distx = 1, disty = 1)
+geom.update_all(sheet)
+
+# remove non-enclosed faces
+sheet.remove(sheet.get_invalid())
+
+# Plot the figure to see the index.
+fig, ax = sheet_view(sheet)
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
+    
+delete_face(sheet, 4)
+delete_face(sheet, 3)
+sheet.get_extra_indices()
+sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
+
+# Plot figures to check.
+# Draw the cell mesh with face labelling and edge arrows.
+fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
 
 # First, we need a way to compute the energy, then use gradient descent.
 model = model_factory([
@@ -310,36 +332,82 @@ dr_dt = -grad_U.values/sheet.vert_df.loc[valid_verts, 'viscosity'].values[:,None
 print(dr_dt)
 
 
-
 def my_ode(eptm):
-    valid_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
-    grad_U = model.compute_gradient(eptm).loc[valid_verts]
-    dr_dt = -grad_U.values/eptm.vert_df.loc[valid_verts, 'viscosity'].values[:,None]
+    grad_U = model.compute_gradient(eptm).loc[eptm.active_verts]
+    dr_dt = -grad_U.values / eptm.vert_df.loc[eptm.active_verts, 'viscosity'].values[:, None]
     return dr_dt
 
 def current_pos(eptm):
-    valid_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
-    return eptm.vert_df.loc[valid_verts, eptm.coords].values
+    return eptm.vert_df.loc[eptm.active_verts, eptm.coords].values
 
+# Initial position
+Initial_pos = current_pos(sheet)
 
-
-# Now assume we want to go from t = 0 to t= 1, dt = 0.1
+# Time loop parameters
 t0 = 0
-t_end = 1
-dt = 0.1
-time_points = np.linspace(t0, t_end, int((t_end - t0) / dt) + 1)
-print(f'time points are: {time_points}.')
+t_end = 0.1
+dt = 0.01
+time_points = np.arange(t0, t_end + dt, dt)
 
+# Time integration loop
 for t in time_points:
-    pos = current_pos(sheet)
-    dot_r = my_ode(sheet)
-    new_pos = pos + dot_r*dt
+    pos = current_pos(sheet)  # Get the current positions
+    dot_r = my_ode(sheet)      # Compute the change in position
+    new_pos = pos + dot_r * dt  # Update the positions
+
     # Save the new positions back to `vert_df`
     sheet.vert_df.loc[sheet.active_verts, sheet.coords] = new_pos
     geom.update_all(sheet)
     # Plot with title contain time.
     fig, ax = sheet_view(sheet)
-    ax.title.set_text(f'time = {round(t, 4)}')
+    ax.title.set_text(f'time = {round(t, 4)}')    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# =============================================================================
+# 
+# 
+# def my_ode(eptm, valid_verts):
+#     grad_U = model.compute_gradient(eptm).loc[valid_verts]
+#     dr_dt = -grad_U.values/eptm.vert_df.loc[valid_verts, 'viscosity'].values[:,None]
+#     return dr_dt
+# 
+# def current_pos(eptm, valid_verts):
+#     return eptm.vert_df.loc[valid_verts, eptm.coords].values
+# 
+# 
+# 
+# # Now assume we want to go from t = 0 to t= 1, dt = 0.1
+# t0 = 0
+# t_end = 1
+# dt = 0.1
+# time_points = np.linspace(t0, t_end, int((t_end - t0) / dt) + 1)
+# print(f'time points are: {time_points}.')
+# 
+# for t in time_points:
+#     valid_verts = sheet.vert_df.loc[sheet.active_verts]
+#     pos = current_pos(sheet)
+#     dot_r = my_ode(sheet)
+#     new_pos = pos + dot_r*dt
+#     # Save the new positions back to `vert_df`
+#     sheet.vert_df.loc[sheet.active_verts, sheet.coords] = new_pos
+#     geom.update_all(sheet)
+#     # Plot with title contain time.
+#     fig, ax = sheet_view(sheet)
+#     ax.title.set_text(f'time = {round(t, 4)}')
+# =============================================================================
 
 
 
