@@ -198,6 +198,7 @@ else:
     
 """ Now we do for a non-orientated division """
 # Generate the cell sheet as three cells.
+
 sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = 3, ny = 2, distx = 1, disty = 1)
 geom.update_all(sheet)
 
@@ -211,7 +212,6 @@ for face, data in sheet.face_df.iterrows():
     
 delete_face(sheet, 4)
 delete_face(sheet, 3)
-sheet.get_extra_indices()
 sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
 
 # Plot figures to check.
@@ -229,7 +229,7 @@ for vert, data in sheet.vert_df.iterrows():
 unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
 centre_data = unique_edges_df.loc[:,['face','fx','fy']]
 
-# Do division, pikc number 2 cell for example.
+# Do division, pick number 2 cell for example.
 condition = sheet.edge_df.loc[:,'face'] == 2
 edge_in_cell = sheet.edge_df[condition]
 # We need to randomly choose one of the edges in cell 2.
@@ -303,7 +303,6 @@ for face, data in sheet.face_df.iterrows():
     
 delete_face(sheet, 4)
 delete_face(sheet, 3)
-sheet.get_extra_indices()
 sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
 
 # Plot figures to check.
@@ -312,13 +311,17 @@ fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
 
+# Draw with vertex labelling.
+fig, ax= sheet_view(sheet, edge = {'head_width':0.1})
+for vert, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y+0.1, vert)
+
 # First, we need a way to compute the energy, then use gradient descent.
 model = model_factory([
     effectors.LineTension,
     effectors.FaceContractility,
     effectors.FaceAreaElasticity
     ])
-
 
 sheet.vert_df['viscosity'] = 1.0
 sheet.update_specs(model.specs, reset=True)
@@ -331,85 +334,38 @@ grad_U = model.compute_gradient(sheet).loc[valid_verts]
 dr_dt = -grad_U.values/sheet.vert_df.loc[valid_verts, 'viscosity'].values[:,None]
 print(dr_dt)
 
-
 def my_ode(eptm):
-    grad_U = model.compute_gradient(eptm).loc[eptm.active_verts]
-    dr_dt = -grad_U.values / eptm.vert_df.loc[eptm.active_verts, 'viscosity'].values[:, None]
+    valid_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
+    grad_U = model.compute_gradient(eptm).loc[valid_verts]
+    dr_dt = -grad_U.values/eptm.vert_df.loc[valid_verts, 'viscosity'].values[:,None]
     return dr_dt
 
 def current_pos(eptm):
-    return eptm.vert_df.loc[eptm.active_verts, eptm.coords].values
+    valid_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
+    return eptm.vert_df.loc[valid_verts, eptm.coords].values
 
-# Initial position
-Initial_pos = current_pos(sheet)
-
-# Time loop parameters
+# Now assume we want to go from t = 0 to t= 1, dt = 0.1
 t0 = 0
 t_end = 0.1
 dt = 0.01
-time_points = np.arange(t0, t_end + dt, dt)
+time_points = np.linspace(t0, t_end, int((t_end - t0) / dt) + 1)
+print(f'time points are: {time_points}.')
 
-# Time integration loop
 for t in time_points:
-    pos = current_pos(sheet)  # Get the current positions
-    dot_r = my_ode(sheet)      # Compute the change in position
-    new_pos = pos + dot_r * dt  # Update the positions
-
+    print(f'start at t= {round(t, 5)}.')
+    valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
+    pos = sheet.vert_df.loc[valid_active_verts, sheet.coords].values
+    # Compute the moving direction.
+    dot_r = my_ode(sheet)
+    new_pos = pos + dot_r*dt
     # Save the new positions back to `vert_df`
-    sheet.vert_df.loc[sheet.active_verts, sheet.coords] = new_pos
+    sheet.vert_df.loc[valid_active_verts , sheet.coords] = new_pos
     geom.update_all(sheet)
     # Plot with title contain time.
     fig, ax = sheet_view(sheet)
-    ax.title.set_text(f'time = {round(t, 4)}')    
-    
+    ax.title.set_text(f'time = {round(t, 5)}')
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-# =============================================================================
-# 
-# 
-# def my_ode(eptm, valid_verts):
-#     grad_U = model.compute_gradient(eptm).loc[valid_verts]
-#     dr_dt = -grad_U.values/eptm.vert_df.loc[valid_verts, 'viscosity'].values[:,None]
-#     return dr_dt
-# 
-# def current_pos(eptm, valid_verts):
-#     return eptm.vert_df.loc[valid_verts, eptm.coords].values
-# 
-# 
-# 
-# # Now assume we want to go from t = 0 to t= 1, dt = 0.1
-# t0 = 0
-# t_end = 1
-# dt = 0.1
-# time_points = np.linspace(t0, t_end, int((t_end - t0) / dt) + 1)
-# print(f'time points are: {time_points}.')
-# 
-# for t in time_points:
-#     valid_verts = sheet.vert_df.loc[sheet.active_verts]
-#     pos = current_pos(sheet)
-#     dot_r = my_ode(sheet)
-#     new_pos = pos + dot_r*dt
-#     # Save the new positions back to `vert_df`
-#     sheet.vert_df.loc[sheet.active_verts, sheet.coords] = new_pos
-#     geom.update_all(sheet)
-#     # Plot with title contain time.
-#     fig, ax = sheet_view(sheet)
-#     ax.title.set_text(f'time = {round(t, 4)}')
-# =============================================================================
-
-
+""" Now implement transition methods on top of inside my looping. """
 
 
 
