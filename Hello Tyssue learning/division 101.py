@@ -42,6 +42,9 @@ from tyssue.draw import sheet_view, highlight_cells
 # import my own functions
 from my_headers import delete_face, xprod_2d, put_vert, lateral_split, divisibility_check
 
+
+
+""" Here is the biased division. """
 # Generate the cell sheet as three cells.
 sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = 3, ny = 2, distx = 1, disty = 1)
 geom.update_all(sheet)
@@ -240,8 +243,6 @@ print(f'centre is: {c0}')
 # Add a vertex in the middle of the chosen edge.
 new_mid_index = add_vert(sheet, edge = chosen_index)[0]
 
-#geom.update_all(sheet)
-
 # Extract for source vertex coordinates of the newly added vertex.
 p0x = sheet.vert_df.loc[new_mid_index,'x']
 p0y = sheet.vert_df.loc[new_mid_index,'y']
@@ -296,53 +297,49 @@ model = model_factory([
     effectors.FaceAreaElasticity
     ])
 
-model.specs
+
 sheet.vert_df['viscosity'] = 1.0
 sheet.update_specs(model.specs, reset=True)
 geom.update_all(sheet)
-# Computes the energy of the configuration.
-energy = model.compute_energy(sheet)
-# Computes the gradient now.
-grad_E = model.compute_gradient(sheet)
-grad_E.head()
-
-gradients = model.compute_gradient(sheet, components=True) # Returns a tuple of terms for each effector of the model.
-gradients = {label: (srce, trgt) for label, (srce, trgt) in zip(model.labels, gradients)}
-gradients['Line tension'][0].head()
 
 # Calculate the rate of change in position, element-wise for each vertex.
-grad_U = model.compute_gradient(sheet).loc[sheet.active_verts]
-dr_dt = -grad_U.values/sheet.vert_df.loc[sheet.active_verts, 'viscosity'].values[:,None]
+valid_verts = sheet.active_verts.intersection(sheet.vert_df.index)
+grad_U = model.compute_gradient(sheet).loc[valid_verts]
+
+dr_dt = -grad_U.values/sheet.vert_df.loc[valid_verts, 'viscosity'].values[:,None]
 print(dr_dt)
 
 
 
 def my_ode(eptm):
-    grad_U = model.compute_gradient(eptm).loc[eptm.active_verts]
-    dr_dt = -grad_U.values/eptm.vert_df.loc[eptm.active_verts, 'viscosity'].values[:,None]
+    valid_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
+    grad_U = model.compute_gradient(eptm).loc[valid_verts]
+    dr_dt = -grad_U.values/eptm.vert_df.loc[valid_verts, 'viscosity'].values[:,None]
     return dr_dt
 
 def current_pos(eptm):
-    return eptm.vert_df.loc[eptm.active_verts, eptm.coords].values
+    valid_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
+    return eptm.vert_df.loc[valid_verts, eptm.coords].values
 
 
 
 # Now assume we want to go from t = 0 to t= 1, dt = 0.1
 t0 = 0
 t_end = 1
-dt = 0.01
+dt = 0.1
 time_points = np.linspace(t0, t_end, int((t_end - t0) / dt) + 1)
+print(f'time points are: {time_points}.')
 
 for t in time_points:
-    t = round(t, 4)
     pos = current_pos(sheet)
     dot_r = my_ode(sheet)
     new_pos = pos + dot_r*dt
     # Save the new positions back to `vert_df`
     sheet.vert_df.loc[sheet.active_verts, sheet.coords] = new_pos
     geom.update_all(sheet)
+    # Plot with title contain time.
     fig, ax = sheet_view(sheet)
-    ax.title.set_text(f'time = {t}')
+    ax.title.set_text(f'time = {round(t, 4)}')
 
 
 
