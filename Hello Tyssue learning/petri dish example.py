@@ -36,12 +36,13 @@ from tyssue.dynamics.planar_vertex_model import PlanarModel as smodel
 from tyssue.solvers.quasistatic import QSSolver
 from tyssue.topology.sheet_topology import face_division
 from tyssue.solvers.viscous import EulerSolver
+from tyssue.dynamics import model_factory, effectors
 
 # 2D plotting
 from tyssue.draw import sheet_view
 from tyssue.draw.plt_draw import plot_forces
 
-from my_headers import delete_face, xprod_2d, put_vert
+from my_headers import delete_face, xprod_2d, put_vert, T1_check, my_ode
 
 
 """ start the project. """
@@ -77,52 +78,10 @@ fig, ax = sheet_view(sheet,  mode = '2D')
 
 
 
-""" Implement the Euler simple forward solver. """
-geom.update_all(sheet)
-sheet.settings['threshold_length'] = 1e-3
-
-sheet.update_specs(config.dynamics.quasistatic_plane_spec())
-sheet.face_df["prefered_area"] = sheet.face_df["area"].mean()
-history = History(sheet) #, extra_cols={"edge":["dx", "dy", "sx", "sy", "tx", "ty"]})
-
-sheet.vert_df['viscosity'] = 1.0
-sheet.edge_df.loc[[0, 17],  'line_tension'] *= 4
-sheet.face_df.loc[1,  'prefered_area'] *= 1.2
-
-fig, ax = plot_forces(sheet, geom, smodel, ['x', 'y'], 1)
-
-
-# Solver instanciation: contrary to the quasistatic solver, this sovler needs 
-# the sheet, goemetry and model at instanciation time.
-solver = EulerSolver(
-    sheet,
-    geom,
-    smodel,
-    history=history,
-    auto_reconnect=True)
-
-'''
-The solver's solve method accepts a on_topo_change function as argument.
-This function is executed each time a topology change occurs.
-Here, we reset the line tension to its original value.
-
-'''
-def on_topo_change(sheet):
-    print('Topology changed!\n')
-    print("reseting tension")
-    sheet.edge_df["line_tension"] = sheet.specs["edge"]["line_tension"]
-
-# Solving from t = 0 to t = 15.
-
-res = solver.solve(tf=15, dt=0.05, on_topo_change=on_topo_change,
-                   topo_change_args=(solver.eptm,))
-
-# Showing the result via picture.
-sheet_view(sheet)
 
 """ Grow first, then cells divide. """
 # Write behavior function for division_1.
-def division_1(sheet, cell_id, crit_area=1, growth_rate=0.5, dt=1):
+def division_1(sheet, cent_data, cell_id, crit_area=1, growth_rate=0.5, dt=1):
     """The cells keep growing, when the area exceeds a critical area, then
     the cell divides.
     
@@ -144,10 +103,10 @@ def division_1(sheet, cell_id, crit_area=1, growth_rate=0.5, dt=1):
         condition = sheet.edge_df.loc[:,'face'] == cell_id
         edge_in_cell = sheet.edge_df[condition]
         # We need to randomly choose one of the edges in cell 2.
-        chosen_index = int(np.random.choice(list(edge_in_cell.index) , 1))
+        chosen_index = rng.choice(list(edge_in_cell.index))
         # Extract and store the centroid coordinate.
-        c0x = float(centre_data.loc[centre_data['face']==cell_id, ['fx']].values[0])
-        c0y = float(centre_data.loc[centre_data['face']==cell_id, ['fy']].values[0])
+        c0x = float(cent_data.loc[cent_data['face']==cell_id, ['fx']].values[0])
+        c0y = float(cent_data.loc[cent_data['face']==cell_id, ['fy']].values[0])
         c0 = [c0x, c0y]
 
         # Add a vertex in the middle of the chosen edge.
@@ -180,27 +139,20 @@ def division_1(sheet, cell_id, crit_area=1, growth_rate=0.5, dt=1):
                 k=c2/c1
                 intersection = [s0x+k*dx, s0y+k*dy]
                 oppo_index = put_vert(sheet, index, intersection)[0]
+                # Split the cell with a line.
+                new_face_index = face_division(sheet, mother = cell_id, vert_a = new_mid_index , vert_b = oppo_index )
+                # Put a vertex at the centroid, on the newly formed edge (last row in df).
+                cent_index = put_vert(sheet, edge = sheet.edge_df.index[-1], coord_put = c0)[0]
+                return new_face_index
             else:
                 continue
-        # Split the cell with a line.
-        new_face_index = face_division(sheet, mother = cell_id, vert_a = new_mid_index , vert_b = oppo_index )
-        # Put a vertex at the centroid, on the newly formed edge (last row in df).
-        cent_index = put_vert(sheet, edge = sheet.edge_df.index[-1], coord_put = c0)[0]
-        # update geometry
-        geom.update_all(sheet)
-        return new_face_index
     # if the cell area is less than the threshold, update the area by growth.
     else:
         sheet.face_df.loc[cell_id, "prefered_area"] *= (1 + dt * growth_rate)
 
 
-
-
-
-
 from tyssue.config.draw import sheet_spec as default_spec
 draw_specs = default_spec()
-
 
 t = 0
 stop = 1
@@ -212,7 +164,7 @@ while t < stop:
     all_cells = sheet.face_df.index
     for i in all_cells:
         #print(f'We are in time step {t}, checking cell {i}.')
-        division_1(sheet, cell_id = i)
+        division_1(sheet, cent_data = centre_data, cell_id = i)
     #res = solver.find_energy_min(sheet, geom, smodel)
     geom.update_all(sheet)
     # Plot with highlighted vertices
@@ -273,6 +225,82 @@ sheet.vert_df = original
 #e.g. cell size in the cell packing paper.
 
 
+""" Implement the Euler simple forward solver. """
+# Generate the cell sheet as three cells.
+num_x = 4
+num_y = 4
+sheet = Sheet.planar_sheet_2d('face', nx = num_x, ny=num_y, distx=2, disty=2)
+geom.update_all(sheet)
+
+# remove non-enclosed faces
+sheet.remove(sheet.get_invalid())
+
+# Plot the figure to see the index.
+fig, ax = sheet_view(sheet)
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
+    
+for i in list(range(num_x, num_y*(num_x+1), 2*(num_x+1) )):
+    delete_face(sheet, i)
+    delete_face(sheet, i+1)
+sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
+sheet_view(sheet)
+
+# Visualize the sheet.
+fig, ax = sheet_view(sheet,  mode = '2D')
+
+# First, we need a way to compute the energy, then use gradient descent.
+model = model_factory([
+    effectors.LineTension,
+    effectors.FaceContractility,
+    effectors.FaceAreaElasticity
+    ])
+
+sheet.vert_df['viscosity'] = 1.0
+sheet.update_specs(model.specs, reset=True)
+geom.update_all(sheet)
+
+# Now assume we want to go from t = 0 to t= 1, dt = 0.1
+t0 = 0
+t_end = 0.2
+dt = 0.01
+time_points = np.linspace(t0, t_end, int((t_end - t0) / dt) + 1)
+print(f'time points are: {time_points}.')
+
+sheet.get_extra_indices()   # Need to have the sheet.sgle_edges column.
+
+for t in time_points:
+    print(f'start at t= {round(t, 5)}.')
+    # Cell division.
+    # Store the centroid before iteration of cells.
+    unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
+    centre_data = unique_edges_df.loc[:,['face','fx','fy']]
+    # Loop over all the faces.
+    all_cells = sheet.face_df.index
+    for i in all_cells:
+        #print(f'We are in time step {t}, checking cell {i}.')
+        division_1(sheet, cent_data= centre_data, cell_id = i)
+    geom.update_all(sheet)
+    
+    # Mesh restructure check
+    # T1 transition, edge rearrangment check.
+    T1_check(sheet, threshold = 0.1, scale=1.5)
+    sheet.reset_index()
+    geom.update_all(sheet)
+    
+    # Force computing and updating positions.
+    valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
+    pos = sheet.vert_df.loc[valid_active_verts, sheet.coords].values
+    # Compute the moving direction.
+    dot_r = my_ode(sheet)
+    new_pos = pos + dot_r*dt
+    # Save the new positions back to `vert_df`
+    sheet.vert_df.loc[valid_active_verts , sheet.coords] = new_pos
+    geom.update_all(sheet)
+    
+    # Plot with title contain time.
+    fig, ax = sheet_view(sheet)
+    ax.title.set_text(f'time = {round(t, 5)}')
 
 
 """ Divide first, then daughter cells expand. """

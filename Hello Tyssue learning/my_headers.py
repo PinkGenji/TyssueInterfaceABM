@@ -3,10 +3,11 @@
 This script contains all my personal defined functions to be used.
 """
 import numpy as np
-
+from tyssue.topology.sheet_topology import type1_transition
 from tyssue.topology.base_topology import add_vert
 from tyssue.topology.sheet_topology import face_division
 from tyssue import PlanarGeometry as geom
+from tyssue.dynamics.planar_vertex_model import PlanarModel as model
 
 
 def delete_face(sheet_obj, face_deleting):
@@ -288,21 +289,89 @@ def lateral_division(sheet, manager, cell_id, division_rate):
     else:
         pass
 
-
-def my_ode(eptm, t, pos):
-    """
-    Computes the model's gradient.
-
-
-    Math::
-    \frac{dr_i}{dt} = -\frac{\nabla U_i}{\eta_i}
-
-    """
-    grad_U = eptm.model.compute_gradient(eptm).loc[eptm.active_verts]
+def T1_check(eptm, threshold, scale):
+    for i in eptm.sgle_edges:
+        if eptm.edge_df.loc[i,'length'] < threshold:
+            type1_transition(eptm, edge01 = i, multiplier= scale)
+            print(f'Type 1 transition applied to edge {i} \n')
+        else:
+            continue
     
+def my_ode(eptm):
+    valid_verts = eptm.active_verts[eptm.active_verts.isin(eptm.vert_df.index)]
+    grad_U = model.compute_gradient(eptm).loc[valid_verts]
+    dr_dt = -grad_U.values/eptm.vert_df.loc[valid_verts, 'viscosity'].values[:,None]
+    return dr_dt
 
+# Write behavior function for division_1.
+def division_1(sheet, cent_data, cell_id, crit_area=1, growth_rate=0.5, dt=1):
+    """The cells keep growing, when the area exceeds a critical area, then
+    the cell divides.
+    
+    Parameters
+    ----------
+    sheet: a :class:`Sheet` object
+    cell_id: int
+        the index of the dividing cell
+    crit_area: float
+        the area at which 
+    growth_rate: float
+        increase in the area per unit time
+        A_0(t + dt) = A0(t) * (1 + growth_rate * dt)
+    """
 
+    # if the cell area is larger than the crit_area, we let the cell divide.
+    if sheet.face_df.loc[cell_id, "area"] > crit_area:
+        # Do division, pikc number 2 cell for example.
+        condition = sheet.edge_df.loc[:,'face'] == cell_id
+        edge_in_cell = sheet.edge_df[condition]
+        # We need to randomly choose one of the edges in cell 2.
+        chosen_index = rng.choice(list(edge_in_cell.index))
+        # Extract and store the centroid coordinate.
+        c0x = float(cent_data.loc[cent_data['face']==cell_id, ['fx']].values[0])
+        c0y = float(cent_data.loc[cent_data['face']==cell_id, ['fy']].values[0])
+        c0 = [c0x, c0y]
 
+        # Add a vertex in the middle of the chosen edge.
+        new_mid_index = add_vert(sheet, edge = chosen_index)[0]
+        # Extract for source vertex coordinates of the newly added vertex.
+        p0x = sheet.vert_df.loc[new_mid_index,'x']
+        p0y = sheet.vert_df.loc[new_mid_index,'y']
+        p0 = [p0x, p0y]
+
+        # Compute the directional vector from new_mid_point to centroid.
+        rx = c0x - p0x
+        ry = c0y - p0y
+        r  = [rx, ry]   # use the line in opposite direction.
+        # We need to use iterrows to iterate over rows in pandas df
+        # The iteration has the form of (index, series)
+        # The series can be sliced.
+        for index, row in edge_in_cell.iterrows():
+            s0x = row['sx']
+            s0y = row['sy']
+            t0x = row['tx']
+            t0y = row['ty']
+            v1 = [s0x-p0x,s0y-p0y]
+            v2 = [t0x-p0x,t0y-p0y]
+            # if the xprod_2d returns negative, then line intersects the line segment.
+            if xprod_2d(r, v1)*xprod_2d(r, v2) < 0 and index !=chosen_index :
+                dx = row['dx']
+                dy = row['dy']
+                c1 = (dx*ry/rx)-dy
+                c2 = s0y-p0y - (s0x*ry/rx) + (p0x*ry/rx)
+                k=c2/c1
+                intersection = [s0x+k*dx, s0y+k*dy]
+                oppo_index = put_vert(sheet, index, intersection)[0]
+                # Split the cell with a line.
+                new_face_index = face_division(sheet, mother = cell_id, vert_a = new_mid_index , vert_b = oppo_index )
+                # Put a vertex at the centroid, on the newly formed edge (last row in df).
+                cent_index = put_vert(sheet, edge = sheet.edge_df.index[-1], coord_put = c0)[0]
+                return new_face_index
+            else:
+                continue
+    # if the cell area is less than the threshold, update the area by growth.
+    else:
+        sheet.face_df.loc[cell_id, "prefered_area"] *= (1 + dt * growth_rate)
 
 
 

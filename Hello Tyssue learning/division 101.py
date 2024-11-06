@@ -327,13 +327,6 @@ sheet.vert_df['viscosity'] = 1.0
 sheet.update_specs(model.specs, reset=True)
 geom.update_all(sheet)
 
-# Calculate the rate of change in position, element-wise for each vertex.
-valid_verts = sheet.active_verts.intersection(sheet.vert_df.index)
-grad_U = model.compute_gradient(sheet).loc[valid_verts]
-
-dr_dt = -grad_U.values/sheet.vert_df.loc[valid_verts, 'viscosity'].values[:,None]
-print(dr_dt)
-
 def my_ode(eptm):
     valid_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
     grad_U = model.compute_gradient(eptm).loc[valid_verts]
@@ -365,7 +358,67 @@ for t in time_points:
     fig, ax = sheet_view(sheet)
     ax.title.set_text(f'time = {round(t, 5)}')
 
-""" Now implement transition methods on top of inside my looping. """
+""" Now implement mesh restructure at each time step. """
+
+# T1 threshold is typically 1 magnitude smaller than a typical cell area.
+T1_threshold = sheet.face_df.loc[:,'area'].mean()/10
+
+sheet.get_extra_indices() # Computes extra indicies.
+sheet.sgle_edges # Show all joint index over free and east edges.
+for i in sheet.sgle_edges:
+    if sheet.edge_df.loc[i,'length'] < T1_threshold:
+        type1_transition(sheet, edge01 = i, multiplier=1.5)
+    else:
+        continue
+
+sheet.reset_index()
+geom.update_all(sheet)
+sheet_view(sheet)
+
+def T1_check(eptm, threshold, scale):
+    for i in eptm.sgle_edges:
+        if eptm.edge_df.loc[i,'length'] < threshold:
+            type1_transition(eptm, edge01 = i, multiplier= scale)
+            print(f'Type 1 transition applied to edge {i} \n')
+        else:
+            continue
+
+# Now assume we want to go from t = 0 to t= 1, dt = 0.1
+t0 = 0
+t_end = 0.1
+dt = 0.01
+time_points = np.linspace(t0, t_end, int((t_end - t0) / dt) + 1)
+print(f'time points are: {time_points}.')
+sheet.get_extra_indices()
+for t in time_points:
+    print(f'start at t= {round(t, 5)}.')
+    # Mesh restructure check
+    T1_check(sheet, threshold = 0.5, scale=1.5)
+    sheet.reset_index()
+    geom.update_all(sheet)
+    
+    # Force computing and updating positions.
+    valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
+    pos = sheet.vert_df.loc[valid_active_verts, sheet.coords].values
+    # Compute the moving direction.
+    dot_r = my_ode(sheet)
+    new_pos = pos + dot_r*dt
+    # Save the new positions back to `vert_df`
+    sheet.vert_df.loc[valid_active_verts , sheet.coords] = new_pos
+    geom.update_all(sheet)
+    
+    # Plot with title contain time.
+    fig, ax = sheet_view(sheet)
+    ax.title.set_text(f'time = {round(t, 5)}')
+
+
+
+
+
+
+
+
+
 
 
 

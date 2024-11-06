@@ -137,9 +137,6 @@ fig.set_size_inches(10, 12)
 Try manipulate the center dataset, 1) non uniform shape. 2) get boundary cells.
 """
 
-
-
-
 '''
 Perform cell division, without using event manager
 '''
