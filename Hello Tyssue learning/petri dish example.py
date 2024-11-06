@@ -76,6 +76,7 @@ sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwis
 fig, ax = sheet_view(sheet,  mode = '2D')
 
 
+
 """ Implement the Euler simple forward solver. """
 geom.update_all(sheet)
 sheet.settings['threshold_length'] = 1e-3

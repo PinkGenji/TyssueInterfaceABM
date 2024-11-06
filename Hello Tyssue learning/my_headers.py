@@ -287,8 +287,19 @@ def lateral_division(sheet, manager, cell_id, division_rate):
             sheet.face_df.loc[cell_id, "prefered_area"] = 1.0
     else:
         pass
-        
 
+
+def my_ode(eptm, t, pos):
+    """
+    Computes the model's gradient.
+
+
+    Math::
+    \frac{dr_i}{dt} = -\frac{\nabla U_i}{\eta_i}
+
+    """
+    grad_U = eptm.model.compute_gradient(eptm).loc[eptm.active_verts]
+    
 
 
 
