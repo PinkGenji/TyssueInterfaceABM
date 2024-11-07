@@ -384,6 +384,7 @@ def T1_check(eptm, threshold, scale):
             continue
 
 # Now assume we want to go from t = 0 to t= 1, dt = 0.1
+d_min = 0.2     # This is the value that will be used for T1 swap.
 t0 = 0
 t_end = 0.1
 dt = 0.01
@@ -406,7 +407,7 @@ for t in time_points:
     pos = sheet.vert_df.loc[valid_active_verts, sheet.coords].values
     # Compute the moving direction.
     dot_r = my_ode(sheet)
-    new_pos = pos + dot_r*dt
+    new_pos = pos + max(-d_min/2, min(dot_r*dt, d_min/2))
     # Save the new positions back to `vert_df`
     sheet.vert_df.loc[valid_active_verts , sheet.coords] = new_pos
     geom.update_all(sheet)
