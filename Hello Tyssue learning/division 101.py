@@ -361,7 +361,7 @@ for t in time_points:
 """ Now implement mesh restructure at each time step. """
 
 # T1 threshold is typically 1 magnitude smaller than a typical cell area.
-T1_threshold = sheet.face_df.loc[:,'area'].mean()/10
+T1_threshold = sheet.face_df.loc[:,'area'].mean()/2
 
 sheet.get_extra_indices() # Computes extra indicies.
 sheet.sgle_edges # Show all joint index over free and east edges.
@@ -393,7 +393,11 @@ sheet.get_extra_indices()
 for t in time_points:
     print(f'start at t= {round(t, 5)}.')
     # Mesh restructure check
-    T1_check(sheet, threshold = 0.5, scale=1.5)
+    for i in sheet.sgle_edges:
+        if sheet.edge_df.loc[i,'length'] < T1_threshold:
+            type1_transition(sheet, edge01 = i, multiplier=1.5)
+        else:
+            continue
     sheet.reset_index()
     geom.update_all(sheet)
     

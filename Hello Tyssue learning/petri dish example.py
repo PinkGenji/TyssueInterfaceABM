@@ -81,7 +81,7 @@ fig, ax = sheet_view(sheet,  mode = '2D')
 
 """ Grow first, then cells divide. """
 # Write behavior function for division_1.
-def division_1(sheet, cent_data, cell_id, crit_area=1, growth_rate=0.5, dt=1):
+def division_1(sheet, cent_data, cell_id, crit_area, growth_rate, dt):
     """The cells keep growing, when the area exceeds a critical area, then
     the cell divides.
     
@@ -260,17 +260,21 @@ sheet.vert_df['viscosity'] = 1.0
 sheet.update_specs(model.specs, reset=True)
 geom.update_all(sheet)
 
-# Now assume we want to go from t = 0 to t= 1, dt = 0.1
+# We need set the all the threshold value first.
+t1_threshold = sheet.edge_df.loc[:,'length'].mean()/10
+area_threshold = sheet.face_df.loc[:,'area'].mean()*1.1
+growth_speed = sheet.face_df.loc[:,'area'].mean()/2
+
+# Now assume we want to go from t = 0 to t= 0.2, dt = 0.1
 t0 = 0
 t_end = 0.2
 dt = 0.01
 time_points = np.linspace(t0, t_end, int((t_end - t0) / dt) + 1)
 print(f'time points are: {time_points}.')
 
-sheet.get_extra_indices()   # Need to have the sheet.sgle_edges column.
-
 for t in time_points:
     print(f'start at t= {round(t, 5)}.')
+    
     # Cell division.
     # Store the centroid before iteration of cells.
     unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
@@ -279,14 +283,22 @@ for t in time_points:
     all_cells = sheet.face_df.index
     for i in all_cells:
         #print(f'We are in time step {t}, checking cell {i}.')
-        division_1(sheet, cent_data= centre_data, cell_id = i)
+        division_1(sheet, cent_data= centre_data, cell_id = i, crit_area=area_threshold, growth_rate= growth_speed, dt=dt)
     geom.update_all(sheet)
     
     # Mesh restructure check
     # T1 transition, edge rearrangment check.
-    T1_check(sheet, threshold = 0.1, scale=1.5)
-    sheet.reset_index()
-    geom.update_all(sheet)
+    sheet.get_extra_indices()   # Need to have the sheet.sgle_edges column.
+    single_edges = sheet.sgle_edges
+    # Loop over all single edges.
+    # for i in single_edges:
+    #     print(f'checking edge {i}.')
+    #     if sheet.edge_df.loc[i,'length'] < t1_threshold :
+    #         type1_transition(sheet, edge01 = i, multiplier=1.5)
+    #     else:
+    #         continue
+    # sheet.reset_index(order=True)
+    # geom.update_all(sheet)
     
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
