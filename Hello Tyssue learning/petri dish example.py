@@ -134,8 +134,8 @@ def division_1(sheet, cent_data, cell_id, crit_area, growth_rate, dt):
             if xprod_2d(r, v1)*xprod_2d(r, v2) < 0 and index !=chosen_index :
                 dx = row['dx']
                 dy = row['dy']
-                c1 = (dx*ry/rx)-dy
-                c2 = s0y-p0y - (s0x*ry/rx) + (p0x*ry/rx)
+                c1 = dx*ry-dy*rx
+                c2 = s0y*rx-p0y*rx - s0x*ry + p0x*ry
                 k=c2/c1
                 intersection = [s0x+k*dx, s0y+k*dy]
                 oppo_index = put_vert(sheet, index, intersection)[0]
