@@ -323,7 +323,7 @@ for t in time_points:
     
     
     # Plot with title contain time.
-    if t in time_points[0:,3]:
+    if t in time_points[::3]:
         fig, ax = sheet_view(sheet)
         ax.title.set_text(f'time = {round(t, 5)}')
 
