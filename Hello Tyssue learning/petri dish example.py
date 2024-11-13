@@ -245,19 +245,26 @@ for i in list(range(num_x, num_y*(num_x+1), 2*(num_x+1) )):
     delete_face(sheet, i+1)
 sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
 sheet_view(sheet)
-
+sheet.get_extra_indices()
 # Visualize the sheet.
 fig, ax = sheet_view(sheet,  mode = '2D')
 
 # First, we need a way to compute the energy, then use gradient descent.
 model = model_factory([
-    effectors.LineTension,
-    effectors.FaceContractility,
-    effectors.FaceAreaElasticity
+    effectors.LineTension, # This defines cell cell adhesion force.
+    effectors.FaceContractility, # This defines deformation energy coefficient
+    effectors.FaceAreaElasticity # This defines memrbane surface energy coefficient.
     ])
 
 sheet.vert_df['viscosity'] = 1.0
 sheet.update_specs(model.specs, reset=True)
+geom.update_all(sheet)
+for i in sheet.edge_df.index:
+    if sheet.edge_df.loc[i, 'opposite'] == -1:
+        sheet.edge_df.loc[i, 'line_tension'] /= 2
+    else:
+        continue
+
 geom.update_all(sheet)
 
 # We need set the all the threshold value first.
@@ -275,6 +282,34 @@ print(f'time points are: {time_points}.')
 for t in time_points:
     print(f'start at t= {round(t, 5)}.')
     
+    # Force computing and updating positions.
+    valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
+    pos = sheet.vert_df.loc[valid_active_verts, sheet.coords].values
+    # Compute the moving direction.
+    dot_r = my_ode(sheet)
+    new_pos = pos + dot_r*dt
+    # Save the new positions back to `vert_df`
+    sheet.vert_df.loc[valid_active_verts , sheet.coords] = new_pos
+    geom.update_all(sheet)
+    
+    # Mesh restructure check
+    # T1 transition, edge rearrangment check.
+    single_edges = sheet.edge_df.index.intersection(sheet.sgle_edges)
+    for index in single_edges:
+        if sheet.edge_df.loc[index,'length'] < t1_threshold:
+            print(f'Edge {index} is shorter than threshold')
+            type1_transition(sheet, index, remove_tri_faces=False, multiplier=1.5)
+        else:
+            continue
+    # T2 transition check.
+    tri_faces =sheet.face_df[sheet.face_df['num_sides']<4].index
+    for i in tri_faces:
+        if sheet.face_df.loc[i,'area'] < area_threshold:
+            remove_face(sheet, tri_faces[0])
+        else:
+            continue
+
+    geom.update_all(sheet)
     # Cell division.
     # Store the centroid before iteration of cells.
     unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
@@ -286,33 +321,11 @@ for t in time_points:
         division_1(sheet, cent_data= centre_data, cell_id = i, crit_area=area_threshold, growth_rate= growth_speed, dt=dt)
     geom.update_all(sheet)
     
-    # Mesh restructure check
-    # T1 transition, edge rearrangment check.
-    sheet.get_extra_indices()   # Need to have the sheet.sgle_edges column.
-    single_edges = sheet.sgle_edges
-    # Loop over all single edges.
-    # for i in single_edges:
-    #     print(f'checking edge {i}.')
-    #     if sheet.edge_df.loc[i,'length'] < t1_threshold :
-    #         type1_transition(sheet, edge01 = i, multiplier=1.5)
-    #     else:
-    #         continue
-    # sheet.reset_index(order=True)
-    # geom.update_all(sheet)
-    
-    # Force computing and updating positions.
-    valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
-    pos = sheet.vert_df.loc[valid_active_verts, sheet.coords].values
-    # Compute the moving direction.
-    dot_r = my_ode(sheet)
-    new_pos = pos + dot_r*dt
-    # Save the new positions back to `vert_df`
-    sheet.vert_df.loc[valid_active_verts , sheet.coords] = new_pos
-    geom.update_all(sheet)
     
     # Plot with title contain time.
-    fig, ax = sheet_view(sheet)
-    ax.title.set_text(f'time = {round(t, 5)}')
+    if t in time_points[0:,3]:
+        fig, ax = sheet_view(sheet)
+        ax.title.set_text(f'time = {round(t, 5)}')
 
 
 """ Divide first, then daughter cells expand. """
