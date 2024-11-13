@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-This code file contains the primary design of my own T1 transition during my PYR.
+This code file contains the primary design of my own T1 transition
 """
 
 # =============================================================================
