@@ -374,5 +374,24 @@ def division_1(sheet, cent_data, cell_id, crit_area=1, growth_rate=0.5, dt=1):
         sheet.face_df.loc[cell_id, "prefered_area"] *= (1 + dt * growth_rate)
 
 
+def t1_boundary_transition(sheet, edge01, multiplier= 1.5):
+    """
+    Performs a type 1 transition around a boundary edge edge01.
+
+    Parameters
+    ----------
+    sheet : a `Sheet` instance
+    edge01 : int
+        index of the boundary edge the transition takes place.
+    multiplier : float, optional
+        pultiplier for the new edge length. The default is 1.5.
+
+    """
+    
+
+
+
+
+
 
 """ This is the end of the script. """

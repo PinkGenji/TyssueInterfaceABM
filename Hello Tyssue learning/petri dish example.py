@@ -231,14 +231,8 @@ num_x = 4
 num_y = 4
 sheet = Sheet.planar_sheet_2d('face', nx = num_x, ny=num_y, distx=2, disty=2)
 geom.update_all(sheet)
-
 # remove non-enclosed faces
 sheet.remove(sheet.get_invalid())
-
-# Plot the figure to see the index.
-fig, ax = sheet_view(sheet)
-for face, data in sheet.face_df.iterrows():
-    ax.text(data.x, data.y, face)
     
 for i in list(range(num_x, num_y*(num_x+1), 2*(num_x+1) )):
     delete_face(sheet, i)
@@ -269,6 +263,7 @@ geom.update_all(sheet)
 
 # We need set the all the threshold value first.
 t1_threshold = sheet.edge_df.loc[:,'length'].mean()/10
+t2_threshold = sheet.face_df.loc[:,'area'].mean()/5
 area_threshold = sheet.face_df.loc[:,'area'].mean()*1.1
 growth_speed = sheet.face_df.loc[:,'area'].mean()/2
 
@@ -294,13 +289,17 @@ for t in time_points:
     
     # Mesh restructure check
     # T1 transition, edge rearrangment check.
-    single_edges = sheet.edge_df.index.intersection(sheet.sgle_edges)
-    for index in single_edges:
-        if sheet.edge_df.loc[index,'length'] < t1_threshold:
+    # Store the single edges as a deparate df
+    print(sheet.edge_df.index)
+    for i in list(range(len(sheet.edge_df))):
+        if sheet.edge_df.loc[i,'length'] < t1_threshold :
             print(f'Edge {index} is shorter than threshold')
-            type1_transition(sheet, index, remove_tri_faces=False, multiplier=1.5)
+            #type1_transition(sheet, i, remove_tri_faces=False, multiplier=1.5)
         else:
             continue
+    sheet.reset_index(order = True)
+    geom.update_all(sheet)
+    
     # T2 transition check.
     tri_faces =sheet.face_df[sheet.face_df['num_sides']<4].index
     for i in tri_faces:
@@ -308,7 +307,7 @@ for t in time_points:
             remove_face(sheet, tri_faces[0])
         else:
             continue
-
+    sheet.reset_index(order = True)
     geom.update_all(sheet)
     # Cell division.
     # Store the centroid before iteration of cells.
@@ -319,6 +318,7 @@ for t in time_points:
     for i in all_cells:
         #print(f'We are in time step {t}, checking cell {i}.')
         division_1(sheet, cent_data= centre_data, cell_id = i, crit_area=area_threshold, growth_rate= growth_speed, dt=dt)
+    sheet.reset_index(order = True)
     geom.update_all(sheet)
     
     
