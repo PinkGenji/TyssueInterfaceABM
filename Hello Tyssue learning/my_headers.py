@@ -3,6 +3,7 @@
 This script contains all my personal defined functions to be used.
 """
 import numpy as np
+import pandas as pd
 from tyssue.topology.sheet_topology import type1_transition
 from tyssue.topology.base_topology import add_vert
 from tyssue.topology.sheet_topology import face_division
@@ -373,21 +374,147 @@ def division_1(sheet, cent_data, cell_id, crit_area=1, growth_rate=0.5, dt=1):
     else:
         sheet.face_df.loc[cell_id, "prefered_area"] *= (1 + dt * growth_rate)
 
+def collapse_edge(sheet, edge, reindex=True, allow_two_sided=False):
+    """Collapses edge and merges it's vertices, creating (or increasing the rank of)
+    a rosette structure.
 
-def t1_boundary_transition(sheet, edge01, multiplier= 1.5):
+    If `reindex` is `True` (the default), resets indexes and topology data.
+    The edge is collapsed on the smaller of the srce, trgt indexes
+    (to minimize reindexing impact)
+
+    Returns the index of the collapsed edge's remaining vertex (its srce)
+
     """
-    Performs a type 1 transition around a boundary edge edge01.
+
+    srce, trgt = np.sort(sheet.edge_df.loc[edge, ["srce", "trgt"]]).astype(int)
+
+    # edges = sheet.edge_df[
+    #     ((sheet.edge_df["srce"] == srce) & (sheet.edge_df["trgt"] == trgt))
+    #     | ((sheet.edge_df["srce"] == trgt) & (sheet.edge_df["trgt"] == srce))
+    # ]
+
+    # has_3_sides = np.any(
+    #     sheet.face_df.loc[edges["face"].astype(int), "num_sides"] < 4
+    # )
+    # if has_3_sides and not allow_two_sided:
+    #     warnings.warn(
+    #         f"Collapsing edge {edge} would result in a two sided face, aborting"
+    #     )
+    #     return -1
+
+    sheet.vert_df.loc[srce, sheet.coords] = sheet.vert_df.loc[
+        [srce, trgt], sheet.coords
+    ].mean(axis=0)
+    sheet.vert_df.drop(trgt, axis=0, inplace=True)
+    # rewire
+    sheet.edge_df.replace({"srce": trgt, "trgt": trgt}, srce, inplace=True)
+    # all the edges parallel to the original
+    collapsed = sheet.edge_df.query("srce == trgt")
+    sheet.edge_df.drop(collapsed.index, axis=0, inplace=True)
+    return srce
+
+def split_vert(sheet, vert, face, to_rewire, epsilon, recenter=False):
+    """Creates a new vertex and moves it towards the center of face.
+
+    The edges in to_rewire will be connected to the new vertex.
+
+    Parameters
+    ----------
+
+    sheet : a :class:`tyssue.Sheet` instance
+    vert : int, the index of the vertex to split
+    face : int, the index of the face where to move the vertex
+    to_rewire : :class:`pd.DataFrame` a subset of `sheet.edge_df`
+        where all the edges pointing to (or from) the old vertex will point
+        to (or from) the new.
+
+    Note
+    ----
+
+    This will leave opened faces and cells
+
+    """
+
+    # Add a vertex
+    this_vert = sheet.vert_df.loc[vert:vert]  # avoid type munching
+    sheet.vert_df = pd.concat([sheet.vert_df, this_vert], ignore_index=True)
+
+    new_vert = sheet.vert_df.index[-1]
+    # Move it towards the face center
+    r_ia = sheet.face_df.loc[face, sheet.coords] - sheet.vert_df.loc[vert, sheet.coords]
+    shift = r_ia * epsilon / np.linalg.norm(r_ia)
+    if recenter:
+        sheet.vert_df.loc[new_vert, sheet.coords] += shift / 2.0
+        sheet.vert_df.loc[vert, sheet.coords] -= shift / 2.0
+
+    else:
+        sheet.vert_df.loc[new_vert, sheet.coords] += shift
+
+    # rewire
+    sheet.edge_df.loc[to_rewire.index] = to_rewire.replace(
+        {"srce": vert, "trgt": vert}, new_vert
+    )
+
+
+def type1_transition_custom(sheet, edge01, multiplier=1.5):
+    """Performs a type 1 transition around the specified edge, 
+    reusing the collapsed edge's index and vertices for the newly created edge.
 
     Parameters
     ----------
     sheet : a `Sheet` instance
     edge01 : int
-        index of the boundary edge the transition takes place.
+       Index of the edge around which the transition takes place
+    remove_tri_faces : bool, optional
+       If True (default), removes triangular cells after the T1 transition is performed
     multiplier : float, optional
-        pultiplier for the new edge length. The default is 1.5.
+       Default 1.5, multiplier to the threshold length for the new edge
 
+    Returns
+    -------
+    int : The index of the newly created edge (same as the collapsed edge)
     """
     
+    # Get the source, target, and face associated with edge01
+    srce, trgt, face = sheet.edge_df.loc[edge01, ["srce", "trgt", "face"]].astype(int)
+
+    # Step 1: Collapse the edge by merging vertices and updating positions
+    vert = min(srce, trgt)  # Use the smaller index for consistency
+    the_other_vert = max(srce,trgt)
+    sheet.vert_df.loc[vert, sheet.coords] = sheet.vert_df.loc[[srce, trgt], sheet.coords].mean(axis=0)
+
+    # Remove the target vertex (trgt) from vert_df and rewire edges
+    sheet.vert_df.drop(trgt, inplace=True)
+    sheet.edge_df.replace({"srce": trgt, "trgt": trgt}, vert, inplace=True)
+    
+    # Remove edges that have collapsed (where srce == trgt)
+    collapsed_edges = sheet.edge_df.query("srce == trgt").index
+    sheet.edge_df.drop(collapsed_edges, inplace=True)
+
+    # Step 2: Create a new vertex and connect it to form a new edge
+    # Add the new vertex by copying the coordinates of vert and shifting towards the face center
+    new_vert_coords = sheet.vert_df.loc[vert, sheet.coords].copy()
+    face_center = sheet.face_df.loc[face, sheet.coords]
+    direction = face_center - new_vert_coords
+    shift = (direction * multiplier / np.linalg.norm(direction)) / 2.0  # half shift for balance
+    new_vert_coords += shift
+
+    # Add new vertex to vert_df
+    new_vert = sheet.vert_df.index.max() + 1
+    sheet.vert_df.loc[new_vert] = new_vert_coords
+
+    # Reassign edges initially pointing to vert to new_vert for the new connection
+    to_rewire = sheet.edge_df[(sheet.edge_df["srce"] == vert) | (sheet.edge_df["trgt"] == vert)]
+    sheet.edge_df.loc[to_rewire.index, ["srce", "trgt"]] = to_rewire.replace({vert: new_vert})
+
+    # Step 3: Create the new edge using the same index as the original edge01
+    sheet.edge_df.loc[edge01, ["srce", "trgt"]] = [vert, new_vert]
+    sheet.edge_df.loc[edge01, "length"] = multiplier * sheet.settings.get("threshold_length", 1.0)
+
+
+    return edge01
+
+
 
 
 

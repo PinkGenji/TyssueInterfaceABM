@@ -2,7 +2,6 @@
 """
 This code file contains the primary design of my own T1 transition
 """
-
 # =============================================================================
 # First we need to surpress the version warnings from Pandas.
 import warnings 
@@ -55,11 +54,6 @@ geom.update_all(sheet)
 # remove non-enclosed faces
 sheet.remove(sheet.get_invalid())
 
-# Plot the figure to see the index.
-fig, ax = sheet_view(sheet)
-for face, data in sheet.face_df.iterrows():
-    ax.text(data.x, data.y, face)
-    
 for i in list(range(num_x, num_y*(num_x+1), 2*(num_x+1) )):
     delete_face(sheet, i)
     delete_face(sheet, i+1)
@@ -67,10 +61,11 @@ sheet.get_extra_indices()
 sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
 
 # Visualize the sheet.
+sheet_view(sheet)
+
 fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y, face)
-    
 
 for index, series in sheet.edge_df.iterrows():
     if series['srce'] == 14 and series['trgt'] == 45:
@@ -106,11 +101,6 @@ geom.update_all(sheet)
 # remove non-enclosed faces
 sheet.remove(sheet.get_invalid())
 
-# Plot the figure to see the index.
-fig, ax = sheet_view(sheet)
-for face, data in sheet.face_df.iterrows():
-    ax.text(data.x, data.y, face)
-    
 for i in list(range(num_x, num_y*(num_x+1), 2*(num_x+1) )):
     delete_face(sheet, i)
     delete_face(sheet, i+1)
@@ -118,20 +108,19 @@ sheet.get_extra_indices()
 sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
 
 # Visualize the sheet.
+sheet_view(sheet)
+
 fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y, face)
     
-sheet_view(sheet)
-
+# Now perform transitions.
 merge_vertices(sheet, 20, 22)
 geom.update_all(sheet)
 sheet_view(sheet)
 
 new_boundary_coord = sheet.vert_df.loc[20,['x','y']]
 new_boundary_coord[0]+=0.5
-
-
 
 for i in list(range(len(sheet.edge_df))):
     if sheet.edge_df.loc[i,'opposite'] == -1 and sheet.edge_df.loc[i,'trgt'] == 20:
@@ -141,23 +130,103 @@ for i in list(range(len(sheet.edge_df))):
     else:
         continue
 
-
 put_vert(sheet, 90, new_boundary_coord)
 put_vert(sheet, 45, new_boundary_coord)
 geom.update_all(sheet)
 sheet_view(sheet)
 
 
-
 """ For the boundary edge case, but one vertex rank = 1, second vertex rank = 2  """
+# Generate the cell sheet as three cells.
+num_x = 4
+num_y = 4
+
+sheet = Sheet.planar_sheet_2d('face', nx = num_x, ny=num_y, distx=2, disty=2)
+
+geom.update_all(sheet)
+
+# remove non-enclosed faces
+sheet.remove(sheet.get_invalid())
+
+for i in list(range(num_x, num_y*(num_x+1), 2*(num_x+1) )):
+    delete_face(sheet, i)
+    delete_face(sheet, i+1)
+sheet.get_extra_indices()
+sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
+
+# Visualize the sheet.
+sheet_view(sheet)
+
+fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+for face, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y, face)
+    
+
+merge_vertices(sheet, 37, 4)
+geom.update_all(sheet)
+sheet_view(sheet)
+
+new_boundary_coord = sheet.vert_df.loc[4,['x','y']]
+new_boundary_coord[0]-=0.5
+
+for i in list(range(len(sheet.edge_df))):
+    if sheet.edge_df.loc[i,'opposite'] == -1 and sheet.edge_df.loc[i,'trgt'] == 4:
+            print(f'The edge {i} is of interest.')
+    elif sheet.edge_df.loc[i,'opposite'] == -1 and sheet.edge_df.loc[i,'srce'] == 4:
+            print(f'The edge {i} is of interest.')
+    else:
+        continue
 
 
+put_vert(sheet, 52, new_boundary_coord)
+geom.update_all(sheet)
+sheet_view(sheet)
 
 
+""" 
+More on the vertex rank =1, and =2 case.
+"""
+from tyssue.topology.sheet_topology import split_vert
+# Generate the cell sheet as three cells.
+num_x = 4
+num_y = 4
+
+sheet = Sheet.planar_sheet_2d('face', nx = num_x, ny=num_y, distx=2, disty=2)
+
+geom.update_all(sheet)
+
+# remove non-enclosed faces
+sheet.remove(sheet.get_invalid())
+
+for i in list(range(num_x, num_y*(num_x+1), 2*(num_x+1) )):
+    delete_face(sheet, i)
+    delete_face(sheet, i+1)
+sheet.get_extra_indices()
+sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
+
+# Visualize the sheet.
+sheet_view(sheet)
+
+fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+for face, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y, face)
+
+# We pick the edge 77.
+print(sheet.edge_df.loc[52,['srce','trgt']])
+srce, trgt, face = sheet.edge_df.loc[52, ["srce", "trgt", "face"]].astype(int)
+
+vert = min(srce, trgt) # find the vertex that won't be reindexed
+ret_code = collapse_edge(sheet, 52)
+geom.update_all(sheet)
+sheet_view(sheet)
+split_vert(sheet, vert)
+geom.update_all(sheet)
+sheet_view(sheet)
 
 
-
-
+type1_transition(sheet, 52)
+geom.update_all(sheet)
+sheet_view(sheet)
 
 
 

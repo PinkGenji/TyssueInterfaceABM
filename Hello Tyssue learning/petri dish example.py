@@ -26,7 +26,7 @@ from tyssue import PlanarGeometry as geom #for simple 2d geometry
 
 # For cell topology/configuration
 from tyssue.topology.sheet_topology import type1_transition
-from tyssue.topology.base_topology import collapse_edge, remove_face, add_vert
+from tyssue.topology.base_topology import remove_face, add_vert
 from tyssue.topology.sheet_topology import split_vert as sheet_split
 from tyssue.topology.bulk_topology import split_vert as bulk_split
 from tyssue.topology import condition_4i, condition_4ii
@@ -42,7 +42,7 @@ from tyssue.dynamics import model_factory, effectors
 from tyssue.draw import sheet_view
 from tyssue.draw.plt_draw import plot_forces
 
-from my_headers import delete_face, xprod_2d, put_vert, T1_check, my_ode
+from my_headers import delete_face, xprod_2d, put_vert, T1_check, my_ode, type1_transition_custom
 
 
 """ start the project. """
@@ -232,8 +232,7 @@ num_y = 4
 sheet = Sheet.planar_sheet_2d('face', nx = num_x, ny=num_y, distx=2, disty=2)
 geom.update_all(sheet)
 # remove non-enclosed faces
-sheet.remove(sheet.get_invalid())
-    
+sheet.remove(sheet.get_invalid())  
 for i in list(range(num_x, num_y*(num_x+1), 2*(num_x+1) )):
     delete_face(sheet, i)
     delete_face(sheet, i+1)
@@ -242,14 +241,12 @@ sheet_view(sheet)
 sheet.get_extra_indices()
 # Visualize the sheet.
 fig, ax = sheet_view(sheet,  mode = '2D')
-
 # First, we need a way to compute the energy, then use gradient descent.
 model = model_factory([
     effectors.LineTension, # This defines cell cell adhesion force.
     effectors.FaceContractility, # This defines deformation energy coefficient
     effectors.FaceAreaElasticity # This defines memrbane surface energy coefficient.
     ])
-
 sheet.vert_df['viscosity'] = 1.0
 sheet.update_specs(model.specs, reset=True)
 geom.update_all(sheet)
@@ -258,7 +255,6 @@ for i in sheet.edge_df.index:
         sheet.edge_df.loc[i, 'line_tension'] /= 2
     else:
         continue
-
 geom.update_all(sheet)
 
 # We need set the all the threshold value first.
@@ -269,13 +265,43 @@ growth_speed = sheet.face_df.loc[:,'area'].mean()/2
 
 # Now assume we want to go from t = 0 to t= 0.2, dt = 0.1
 t0 = 0
-t_end = 0.2
-dt = 0.01
+t_end = 0.12
+dt = 0.001
 time_points = np.linspace(t0, t_end, int((t_end - t0) / dt) + 1)
 print(f'time points are: {time_points}.')
+ls=[]
+
 
 for t in time_points:
     print(f'start at t= {round(t, 5)}.')
+    
+    # Mesh restructure check
+    # T1 transition, edge rearrangment check
+    while True:
+    # Check for any edge below the threshold, starting from index 0 upwards
+        edge_to_process = None
+        for index in sheet.edge_df.index:
+            if sheet.edge_df.loc[index, 'length'] < t1_threshold:
+                edge_to_process = index
+                break  
+        # Exit the loop if no edges are below the threshold
+        if edge_to_process is None:
+            break
+    
+        # Process the identified edge with T1 transition
+        print(f'Edge {edge_to_process} is shorter than the t1 threshold value.')
+        ls.append(sheet.edge_df.loc[edge_to_process,])
+        type1_transition(sheet, edge_to_process,remove_tri_faces=False, multiplier=1.5)
+        geom.update_all(sheet)
+        fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+        for face, data in sheet.vert_df.iterrows():
+            ax.text(data.x, data.y, face)
+        sheet.reset_index()
+        
+        # Update sheet.edge_df to reflect changes and re-check edges in the next loop iteration
+    geom.update_all(sheet)
+    sheet.reset_index()
+
     
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
@@ -287,18 +313,11 @@ for t in time_points:
     sheet.vert_df.loc[valid_active_verts , sheet.coords] = new_pos
     geom.update_all(sheet)
     
-    # Mesh restructure check
-    # T1 transition, edge rearrangment check.
-    # Store the single edges as a deparate df
-    print(sheet.edge_df.index)
-    for i in list(range(len(sheet.edge_df))):
-        if sheet.edge_df.loc[i,'length'] < t1_threshold :
-            print(f'Edge {index} is shorter than threshold')
-            #type1_transition(sheet, i, remove_tri_faces=False, multiplier=1.5)
-        else:
-            continue
-    sheet.reset_index(order = True)
-    geom.update_all(sheet)
+    # Plot with title contain time.
+    if t in time_points[::3]:
+        fig, ax = sheet_view(sheet)
+        ax.title.set_text(f'time = {round(t, 5)}')
+    
     
     # T2 transition check.
     tri_faces =sheet.face_df[sheet.face_df['num_sides']<4].index
