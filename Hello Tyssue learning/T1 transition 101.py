@@ -38,9 +38,10 @@ from tyssue.topology.sheet_topology import remove_face, cell_division, face_divi
 
 # 2D plotting
 from tyssue.draw import sheet_view, highlight_cells
+from tyssue.draw.plt_draw import plot_forces
 
 # import my own functions
-from my_headers import delete_face, xprod_2d, put_vert, lateral_split, divisibility_check
+from my_headers import *
 
 """For the interior edge case."""
 # Generate the cell sheet as three cells.
@@ -70,23 +71,57 @@ for face, data in sheet.vert_df.iterrows():
 for index, series in sheet.edge_df.iterrows():
     if series['srce'] == 14 and series['trgt'] == 45:
         print(f'The index is: {index}')
+    elif series['srce'] == 33 and series['trgt'] == 9:
+        print(f'The index is: {index}')
+    elif series['srce'] == 16 and series['trgt'] == 2 :
+        print(f'The index is: {index}')
 
 sheet.vert_df.loc[45,'y'] +=0.5
+sheet.vert_df.loc[9,'y'] +=0.5
+sheet.vert_df.loc[35,'x'] +=0.5
 geom.update_all(sheet)
 sheet_view(sheet)
 print('The length of the shortest edge is: '+ str(sheet.edge_df.loc[:,'length'].min()))
 
-# Store the single edges as a deparate df
-single_edge_index = sheet.edge_df.index.intersection(sheet.sgle_edges).tolist()
-for index in sheet.edge_df.index :
-    if sheet.edge_df.loc[index,'length'] < 1.05:
-        print(f'Edge {index} is shorter than threshold')
-        type1_transition(sheet, index, remove_tri_faces=False, multiplier=1.5)
+model = model_factory([
+    effectors.LineTension, # This defines cell cell adhesion force.
+    effectors.FaceContractility, # This defines deformation energy coefficient
+    effectors.FaceAreaElasticity # This defines memrbane surface energy coefficient.
+    ])
+sheet.vert_df['viscosity'] = 1.0
+sheet.update_specs(model.specs, reset=True)
+geom.update_all(sheet)
+for i in sheet.edge_df.index:
+    if sheet.edge_df.loc[i, 'opposite'] == -1:
+        sheet.edge_df.loc[i, 'line_tension'] /= 2
     else:
         continue
 geom.update_all(sheet)
 
-sheet_view(sheet)
+# Store the single edges as a deparate df
+t=0
+dt=1
+while t <3:
+    for index in sheet.edge_df.index :
+        if sheet.edge_df.loc[index,'length'] < 1.05:
+            print(f'Edge {index} is shorter than threshold')
+            type1_transition(sheet, index, remove_tri_faces=False, multiplier=1.5)
+        else:
+            continue
+    geom.update_all(sheet)
+    
+    # Force computing and updating positions.
+    valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
+    pos = sheet.vert_df.loc[valid_active_verts, sheet.coords].values
+    # Compute the moving direction.
+    dot_r = my_ode(sheet)
+    new_pos = pos + dot_r*dt
+    # Save the new positions back to `vert_df`
+    sheet.vert_df.loc[valid_active_verts , sheet.coords] = new_pos
+    geom.update_all(sheet)
+    
+    fig, ax = plot_forces(sheet, geom, model, ['x', 'y'], scaling=0.1)
+    t+=1
 
 
 """For the boundary edge case, both vertices have rank 2."""
