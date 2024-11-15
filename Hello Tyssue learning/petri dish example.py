@@ -55,7 +55,7 @@ rng = np.random.default_rng(70)
 num_x = 4
 num_y = 4
 
-sheet = Sheet.planar_sheet_2d('face', nx = num_x, ny=num_y, distx=2, disty=2)
+sheet = Sheet.planar_sheet_2d('face', nx = num_x, ny=num_y, distx=0.5, disty=0.5)
 
 geom.update_all(sheet)
 
@@ -258,19 +258,17 @@ for i in sheet.edge_df.index:
 geom.update_all(sheet)
 
 # We need set the all the threshold value first.
-t1_threshold = sheet.edge_df.loc[:,'length'].mean()/10
+t1_threshold = sheet.edge_df.loc[:,'length'].mean()/5
 t2_threshold = sheet.face_df.loc[:,'area'].mean()/5
-area_threshold = sheet.face_df.loc[:,'area'].mean()*1.1
+area_threshold = sheet.face_df.loc[:,'area'].mean()*1.5
 growth_speed = sheet.face_df.loc[:,'area'].mean()/2
 
 # Now assume we want to go from t = 0 to t= 0.2, dt = 0.1
 t0 = 0
-t_end = 0.12
-dt = 0.001
+t_end = 0.07
+dt = 0.01
 time_points = np.linspace(t0, t_end, int((t_end - t0) / dt) + 1)
 print(f'time points are: {time_points}.')
-ls=[]
-
 
 for t in time_points:
     print(f'start at t= {round(t, 5)}.')
@@ -283,25 +281,25 @@ for t in time_points:
         for index in sheet.edge_df.index:
             if sheet.edge_df.loc[index, 'length'] < t1_threshold:
                 edge_to_process = index
+                edge_length = sheet.edge_df.loc[edge_to_process,'length']
+                print(f'Edge {edge_to_process} is too short: {edge_length}')
+                # Process the identified edge with T1 transition
+                type1_transition(sheet, edge_to_process,remove_tri_faces=False, multiplier=1.5)
                 break  
         # Exit the loop if no edges are below the threshold
         if edge_to_process is None:
             break
-    
-        # Process the identified edge with T1 transition
-        print(f'Edge {edge_to_process} is shorter than the t1 threshold value.')
-        ls.append(sheet.edge_df.loc[edge_to_process,])
-        type1_transition(sheet, edge_to_process,remove_tri_faces=False, multiplier=1.5)
-        geom.update_all(sheet)
-        fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
-        for face, data in sheet.vert_df.iterrows():
-            ax.text(data.x, data.y, face)
-        sheet.reset_index()
-        
-        # Update sheet.edge_df to reflect changes and re-check edges in the next loop iteration
     geom.update_all(sheet)
-    sheet.reset_index()
 
+    # T2 transition check.
+    tri_faces =sheet.face_df[sheet.face_df['num_sides']<4].index
+    for i in tri_faces:
+        if sheet.face_df.loc[i,'area'] < area_threshold:
+            remove_face(sheet, tri_faces[0])
+        else:
+            continue
+    sheet.reset_index(order = True)
+    geom.update_all(sheet)
     
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
@@ -314,20 +312,11 @@ for t in time_points:
     geom.update_all(sheet)
     
     # Plot with title contain time.
-    if t in time_points[::3]:
+    if t in time_points:
         fig, ax = sheet_view(sheet)
         ax.title.set_text(f'time = {round(t, 5)}')
     
     
-    # T2 transition check.
-    tri_faces =sheet.face_df[sheet.face_df['num_sides']<4].index
-    for i in tri_faces:
-        if sheet.face_df.loc[i,'area'] < area_threshold:
-            remove_face(sheet, tri_faces[0])
-        else:
-            continue
-    sheet.reset_index(order = True)
-    geom.update_all(sheet)
     # Cell division.
     # Store the centroid before iteration of cells.
     unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
