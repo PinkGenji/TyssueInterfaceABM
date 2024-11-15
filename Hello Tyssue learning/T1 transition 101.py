@@ -48,7 +48,7 @@ from my_headers import *
 num_x = 4
 num_y = 4
 
-sheet = Sheet.planar_sheet_2d('face', nx = num_x, ny=num_y, distx=2, disty=2)
+sheet = Sheet.planar_sheet_2d('face', nx = num_x, ny=num_y, distx=0.5, disty=0.5)
 
 geom.update_all(sheet)
 
@@ -68,46 +68,80 @@ fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y, face)
 
-for index, series in sheet.edge_df.iterrows():
-    if series['srce'] == 14 and series['trgt'] == 45:
-        print(f'The index is: {index}')
-    elif series['srce'] == 33 and series['trgt'] == 9:
-        print(f'The index is: {index}')
-    elif series['srce'] == 16 and series['trgt'] == 2 :
-        print(f'The index is: {index}')
+# for index, series in sheet.edge_df.iterrows():
+#     if series['srce'] == 14 and series['trgt'] == 45:
+#         print(f'The index is: {index}')
+#     elif series['srce'] == 33 and series['trgt'] == 9:
+#         print(f'The index is: {index}')
+#     elif series['srce'] == 16 and series['trgt'] == 2 :
+#         print(f'The index is: {index}')
 
-sheet.vert_df.loc[45,'y'] +=0.5
-sheet.vert_df.loc[9,'y'] +=0.5
-sheet.vert_df.loc[35,'x'] +=0.5
-geom.update_all(sheet)
-sheet_view(sheet)
-print('The length of the shortest edge is: '+ str(sheet.edge_df.loc[:,'length'].min()))
+# sheet.vert_df.loc[45,'y'] +=0.5
+# sheet.vert_df.loc[46,'y'] +=0.5
+# sheet.vert_df.loc[35,'x'] +=0.5
+# geom.update_all(sheet)
+# sheet_view(sheet)
+# print('The length of the shortest edge is: '+ str(sheet.edge_df.loc[:,'length'].min()))
 
-model = model_factory([
-    effectors.LineTension, # This defines cell cell adhesion force.
-    effectors.FaceContractility, # This defines deformation energy coefficient
-    effectors.FaceAreaElasticity # This defines memrbane surface energy coefficient.
-    ])
+
+specs = {
+    'edge': {
+        'is_active': 1,
+        'line_tension': 5,
+        'ux': 0.0,
+        'uy': 0.0,
+        'uz': 0.0
+    },
+   'face': {
+       'area_elasticity': 55,
+       'contractility': 0,
+       'is_alive': 1,
+       'prefered_area': 1},
+   'settings': {
+       'grad_norm_factor': 1.0,
+       'nrj_norm_factor': 1.0
+   },
+   'vert': {
+       'is_active': 1
+   }
+}
 sheet.vert_df['viscosity'] = 1.0
-sheet.update_specs(model.specs, reset=True)
+# Update the specs (adds / changes the values in the dataframes' columns)
+sheet.update_specs(specs, reset = True)
 geom.update_all(sheet)
+
+# Adjust for cell-boundary adhesion force.
 for i in sheet.edge_df.index:
     if sheet.edge_df.loc[i, 'opposite'] == -1:
-        sheet.edge_df.loc[i, 'line_tension'] /= 2
+        sheet.edge_df.loc[i, 'line_tension'] *=2
     else:
         continue
 geom.update_all(sheet)
 
+fig, ax = plot_forces(sheet, geom, model, ['x', 'y'], scaling=0.1)
+
+
+
 # Store the single edges as a deparate df
 t=0
-dt=1
-while t <3:
-    for index in sheet.edge_df.index :
-        if sheet.edge_df.loc[index,'length'] < 1.05:
-            print(f'Edge {index} is shorter than threshold')
-            type1_transition(sheet, index, remove_tri_faces=False, multiplier=1.5)
-        else:
-            continue
+dt=0.01
+while t <0.05:
+    print(f'time {t} starts now.')
+    
+    while True:
+    # Check for any edge below the threshold, starting from index 0 upwards
+        edge_to_process = None
+        for index in sheet.edge_df.index:
+            if sheet.edge_df.loc[index, 'length'] < 0.2:
+                edge_to_process = index
+                edge_length = sheet.edge_df.loc[edge_to_process,'length']
+                print(f'Edge {edge_to_process} is too short: {edge_length}')
+                # Process the identified edge with T1 transition
+                type1_transition(sheet, edge_to_process,remove_tri_faces=False, multiplier=1.5)
+                break  
+        # Exit the loop if no edges are below the threshold
+        if edge_to_process is None:
+            break
     geom.update_all(sheet)
     
     # Force computing and updating positions.
@@ -120,9 +154,10 @@ while t <3:
     sheet.vert_df.loc[valid_active_verts , sheet.coords] = new_pos
     geom.update_all(sheet)
     
-    fig, ax = plot_forces(sheet, geom, model, ['x', 'y'], scaling=0.1)
-    t+=1
+    sheet_view(sheet,mode='quick')
+    t+=dt
 
+smodel.compute_energy(sheet)
 
 """For the boundary edge case, both vertices have rank 2."""
 # Generate the cell sheet as three cells.
