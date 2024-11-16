@@ -125,7 +125,7 @@ fig, ax = plot_forces(sheet, geom, model, ['x', 'y'], scaling=0.1)
 # Store the single edges as a deparate df
 t=0
 dt=0.01
-while t <0.05:
+while t <0.1:
     print(f'time {t} starts now.')
     
     while True:
