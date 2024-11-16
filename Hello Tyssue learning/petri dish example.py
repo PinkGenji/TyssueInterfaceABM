@@ -252,7 +252,7 @@ sheet.update_specs(model.specs, reset=True)
 geom.update_all(sheet)
 for i in sheet.edge_df.index:
     if sheet.edge_df.loc[i, 'opposite'] == -1:
-        sheet.edge_df.loc[i, 'line_tension'] /= 2
+        sheet.edge_df.loc[i, 'line_tension'] *= 2
     else:
         continue
 geom.update_all(sheet)
@@ -265,7 +265,7 @@ growth_speed = sheet.face_df.loc[:,'area'].mean()/2
 
 # Now assume we want to go from t = 0 to t= 0.2, dt = 0.1
 t0 = 0
-t_end = 0.07
+t_end = 0.3
 dt = 0.01
 time_points = np.linspace(t0, t_end, int((t_end - t0) / dt) + 1)
 print(f'time points are: {time_points}.')
@@ -292,14 +292,13 @@ for t in time_points:
     geom.update_all(sheet)
 
     # T2 transition check.
-    tri_faces =sheet.face_df[sheet.face_df['num_sides']<4].index
-    for i in tri_faces:
-        if sheet.face_df.loc[i,'area'] < area_threshold:
-            remove_face(sheet, tri_faces[0])
-        else:
-            continue
+    tri_faces = sheet.face_df[sheet.face_df["num_sides"] < 4].index
+    while len(tri_faces):
+        remove_face(sheet, tri_faces[0])
+        tri_faces = sheet.face_df[sheet.face_df["num_sides"] < 4].index
     sheet.reset_index(order = True)
     geom.update_all(sheet)
+    
     
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
