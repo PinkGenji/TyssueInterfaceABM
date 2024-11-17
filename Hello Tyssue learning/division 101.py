@@ -38,6 +38,7 @@ from tyssue.topology.sheet_topology import remove_face, cell_division, face_divi
 
 # 2D plotting
 from tyssue.draw import sheet_view, highlight_cells
+from tyssue.draw.plt_draw import plot_forces
 
 # import my own functions
 from my_headers import delete_face, xprod_2d, put_vert, lateral_split, divisibility_check
@@ -46,7 +47,7 @@ from my_headers import delete_face, xprod_2d, put_vert, lateral_split, divisibil
 
 """ Here is the biased division. """
 # Generate the cell sheet as three cells.
-sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = 3, ny = 2, distx = 1, disty = 1)
+sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = 3, ny = 2, distx = 0.5, disty = 0.5)
 geom.update_all(sheet)
 
 # remove non-enclosed faces
@@ -67,21 +68,20 @@ fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
 
-
-# Energy minimization
+# First, we need a way to compute the energy, then use gradient descent.
 specs = {
     'edge': {
         'is_active': 1,
-        'line_tension': 0.12,
+        'line_tension': 5,
         'ux': 0.0,
         'uy': 0.0,
         'uz': 0.0
     },
    'face': {
-       'area_elasticity': 1.0,
-       'contractility': 0.04,
+       'area_elasticity': 55,
+       'contractility': 0,
        'is_alive': 1,
-       'prefered_area': 1.0},
+       'prefered_area': 1},
    'settings': {
        'grad_norm_factor': 1.0,
        'nrj_norm_factor': 1.0
@@ -90,8 +90,20 @@ specs = {
        'is_active': 1
    }
 }
+sheet.vert_df['viscosity'] = 1.0
+# Update the specs (adds / changes the values in the dataframes' columns)
 sheet.update_specs(specs, reset = True)
 geom.update_all(sheet)
+
+# Adjust for cell-boundary adhesion force.
+for i in sheet.edge_df.index:
+    if sheet.edge_df.loc[i, 'opposite'] == -1:
+        sheet.edge_df.loc[i, 'line_tension'] *=2
+    else:
+        continue
+geom.update_all(sheet)
+fig, ax = plot_forces(sheet, geom, smodel, ['x', 'y'], scaling=0.1)
+
 solver = QSSolver()
 res = solver.find_energy_min(sheet, geom, smodel)
 sheet_view(sheet) 
