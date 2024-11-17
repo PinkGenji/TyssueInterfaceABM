@@ -229,7 +229,7 @@ sheet.vert_df = original
 # Generate the cell sheet as three cells.
 num_x = 4
 num_y = 4
-sheet = Sheet.planar_sheet_2d('face', nx = num_x, ny=num_y, distx=2, disty=2)
+sheet = Sheet.planar_sheet_2d('face', nx = num_x, ny=num_y, distx=0.8, disty=0.8)
 geom.update_all(sheet)
 # remove non-enclosed faces
 sheet.remove(sheet.get_invalid())  
@@ -242,26 +242,48 @@ sheet.get_extra_indices()
 # Visualize the sheet.
 fig, ax = sheet_view(sheet,  mode = '2D')
 # First, we need a way to compute the energy, then use gradient descent.
-model = model_factory([
-    effectors.LineTension, # This defines cell cell adhesion force.
-    effectors.FaceContractility, # This defines deformation energy coefficient
-    effectors.FaceAreaElasticity # This defines memrbane surface energy coefficient.
-    ])
+specs = {
+    'edge': {
+        'is_active': 1,
+        'line_tension': 5,
+        'ux': 0.0,
+        'uy': 0.0,
+        'uz': 0.0
+    },
+   'face': {
+       'area_elasticity': 55,
+       'contractility': 0,
+       'is_alive': 1,
+       'prefered_area': 1},
+   'settings': {
+       'grad_norm_factor': 1.0,
+       'nrj_norm_factor': 1.0
+   },
+   'vert': {
+       'is_active': 1
+   }
+}
 sheet.vert_df['viscosity'] = 1.0
-sheet.update_specs(model.specs, reset=True)
+# Update the specs (adds / changes the values in the dataframes' columns)
+sheet.update_specs(specs, reset = True)
 geom.update_all(sheet)
+
+# Adjust for cell-boundary adhesion force.
 for i in sheet.edge_df.index:
     if sheet.edge_df.loc[i, 'opposite'] == -1:
-        sheet.edge_df.loc[i, 'line_tension'] *= 2
+        sheet.edge_df.loc[i, 'line_tension'] *=2
     else:
         continue
 geom.update_all(sheet)
 
+fig, ax = plot_forces(sheet, geom, smodel, ['x', 'y'], scaling=0.1)
+
 # We need set the all the threshold value first.
-t1_threshold = sheet.edge_df.loc[:,'length'].mean()/5
-t2_threshold = sheet.face_df.loc[:,'area'].mean()/5
-area_threshold = sheet.face_df.loc[:,'area'].mean()*1.5
-growth_speed = sheet.face_df.loc[:,'area'].mean()/2
+t1_threshold = sheet.edge_df.loc[:,'length'].mean()/10
+t2_threshold = sheet.face_df.loc[:,'area'].mean()/10
+division_threshold = sheet.face_df.loc[:,'area'].mean()*2
+growth_speed = sheet.face_df.loc[:,'area'].mean() *0.8
+max_movement = t1_threshold/2
 
 # Now assume we want to go from t = 0 to t= 0.2, dt = 0.1
 t0 = 0
@@ -292,13 +314,28 @@ for t in time_points:
     geom.update_all(sheet)
 
     # T2 transition check.
-    tri_faces = sheet.face_df[sheet.face_df["num_sides"] < 4].index
+    tri_faces = sheet.face_df[(sheet.face_df["num_sides"] < 4) & 
+                          (sheet.face_df["area"] < t2_threshold)].index
     while len(tri_faces):
         remove_face(sheet, tri_faces[0])
-        tri_faces = sheet.face_df[sheet.face_df["num_sides"] < 4].index
+        # Recompute the list of triangular faces below the area threshold after each removal
+        tri_faces = sheet.face_df[(sheet.face_df["num_sides"] < 4) & 
+                                  (sheet.face_df["area"] < t2_threshold)].index
     sheet.reset_index(order = True)
     geom.update_all(sheet)
+
     
+    # Cell division.
+    # Store the centroid before iteration of cells.
+    unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
+    centre_data = unique_edges_df.loc[:,['face','fx','fy']]
+    # Loop over all the faces.
+    all_cells = sheet.face_df.index
+    for i in all_cells:
+        #print(f'We are in time step {t}, checking cell {i}.')
+        division_1(sheet, cent_data= centre_data, cell_id = i, crit_area=division_threshold, growth_rate= growth_speed, dt=dt)
+    sheet.reset_index(order = True)
+    geom.update_all(sheet)
     
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
@@ -316,23 +353,7 @@ for t in time_points:
         ax.title.set_text(f'time = {round(t, 5)}')
     
     
-    # Cell division.
-    # Store the centroid before iteration of cells.
-    unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
-    centre_data = unique_edges_df.loc[:,['face','fx','fy']]
-    # Loop over all the faces.
-    all_cells = sheet.face_df.index
-    for i in all_cells:
-        #print(f'We are in time step {t}, checking cell {i}.')
-        division_1(sheet, cent_data= centre_data, cell_id = i, crit_area=area_threshold, growth_rate= growth_speed, dt=dt)
-    sheet.reset_index(order = True)
-    geom.update_all(sheet)
-    
-    
-    # Plot with title contain time.
-    if t in time_points[::3]:
-        fig, ax = sheet_view(sheet)
-        ax.title.set_text(f'time = {round(t, 5)}')
+
 
 
 """ Divide first, then daughter cells expand. """
