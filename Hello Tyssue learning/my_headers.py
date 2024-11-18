@@ -503,10 +503,10 @@ def division_1(sheet, rng, cent_data, cell_id):
             new_face_index = face_division(sheet, mother = cell_id, vert_a = new_mid_index , vert_b = oppo_index )
             # Put a vertex at the centroid, on the newly formed edge (last row in df).
             cent_index = put_vert(sheet, edge = sheet.edge_df.index[-1], coord_put = c0)[0]
-            random_int_1 = rng.integers(10, 15)
-            random_int_2 = rng.integers(10,15)
-            sheet.face_df.loc[cell_id,'T_cycle'] = random_int_1
-            sheet.face_df.loc[new_face_index,'T_cycle'] = random_int_2
+            random_int_1 = rng.integers(10000, 15000) / 1000
+            random_int_2 = rng.integers(10000, 15000) / 1000
+            sheet.face_df.loc[cell_id,'T_cycle'] = np.array(random_int_1, dtype=np.float64)
+            sheet.face_df.loc[new_face_index,'T_cycle'] = np.array(random_int_2, dtype=np.float64)
             print(f'cell {cell_id} is divided, dauther cell {new_face_index} is created.')
             return new_face_index
 

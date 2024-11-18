@@ -39,7 +39,7 @@ from tyssue.topology.sheet_topology import remove_face, cell_division, face_divi
 # 2D plotting
 from tyssue.draw import sheet_view, highlight_cells
 from tyssue.draw.plt_draw import plot_forces
-
+from tyssue.config.draw import sheet_spec
 # import my own functions
 from my_headers import *
 
@@ -101,13 +101,14 @@ fig, ax = plot_forces(sheet, geom, smodel, ['x', 'y'], scaling=0.1)
 
 # We need set the all the threshold value first.
 t1_threshold = 0.1
-t2_threshold = sheet.face_df.loc[:,'area'].mean()/5
+t2_threshold = 0.1
 division_threshold = 1
+inhibition_threshold = 0.9
 max_movement = t1_threshold/2
 
 # Now assume we want to go from t = 0 to t= 0.2, dt = 0.1
 t0 =0
-t_end = 0.01
+t_end = 50
 dt = 0.001
 time_points = np.linspace(t0, t_end, int((t_end - t0) / dt) + 1)
 print(f'time points are: {time_points}')
@@ -115,7 +116,6 @@ print(f'time points are: {time_points}')
 for t in time_points:
     print(f'start at t= {round(t, 5)}')
 
-    
     # Mesh restructure check
     # T1 transition, edge rearrangment check
     while True:
@@ -150,15 +150,10 @@ for t in time_points:
     unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
     centre_data = unique_edges_df.loc[:,['face','fx','fy']]
     # Loop over all the faces.
-    cells_can_divide = sheet.face_df[(sheet.face_df['area'] >= 1) & (sheet.face_df['T_cycle'] == 0)]
+    cells_can_divide = sheet.face_df[(sheet.face_df['area'] >= division_threshold) & (sheet.face_df['T_cycle'] == 0)]
     for index, series in cells_can_divide.iterrows():
         daughter_index = division_1(sheet,rng=rng, cent_data= centre_data, cell_id = index)
     sheet.reset_index(order = True)
-    geom.update_all(sheet)
-    #Need to update the T_cycle value based on their compression time.
-    become_free = sheet.face_df[(sheet.face_df['area'] >= 0.9) & (sheet.face_df['T_cycle'] > 0)]
-    for i in become_free.index:
-        sheet.face_df.loc[i,'T_cycle'] -= dt
     geom.update_all(sheet)
 
     # Force computing and updating positions.
@@ -170,14 +165,37 @@ for t in time_points:
     # Save the new positions back to `vert_df`
     sheet.vert_df.loc[valid_active_verts , sheet.coords] = new_pos
     geom.update_all(sheet)
+    
+    #Need to update the T_cycle value based on their compression time.
+    become_free = sheet.face_df[(sheet.face_df['area'] >= inhibition_threshold) & (sheet.face_df['T_cycle'] > 0)]
+    for i in become_free.index:
+        sheet.face_df.loc[i,'T_cycle'] = round(sheet.face_df.loc[i,'T_cycle']- dt, 3)
+        T_cyc = sheet.face_df.loc[i,'T_cycle']
+        print(f'T_cycle for {i} is {T_cyc}')
+    geom.update_all(sheet)
 
-    mean_area = round(sheet.face_df.loc[:,'area'].mean(),6)
-    max_area = round(sheet.face_df.loc[:,'area'].max(),6)
-    print(f'At time {round(t, 5)}, mean area: {mean_area}, max area: {max_area}')
+    mean_area = sheet.face_df.loc[:,'area'].mean()
+    max_area = sheet.face_df.loc[:,'area'].max()
+    print(f'At time {round(t, 3)}, mean area: {mean_area}, max area: {max_area}')
     # # Plot with title contain time.
-    if t in time_points:
+    if t in time_points[::1000]:
         fig, ax = sheet_view(sheet)
         ax.title.set_text(f'time = {round(t, 5)}, mean area: {mean_area}')
+
+draw_specs = sheet_spec()
+draw_specs['face']['visible'] = True
+okay = sheet.face_df[(sheet.face_df['area'] >= division_threshold) & (sheet.face_df['T_cycle'] > 0)]
+for i in sheet.face_df.index:
+    if i in okay.index:
+        sheet.face_df['color'] = 0
+    else:
+        sheet.face_df['color'] = 1
+        
+draw_specs['face']['color'] = sheet.face_df['color']
+draw_specs['face']['alpha'] = 0.5
+fig, ax = sheet_view(sheet,['x', 'y'], **draw_specs)
+
+
 
 
 
