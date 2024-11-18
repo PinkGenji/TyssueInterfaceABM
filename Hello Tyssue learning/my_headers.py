@@ -507,6 +507,8 @@ def division_1(sheet, rng, cent_data, cell_id):
             random_int_2 = rng.integers(10000, 15000) / 1000
             sheet.face_df.loc[cell_id,'T_cycle'] = np.array(random_int_1, dtype=np.float64)
             sheet.face_df.loc[new_face_index,'T_cycle'] = np.array(random_int_2, dtype=np.float64)
+            sheet.face_df.loc[cell_id, 'prefered_area'] = 1
+            sheet.face_df.loc[new_face_index,'prefered_area'] = 1
             print(f'cell {cell_id} is divided, dauther cell {new_face_index} is created.')
             return new_face_index
 

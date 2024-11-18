@@ -73,7 +73,7 @@ specs = {
        'area_elasticity': 110,
        'contractility': 0,
        'is_alive': 1,
-       'prefered_area': 1},
+       'prefered_area': 2},
    'settings': {
        'grad_norm_factor': 1.0,
        'nrj_norm_factor': 1.0
@@ -97,8 +97,6 @@ geom.update_all(sheet)
 
 fig, ax = plot_forces(sheet, geom, smodel, ['x', 'y'], scaling=0.1)
 
-
-
 # We need set the all the threshold value first.
 t1_threshold = 0.1
 t2_threshold = 0.1
@@ -108,7 +106,7 @@ max_movement = t1_threshold/2
 
 # Now assume we want to go from t = 0 to t= 0.2, dt = 0.1
 t0 =0
-t_end = 50
+t_end = 0.003
 dt = 0.001
 time_points = np.linspace(t0, t_end, int((t_end - t0) / dt) + 1)
 print(f'time points are: {time_points}')
@@ -176,9 +174,10 @@ for t in time_points:
 
     mean_area = sheet.face_df.loc[:,'area'].mean()
     max_area = sheet.face_df.loc[:,'area'].max()
-    print(f'At time {round(t, 3)}, mean area: {mean_area}, max area: {max_area}')
+    min_area = sheet.face_df.loc[:,'area'].min()
+    print(f'At time {round(t, 3)}, mean area: {mean_area}, max area: {max_area}, min area: {min_area}')
     # # Plot with title contain time.
-    if t in time_points[::1000]:
+    if t in time_points:
         fig, ax = sheet_view(sheet)
         ax.title.set_text(f'time = {round(t, 5)}, mean area: {mean_area}')
 
