@@ -105,13 +105,11 @@ inhibition_threshold = 0.9
 max_movement = t1_threshold/2
 
 # Now assume we want to go from t = 0 to t= 0.2, dt = 0.1
-t0 =0
+t = 0
 t_end = 0.003
-dt = 0.001
-time_points = np.linspace(t0, t_end, int((t_end - t0) / dt) + 1)
-print(f'time points are: {time_points}')
 
-for t in time_points:
+while t <= t_end:
+    dt = 0.001
     print(f'start at t= {round(t, 5)}')
 
     # Mesh restructure check
@@ -153,13 +151,13 @@ for t in time_points:
         daughter_index = division_1(sheet,rng=rng, cent_data= centre_data, cell_id = index)
     sheet.reset_index(order = True)
     geom.update_all(sheet)
-
+    
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
     pos = sheet.vert_df.loc[valid_active_verts, sheet.coords].values
-    # Compute the moving direction.
-    dot_r = my_ode(sheet)
-    new_pos = pos + dot_r*dt
+    dt, movement = time_step_bot(sheet, dt, max_dist_allowed = max_movement )
+    
+    new_pos = pos + movement
     # Save the new positions back to `vert_df`
     sheet.vert_df.loc[valid_active_verts , sheet.coords] = new_pos
     geom.update_all(sheet)
@@ -177,23 +175,10 @@ for t in time_points:
     min_area = sheet.face_df.loc[:,'area'].min()
     print(f'At time {round(t, 3)}, mean area: {mean_area}, max area: {max_area}, min area: {min_area}')
     # # Plot with title contain time.
-    if t in time_points:
-        fig, ax = sheet_view(sheet)
-        ax.title.set_text(f'time = {round(t, 5)}, mean area: {mean_area}')
-
-draw_specs = sheet_spec()
-draw_specs['face']['visible'] = True
-okay = sheet.face_df[(sheet.face_df['area'] >= division_threshold) & (sheet.face_df['T_cycle'] > 0)]
-for i in sheet.face_df.index:
-    if i in okay.index:
-        sheet.face_df['color'] = 0
-    else:
-        sheet.face_df['color'] = 1
-        
-draw_specs['face']['color'] = sheet.face_df['color']
-draw_specs['face']['alpha'] = 0.5
-fig, ax = sheet_view(sheet,['x', 'y'], **draw_specs)
-
+    fig, ax = sheet_view(sheet)
+    ax.title.set_text(f'time = {round(t, 5)}, mean area: {mean_area}')
+    # update time_point:
+    t += dt
 
 
 
