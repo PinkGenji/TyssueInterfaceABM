@@ -58,6 +58,7 @@ sheet_view(sheet)
 sheet.get_extra_indices()
 # We need to creata a new colum to store the cell cycle time, default a 0, then minus.
 sheet.face_df['T_cycle'] = 0
+sheet.face_df['T_age'] = 0
 # Visualize the sheet.
 fig, ax = sheet_view(sheet,  mode = '2D')
 # First, we need a way to compute the energy, then use gradient descent.
@@ -98,7 +99,7 @@ geom.update_all(sheet)
 fig, ax = plot_forces(sheet, geom, smodel, ['x', 'y'], scaling=0.1)
 
 # We need set the all the threshold value first.
-t1_threshold = 0.1
+t1_threshold = 0.01
 t2_threshold = 0.1
 division_threshold = 1
 inhibition_threshold = 0.9
@@ -106,7 +107,7 @@ max_movement = t1_threshold/2
 
 # Now assume we want to go from t = 0 to t= 0.2, dt = 0.1
 t = 0
-t_end = 0.003
+t_end = 0.078
 
 while t <= t_end:
     dt = 0.001
@@ -146,15 +147,20 @@ while t <= t_end:
     unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
     centre_data = unique_edges_df.loc[:,['face','fx','fy']]
     # Loop over all the faces.
-    cells_can_divide = sheet.face_df[(sheet.face_df['area'] >= division_threshold) & (sheet.face_df['T_cycle'] == 0)]
+    cells_can_divide = sheet.face_df[(sheet.face_df['area'] >= division_threshold) & (sheet.face_df['T_age'] == sheet.face_df['T_cycle'])]
     for index, series in cells_can_divide.iterrows():
-        daughter_index = division_1(sheet,rng=rng, cent_data= centre_data, cell_id = index)
+        daughter_index = division_1(sheet,rng=rng, cent_data= centre_data, cell_id = index, dt = dt)
+        
+    cells_are_mitosis = sheet.face_df[(sheet.face_df['T_age'] != sheet.face_df['T_cycle'])]
+    for i in cells_are_mitosis.index:
+        sheet.face_df.loc[i,'prefered_area'] = 1/2*(sheet.face_df.loc[i,'T_age']/sheet.face_df.loc[i,'T_cycle']+1)
     sheet.reset_index(order = True)
     geom.update_all(sheet)
     
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
     pos = sheet.vert_df.loc[valid_active_verts, sheet.coords].values
+    # get the movement of position based on dynamical dt.
     dt, movement = time_step_bot(sheet, dt, max_dist_allowed = max_movement )
     
     new_pos = pos + movement
@@ -163,20 +169,21 @@ while t <= t_end:
     geom.update_all(sheet)
     
     #Need to update the T_cycle value based on their compression time.
-    become_free = sheet.face_df[(sheet.face_df['area'] >= inhibition_threshold) & (sheet.face_df['T_cycle'] > 0)]
+    become_free = sheet.face_df[(sheet.face_df['area'] >= inhibition_threshold) & (sheet.face_df['T_age'] > 0)]
     for i in become_free.index:
-        sheet.face_df.loc[i,'T_cycle'] = round(sheet.face_df.loc[i,'T_cycle']- dt, 3)
-        T_cyc = sheet.face_df.loc[i,'T_cycle']
-        print(f'T_cycle for {i} is {T_cyc}')
+        sheet.face_df.loc[i,'T_age'] = round(sheet.face_df.loc[i,'T_age']+ dt, 3)
+        T_age = sheet.face_df.loc[i,'T_age']
+        print(f'T_age for {i} is {T_age}')
     geom.update_all(sheet)
 
     mean_area = sheet.face_df.loc[:,'area'].mean()
     max_area = sheet.face_df.loc[:,'area'].max()
     min_area = sheet.face_df.loc[:,'area'].min()
-    print(f'At time {round(t, 3)}, mean area: {mean_area}, max area: {max_area}, min area: {min_area}')
+    print(f'mean area: {mean_area}, max area: {max_area}, min area: {min_area}')
+    
     # # Plot with title contain time.
-    fig, ax = sheet_view(sheet)
-    ax.title.set_text(f'time = {round(t, 5)}, mean area: {mean_area}')
+    # fig, ax = sheet_view(sheet)
+    # ax.title.set_text(f'time = {round(t, 5)}, mean area: {mean_area}')
     # update time_point:
     t += dt
 

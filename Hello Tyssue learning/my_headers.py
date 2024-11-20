@@ -445,7 +445,7 @@ def type1_transition_custom(sheet, edge01, multiplier=1.5):
 
     return edge01
 
-def division_1(sheet, rng, cent_data, cell_id):
+def division_1(sheet, rng, cent_data, cell_id, dt):
     """The cells keep growing, when the area exceeds a critical area, then
     the cell divides.
     
@@ -507,8 +507,8 @@ def division_1(sheet, rng, cent_data, cell_id):
             random_int_2 = rng.integers(10000, 15000) / 1000
             sheet.face_df.loc[cell_id,'T_cycle'] = np.array(random_int_1, dtype=np.float64)
             sheet.face_df.loc[new_face_index,'T_cycle'] = np.array(random_int_2, dtype=np.float64)
-            sheet.face_df.loc[cell_id, 'prefered_area'] = 1
-            sheet.face_df.loc[new_face_index,'prefered_area'] = 1
+            sheet.face_df.loc[cell_id, 'T_age'] = dt
+            sheet.face_df.loc[new_face_index,'T_age'] = dt
             print(f'cell {cell_id} is divided, dauther cell {new_face_index} is created.')
             return new_face_index
 
