@@ -527,7 +527,14 @@ def time_step_bot(sheet,dt, max_dist_allowed):
         current_movement = np.linalg.norm(movement, axis=1)
     return dt, movement
 
-
+def vert_ball_detection(sheet, d_min):
+    # First we need to compute the boundary verts.
+    boundary_vert = []
+    for i in sheet.edge_df.index:
+        if sheet.edge_df.loc[i,'opposite'] == -1:
+            boundary_vert1, boundary_vert2 = sheet.edge_df.loc[i,['srce','trgt']]
+            radius = 1/4 * sheet.edge_df.loc[i,'length']**2 + d_min **2 
+        
 
 
 """ This is the end of the script. """

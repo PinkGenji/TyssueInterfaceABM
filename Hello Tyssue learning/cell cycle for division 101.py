@@ -107,7 +107,7 @@ max_movement = t1_threshold/2
 
 # Now assume we want to go from t = 0 to t= 0.2, dt = 0.1
 t = 0
-t_end = 0.078
+t_end = 0.005
 
 while t <= t_end:
     dt = 0.001
@@ -150,7 +150,7 @@ while t <= t_end:
     cells_can_divide = sheet.face_df[(sheet.face_df['area'] >= division_threshold) & (sheet.face_df['T_age'] == sheet.face_df['T_cycle'])]
     for index, series in cells_can_divide.iterrows():
         daughter_index = division_1(sheet,rng=rng, cent_data= centre_data, cell_id = index, dt = dt)
-        
+    # Update the T_age in mitosis.
     cells_are_mitosis = sheet.face_df[(sheet.face_df['T_age'] != sheet.face_df['T_cycle'])]
     for i in cells_are_mitosis.index:
         sheet.face_df.loc[i,'prefered_area'] = 1/2*(sheet.face_df.loc[i,'T_age']/sheet.face_df.loc[i,'T_cycle']+1)
@@ -169,12 +169,13 @@ while t <= t_end:
     geom.update_all(sheet)
     
     #Need to update the T_cycle value based on their compression time.
-    become_free = sheet.face_df[(sheet.face_df['area'] >= inhibition_threshold) & (sheet.face_df['T_age'] > 0)]
+    become_free = sheet.face_df[(sheet.face_df['area'] >= inhibition_threshold) & (sheet.face_df['T_age'] < sheet.face_df['T_cycle'])]
     for i in become_free.index:
         sheet.face_df.loc[i,'T_age'] = round(sheet.face_df.loc[i,'T_age']+ dt, 3)
         T_age = sheet.face_df.loc[i,'T_age']
         print(f'T_age for {i} is {T_age}')
     geom.update_all(sheet)
+    
 
     mean_area = sheet.face_df.loc[:,'area'].mean()
     max_area = sheet.face_df.loc[:,'area'].max()
