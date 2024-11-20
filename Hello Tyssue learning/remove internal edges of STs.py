@@ -48,7 +48,7 @@ from tyssue.topology.sheet_topology import remove_face, cell_division, face_divi
 from tyssue.draw import sheet_view, highlight_cells
 
 # import my own functions
-from my_headers import delete_face, xprod_2d, put_vert, lateral_split, lateral_division
+from my_headers import *
 
 """ Start programming. """
 # Generate the cell sheet as three cells.
@@ -132,12 +132,15 @@ fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y, face)
 
+T3_detection(sheet, 2, 0.8)
 
+sheet.get_extra_indices()
+sheet.sgle_edges
+for i in sheet.edge_df.index:
+    if sheet.edge_df.loc[i,'opposite'] == -1:
+        boundary
 
-
-
-
-
+T3_detection(sheet, 2, 0.3)
 
 
 

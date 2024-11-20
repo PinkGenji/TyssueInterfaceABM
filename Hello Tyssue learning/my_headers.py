@@ -527,13 +527,68 @@ def time_step_bot(sheet,dt, max_dist_allowed):
         current_movement = np.linalg.norm(movement, axis=1)
     return dt, movement
 
-def vert_ball_detection(sheet, d_min):
-    # First we need to compute the boundary verts.
-    boundary_vert = []
+
+def boundary_nodes(sheet):
+    """
+    This returns a list of the vertex index that are boundary nodes.
+
+    """
+    boundary = set()
     for i in sheet.edge_df.index:
         if sheet.edge_df.loc[i,'opposite'] == -1:
-            boundary_vert1, boundary_vert2 = sheet.edge_df.loc[i,['srce','trgt']]
-            radius = 1/4 * sheet.edge_df.loc[i,'length']**2 + d_min **2 
+            boundary.add(sheet.edge_df.loc[i,'srce'])
+            boundary.add(sheet.edge_df.loc[i,'trgt'])
+    boudnary_vert = sheet.vert_df.loc[list(boundary), ['x','y']]
+    return boudnary_vert
+
+def T3_detection(sheet, edge_index, d_min):
+    """
+    This detects if an edge will collide with another vertex within a d_min
+    distance for both node1 and node2 zones. It returns a Boolean.
+    """
+    # Get the nodes of the edge
+    node1 = sheet.edge_df.loc[edge_index, 'srce']
+    node2 = sheet.edge_df.loc[edge_index, 'trgt']
+    
+    # Compute the radius of the detection zones
+    radius = (1/4 * sheet.edge_df.loc[edge_index, 'length']**2 + d_min**2)**0.5
+    
+    # Get the coordinates of node1 and node2
+    node1_coords = np.array(sheet.vert_df.loc[node1, ['x', 'y']])
+    node2_coords = np.array(sheet.vert_df.loc[node2, ['x', 'y']])
+    
+    # Define the zones as dictionaries
+    node1_zone = {
+        'center': node1_coords,
+        'radius': radius
+    }
+    node2_zone = {
+        'center': node2_coords,
+        'radius': radius
+    }
+    
+    # Logic to check collision for both zones
+    for idx, vertex in boundary_nodes(sheet).iterrows():
+        if idx == node1 or idx == node2:
+            continue  # Skip the nodes of the edge itself
+        
+        vertex_coords = np.array(vertex[['x', 'y']])
+        
+        # Check if the vertex is within node1's zone
+        distance_to_node1 = np.linalg.norm(vertex_coords - node1_zone['center'])
+        if distance_to_node1 < node1_zone['radius']:
+            return True  # Collision detected in node1's zone
+        
+        # Check if the vertex is within node2's zone
+        distance_to_node2 = np.linalg.norm(vertex_coords - node2_zone['center'])
+        if distance_to_node2 < node2_zone['radius']:
+            return True  # Collision detected in node2's zone
+
+    return False  # No collision detected in either zone
+
+
+
+    
         
 
 
