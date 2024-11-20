@@ -113,3 +113,35 @@ ax.yaxis.set_visible(False)
 
 plt.show()
 
+
+fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+for face, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y, face)
+    
+edge = sheet.edge_df[(sheet.edge_df['srce'] == 12)].index
+sheet.edge_df.loc[edge, 'srce'] = 13
+geom.update_all(sheet)
+fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+for face, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y, face)
+
+edge2 = sheet.edge_df[(sheet.edge_df['trgt'] == 12)].index
+sheet.edge_df.loc[edge2, 'trgt'] = 30
+geom.update_all(sheet)
+fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+for face, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y, face)
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""This is the end of the script"""
