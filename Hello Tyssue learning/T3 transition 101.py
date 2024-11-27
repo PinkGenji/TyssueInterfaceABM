@@ -75,5 +75,12 @@ for i in sheet.edge_df.index:
         
 print(boundary_vert)
 
+sheet.edge_df[sheet.edge_df['srce'] == 30]['trgt'] == 29
+# test on distance computing between edge 4 (srce 30, trgt 29) and vertex 13.
+res = pnt2line(sheet.vert_df.loc[15,['x','y']], sheet.vert_df.loc[30,['x','y']], sheet.vert_df.loc[29,['x','y']])
+res
+
+
+
 
 """ This is the end of the script """
