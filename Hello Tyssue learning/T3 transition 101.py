@@ -17,7 +17,6 @@ import os
 import json
 import matplotlib as matplot
 import matplotlib.pylab as plt
-import ipyvolume as ipv
 
 from tyssue import Sheet, config #import core object
 from tyssue import PlanarGeometry as geom #for simple 2d geometry
@@ -66,21 +65,46 @@ sheet_view(sheet)
 fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y, face)
-    
 
-boundary_vert = []
+sheet.vert_df.loc[26,'x'] -=0.5
+
+boundary_vert = set()
+boundary_edge = set()
 for i in sheet.edge_df.index:
     if sheet.edge_df.loc[i,'opposite'] == -1:
-        boundary_vert.append(sheet.edge_df.loc[i,'srce'])
-        
-print(boundary_vert)
+        boundary_vert.add(sheet.edge_df.loc[i,'srce'])
+        boundary_vert.add(sheet.edge_df.loc[i,'trgt'])
+        boundary_edge.add(i)
+    
 
-sheet.edge_df[sheet.edge_df['srce'] == 30]['trgt'] == 29
-# test on distance computing between edge 4 (srce 30, trgt 29) and vertex 13.
-res = pnt2line(sheet.vert_df.loc[15,['x','y']], sheet.vert_df.loc[30,['x','y']], sheet.vert_df.loc[29,['x','y']])
-res
+for e in boundary_edge:
+    # First detect the distance
+    # Extract source and target vertex IDs
+    srce_id, trgt_id = sheet.edge_df.loc[e, ['srce', 'trgt']]
+    # Extract source and target positions as numpy arrays
+    endpoint1 = sheet.vert_df.loc[srce_id, ['x', 'y']].values
+    endpoint2 = sheet.vert_df.loc[trgt_id, ['x', 'y']].values
+    for v in boundary_vert:
+        if v != srce_id and v!= trgt_id:
+            vertex = sheet.vert_df.loc[v,['x','y']].values
+            dist, nearest = pnt2line(vertex, endpoint1 , endpoint2)
+            # Check the distance from the vertex to the edge.
+            if dist < 1.1:
+                # Check if need to extend the line avoid collision.
+                towards_end1 = distance(endpoint1, nearest)
+                towards_end2 = distance(endpoint2, nearest)
+                for i in (endpoint1, endpoint2):
+                    if distance(i, nearest) < 0.5:
+                        print(f'vert {i} and vert {v} are colliding ')
+                        a_hat = unit(vector(endpoint1, endpoint2))
+                        
+                
+                print(f'edge {e} and vert {v} are too close. With nearest point at {nearest}.')
 
-
+geom.update_all(sheet)
+fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+for face, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y, face)
 
 
 """ This is the end of the script """

@@ -666,7 +666,65 @@ def pnt2line(pnt, start, end):
     nearest = scale(line_vec, t)
     dist = distance(nearest, pnt_vec)
     nearest = add(nearest, start)
-    return (dist, nearest)
+    return dist, nearest
+
+def edge_extension(sheet, edge_id, total_extension):
+    """
+    Extends the edge equally on both ends of the line segment.
+
+    Parameters
+    ----------
+    sheet : eptm instance
+        Instance of the simulation object containing the cell sheet.
+    edge_id : int
+        Index of the edge to extend.
+    total_extension : float
+        Total length to add to the edge (split equally between source and target).
+
+    Returns
+    -------
+    None.
+    """
+    import numpy as np  # Ensure NumPy is imported
+
+    # Extract source and target vertex IDs
+    srce_id, trgt_id = sheet.edge_df.loc[edge_id, ['srce', 'trgt']]
+    
+    # Extract source and target positions as numpy arrays
+    srce = sheet.vert_df.loc[srce_id, ['x', 'y']].values
+    trgt = sheet.vert_df.loc[trgt_id, ['x', 'y']].values
+    # Compute the unit vector in the direction of the edge
+    a = trgt - srce  # Vector from source to target
+    a_hat = a / np.linalg.norm(a)  # Convert to unit vector (NumPy array)
+    # Compute the extension vector
+    extension = a_hat * total_extension / 2  # NumPy array supports elementwise operations
+    
+    # Update the source and target positions
+    sheet.vert_df.loc[srce_id, ['x', 'y']] -= extension
+    sheet.vert_df.loc[trgt_id, ['x', 'y']] += extension
+    
+    # Update geometry
+    geom.update_all(sheet)
+    
+
+def T3_eating(sheet, edge_id, vert_id):
+    """
+    This function internalize the vertex into the edge with edge_id.
+
+    Parameters
+    ----------
+    sheet : emtp instance
+    
+    edge_id : Int
+
+    vert_id : Int
+
+    Returns
+    -------
+    None.
+
+    """
+    
 
     
         
