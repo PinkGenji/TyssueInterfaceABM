@@ -351,12 +351,7 @@ for t in time_points:
     if t in time_points:
         fig, ax = sheet_view(sheet)
         ax.title.set_text(f'time = {round(t, 5)}')
-    
-    
 
-
-
-""" Divide first, then daughter cells expand. """
 
 
 

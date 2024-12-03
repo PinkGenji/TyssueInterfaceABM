@@ -97,9 +97,13 @@ def closest_pair_dist(a,end1, end2):
     towards_end1 = distance(end1, a)
     towards_end2 = distance(end2, a)
     if towards_end1 < towards_end2:
-        return towards_end1, end1
+        a = vector(a, end1)
+        a_hat =  a / round(np.linalg.norm(a),4)
+        return a_hat
     elif towards_end1 > towards_end2:
-        return towards_end2, end2
+        a = vector(a, end2)
+        a_hat =  a / round(np.linalg.norm(a),4)
+        return a_hat
 
 def put_vert(eptm, edge, coord_put):
     """Adds a vertex somewhere in the an edge,
@@ -739,23 +743,7 @@ def adjacent_vert(sheet, v, srce_id, trgt_id):
         adjacent = trgt_id
     return adjacent
             
-def T3_eating(sheet, edge_id, vert_id):
-    """
-    This function internalize the vertex into the edge with edge_id.
 
-    Parameters
-    ----------
-    sheet : emtp instance
-    
-    edge_id : Int
-
-    vert_id : Int
-
-    Returns
-    -------
-    None.
-
-    """
     
 
     
