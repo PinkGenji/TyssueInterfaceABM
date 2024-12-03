@@ -743,6 +743,19 @@ def adjacent_vert(sheet, v, srce_id, trgt_id):
         adjacent = trgt_id
     return adjacent
             
+def are_vertices_in_same_face(sheet, vert1, vert2):
+    # Find the faces where each vertex appears as either 'srce' or 'trgt'
+    faces_vert1 = set(sheet.edge_df[sheet.edge_df['srce'] == vert1]['face']).union(
+        sheet.edge_df[sheet.edge_df['trgt'] == vert1]['face']
+    )
+    faces_vert2 = set(sheet.edge_df[sheet.edge_df['srce'] == vert2]['face']).union(
+        sheet.edge_df[sheet.edge_df['trgt'] == vert2]['face']
+    )
+    
+    # Check if there is any intersection between the faces of the two vertices
+    return bool(faces_vert1.intersection(faces_vert2))
+
+
 
     
 
