@@ -23,9 +23,13 @@ def length(v):
     return math.sqrt(x*x + y*y)
   
 def vector(b,e):
+    """
+    Creates a vector: b-e (arrow from e to b), stored as a tuple.
+
+    """
     x,y = b
     X,Y = e
-    return (X-x, Y-y)
+    return (round(X-x,5),round(Y-y , 5))
   
 def unit(v):
     x,y = v
@@ -89,6 +93,13 @@ def xprod_2d(vec1, vec2):
     scalar = vec1[0]*vec2[1] - vec1[1]*vec2[0]
     return scalar
 
+def closest_pair_dist(a,end1, end2):
+    towards_end1 = distance(end1, a)
+    towards_end2 = distance(end2, a)
+    if towards_end1 < towards_end2:
+        return towards_end1, end1
+    elif towards_end1 > towards_end2:
+        return towards_end2, end2
 
 def put_vert(eptm, edge, coord_put):
     """Adds a vertex somewhere in the an edge,
@@ -707,6 +718,27 @@ def edge_extension(sheet, edge_id, total_extension):
     geom.update_all(sheet)
     
 
+def adjacency_check(sheet, vert1, vert2):
+    """
+    Returns True if vert1 and vert2 are connected by an edge. Otherwise False
+    """
+    
+    exists = sheet.edge_df[
+        ((sheet.edge_df['srce'] == vert1) & (sheet.edge_df['trgt'] == vert2)) |
+        ((sheet.edge_df['srce'] == vert2) & (sheet.edge_df['trgt'] == vert1))
+    ].any().any()  # Checks if any rows satisfy the condition
+
+    return exists  # Return True if such a row exists, False otherwise
+
+def adjacent_vert(sheet, v, srce_id, trgt_id):
+        
+    adjacent = None
+    if adjacency_check(sheet, v, srce_id)==True:
+        adjacent = srce_id
+    elif adjacency_check(sheet, v, trgt_id)==True:
+        adjacent = trgt_id
+    return adjacent
+            
 def T3_eating(sheet, edge_id, vert_id):
     """
     This function internalize the vertex into the edge with edge_id.
