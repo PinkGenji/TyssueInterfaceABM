@@ -60,7 +60,9 @@ sheet.get_extra_indices()
 sheet.face_df['T_cycle'] = 0
 sheet.face_df['T_age'] = 0
 # Visualize the sheet.
-fig, ax = sheet_view(sheet,  mode = '2D')
+fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
 # First, we need a way to compute the energy, then use gradient descent.
 specs = {
     'edge': {
@@ -100,17 +102,21 @@ geom.update_all(sheet)
 # We need set the all the threshold value first.
 t1_threshold = 0.01
 t2_threshold = 0.1
+d_min = 0.0008
+d_sep = 0.011
 division_threshold = 1
 inhibition_threshold = 0.9
 max_movement = t1_threshold/2
-
+time_stamp = []
+area_intotal = []
+cell_ave_intime = []
 # Now assume we want to go from t = 0 to t= 0.2, dt = 0.1
 t = 0
 t_end = 0.005
 
 while t <= t_end:
     dt = 0.001
-    print(f'start at t= {round(t, 5)}')
+    #print(f'start at t= {round(t, 5)}')
 
     # Mesh restructure check
     # T1 transition, edge rearrangment check
@@ -143,9 +149,8 @@ while t <= t_end:
     
     # T3 transition.
     while True:
-        edge_to_process = None
+        T3_collision = None
         boundary_vert, boundary_edge = find_boundary(sheet)
-        
         if not boundary_edge:  # Exit if no boundary edges are found
             break
         
@@ -160,111 +165,23 @@ while t <= t_end:
                 #compute the dist needed for threshold comparing.
                 if v != srce_id and v!= trgt_id:
                     if are_vertices_in_same_face(sheet, v, srce_id)==True and are_vertices_in_same_face(sheet, v, trgt_id)==True:
-                        pass
+                        break
                     else:
                         vertex = sheet.vert_df.loc[v,['x','y']].values
-                        dist, nearest = pnt2line(vertex, endpoint1 , endpoint2)
+                        dist, nearest1 = pnt2line(vertex, endpoint1 , endpoint2)
+                        print(f'end1: {srce_id}, end2: {trgt_id}, v: {v}  ')
                         # Check the distance from the vertex to the edge.
                         if dist < 1.1:
-                            edge_to_process = e
-                            # store the associated edges, aka, rank
-                            edge_associated = sheet.edge_df[(sheet.edge_df['srce'] == v) | (sheet.edge_df['trgt'] == v)]
-                            rank = (len(edge_associated) - len(edge_associated[edge_associated['opposite'] == -1]))/2 + len(edge_associated[edge_associated['opposite'] == -1])
-                            vert_associated = list(set(edge_associated['srce'].tolist() + edge_associated['trgt'].tolist()) - {v})
-                            filtered_rows = sheet.vert_df[sheet.vert_df.index.isin(vert_associated)]
-                            # extend the edge if needed.
-                            if sheet.edge_df.loc[e,'length'] < 1.2*rank:
-                                extension_needed = 1.2*rank - sheet.edge_df.loc[e,'length']
-                                edge_extension(sheet, e, extension_needed)
-                            
-                            # Check adjacency.
-                            v_adj = adjacent_vert(sheet, v, srce_id, trgt_id)
-                            if v_adj is not None:
-                                # First we move the common point.
-                                sheet.vert_df.loc[v_adj,['x','y']] = list(nearest)
-                                
-                                # Then, we need to update via put-vert and update
-                                # sequentially by d_sep.
-                                # The sequence is determined by the sign of the difference
-                                # between x-value of (nearest - end)
-                                if nearest[0] - sheet.vert_df.loc[v_adj,'x'] < 0:
-                                    # Then shall sort x-value from largest to lowest.
-                                    sorted_rows = filtered_rows.sort_values(by='x', ascending = False)
-                                    sorted_rows_id = list(sorted_rows.index)
-                        # Then pop twice since an extra put vert is only needed for rank 2 adjacent.
-                                    sorted_rows_id.pop(0)
-                                    sorted_rows_id.pop(0)
-                                    
-                                else: # Then shall sort from lowest to largest.
-                                    sorted_rows = filtered_rows.sort_values(by='x', ascending = True)
-                                    sorted_rows_id = list(sorted_rows.index)
-                                    sorted_rows_id.pop(0)
-                                    sorted_rows_id.pop(0)
-                                
-                                # If rank is > 2, then we need to compute more.
-                                if sorted_rows_id: 
-                                    # Store the starting point as the nearest, then compute the unit vector.
-                                    last_coord = nearest
-                                    a = vector(nearest , sheet.vert_df.loc[v_adj, ['x', 'y']].values)
-                                    a_hat = a / round(np.linalg.norm(a),4)
-                                    print(sorted_rows_id)
-                                    for i in sorted_rows_id:
-                                        last_coord += a_hat*1.2
-                                        new_vert_id = put_vert(sheet, e, last_coord)[0]
-                                        sheet.edge_df.loc[sheet.edge_df['srce']==i,'srce'] = new_vert_id
-                                        sheet.edge_df.loc[sheet.edge_df['trgt']==i,'trgt'] = new_vert_id
-                                        
-                            # Now, for the case of non adjacent.
-                            elif v_adj is None:
-                                # The number of points we need to put on the edge is same as the rank.
-                                a = vector(nearest , sheet.vert_df.loc[srce_id , ['x', 'y']].values)
-                                a_hat = a / round(np.linalg.norm(a),4)
-                                if rank == 2:
-                                    coord1 = nearest - 0.6*a_hat
-                                    coord2 = nearest + 0.6*a_hat
-                                    new_id_1 = put_vert(sheet, e, coord1)
-                                    new_id_2 = put_vert(sheet, e, coord2)
-                                    new_vert_id = [new_id_1, new_id_2]
-                                    # Now, the x-value sorting is based on the distance 
-                                    # between the point to the srce_id.
-                                    if nearest[0] - sheet.vert_df.loc[srce_id ,'x'] < 0:
-                                        sorted_rows = filtered_rows.sort_values(by='x', ascending = True)
-                                        sorted_rows_id = list(sorted_rows.index)
-                                    if nearest[0] - sheet.vert_df.loc[srce_id ,'x'] < 0:
-                                        sorted_rows = filtered_rows.sort_values(by='x', ascending = False)
-                                        sorted_rows_id = list(sorted_rows.index)
-                                    for i in sorted_rows_id:
-                                        for j in new_vert_id:
-                                            sheet.edge_df.loc[sheet.edge_df['srce']==i,'srce'] = j
-                                            sheet.edge_df.loc[sheet.edge_df['trgt']==i,'trgt'] = j
-                                elif rank ==3 :
-                                    coord1 = nearest - 0.6*a_hat
-                                    coord2 = nearest
-                                    coord3 = nearest + 0.6*a_hat
-                                    new_id_1 = put_vert(sheet, e, coord1)
-                                    new_id_2 = put_vert(sheet, e, coord2)
-                                    new_id_3 = put_vert(sheet, e, coord3)
-                                    new_vert_id = [new_id_1, new_id_2, new_id_3]
-                                    # Now, the x-value sorting is based on the distance 
-                                    # between the point to the srce_id.
-                                    if nearest[0] - sheet.vert_df.loc[srce_id ,'x'] < 0:
-                                        sorted_rows = filtered_rows.sort_values(by='x', ascending = True)
-                                        sorted_rows_id = list(sorted_rows.index)
-                                    if nearest[0] - sheet.vert_df.loc[srce_id ,'x'] < 0:
-                                        sorted_rows = filtered_rows.sort_values(by='x', ascending = False)
-                                        sorted_rows_id = list(sorted_rows.index)
-                                    for i in sorted_rows_id:
-                                        for j in new_vert_id:
-                                            sheet.edge_df.loc[sheet.edge_df['srce']==i,'srce'] = j
-                                            sheet.edge_df.loc[sheet.edge_df['trgt']==i,'trgt'] = j  
-            
-        if edge_to_process is None:
+                            T3_collision = e
+                            T3_transition(sheet, e, v, d_min, d_sep, nearest1)
+                            geom.update_all(sheet)
+                            sheet.reset_index()
+            break
+
+        if T3_collision is None:
             break  # Exit loop if no edge was found to process
                 
-        geom.update_all(sheet)
-        sheet.reset_index()
-        
-    
+
     # Cell division.
     # Store the centroid before iteration of cells.
     unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
@@ -296,20 +213,29 @@ while t <= t_end:
     for i in become_free.index:
         sheet.face_df.loc[i,'T_age'] = round(sheet.face_df.loc[i,'T_age']+ dt, 3)
         T_age = sheet.face_df.loc[i,'T_age']
-        print(f'T_age for {i} is {T_age}')
+        
     geom.update_all(sheet)
     
-
+    # Add trackers for quantify.
+    cell_num_count = len(sheet.face_df)
     mean_area = sheet.face_df.loc[:,'area'].mean()
-    max_area = sheet.face_df.loc[:,'area'].max()
-    min_area = sheet.face_df.loc[:,'area'].min()
-    print(f'mean area: {mean_area}, max area: {max_area}, min area: {min_area}')
+    total_area = sheet.face_df.loc[:,'area'].sum()
     
-    # # Plot with title contain time.
-    # fig, ax = sheet_view(sheet)
-    # ax.title.set_text(f'time = {round(t, 5)}, mean area: {mean_area}')
-    # update time_point:
+    time_stamp.append(t)
+    cell_ave_intime.append(mean_area)
+    area_intotal.append(total_area)
+    
+    
+    
+    print(f'At time {t}, total cell: {cell_num_count}, total_area: {total_area}\n')
+
+    if t in [0, 0.005, 50, 100, 150, 200]:
+        fig, ax = sheet_view(sheet)
+        ax.title.set_text(f'time = {round(t, 5)}')
+    
+    # Update time_point
     t += dt
+    t = round(t, 4)
 
 
 

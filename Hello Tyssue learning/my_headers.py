@@ -768,7 +768,103 @@ def find_boundary(sheet):
     return boundary_vert, boundary_edge
 
     
-
+def T3_transition(sheet, edge_id, vert_id, d_min, d_sep, nearest):
+    # Extract source and target vertex IDs
+    srce_id, trgt_id = sheet.edge_df.loc[edge_id, ['srce', 'trgt']]
+    # Extract source and target positions as numpy arrays
+    endpoint1 = sheet.vert_df.loc[srce_id, ['x', 'y']].values
+    endpoint2 = sheet.vert_df.loc[trgt_id, ['x', 'y']].values
+    endpoints = [endpoint1, endpoint2]
+    # store the associated edges, aka, rank
+    edge_associated = sheet.edge_df[(sheet.edge_df['srce'] == vert_id) | (sheet.edge_df['trgt'] == vert_id)]
+    rank = (len(edge_associated) - len(edge_associated[edge_associated['opposite'] == -1]))/2 + len(edge_associated[edge_associated['opposite'] == -1])
+    vert_associated = list(set(edge_associated['srce'].tolist() + edge_associated['trgt'].tolist()) - {vert_id})
+    filtered_rows = sheet.vert_df[sheet.vert_df.index.isin(vert_associated)]
+    # extend the edge if needed.
+    if sheet.edge_df.loc[edge_id,'length'] < 1.2*rank:
+        extension_needed = d_sep*rank - sheet.edge_df.loc[edge_id,'length']
+        edge_extension(sheet, edge_id, extension_needed)
+    sorted_rows_id = []
+    # Check adjacency.
+    v_adj = adjacent_vert(sheet, vert_id, srce_id, trgt_id)
+    if v_adj is not None:
+        # First we move the common point.
+        sheet.vert_df.loc[v_adj,['x','y']] = list(nearest)
+        
+        # Then, we need to update via put-vert and update
+        # sequentially by d_sep.
+        # The sequence is determined by the sign of the difference
+        # between x-value of (nearest - end)
+        if nearest[0] - sheet.vert_df.loc[v_adj,'x'] < 0:
+            # Then shall sort x-value from largest to lowest.
+            sorted_rows = filtered_rows.sort_values(by='x', ascending = False)
+            sorted_rows_id = list(sorted_rows.index)
+# Then pop twice since an extra put vert is only needed for rank 2 adjacent.
+            sorted_rows_id.pop(0)
+            sorted_rows_id.pop(0)
+            
+        else: # Then shall sort from lowest to largest.
+            sorted_rows = filtered_rows.sort_values(by='x', ascending = True)
+            sorted_rows_id = list(sorted_rows.index)
+            sorted_rows_id.pop(0)
+            sorted_rows_id.pop(0)
+        
+        # If rank is > 2, then we need to compute more.
+        if sorted_rows_id: 
+            # Store the starting point as the nearest, then compute the unit vector.
+            last_coord = nearest
+            a = vector(nearest , sheet.vert_df.loc[v_adj, ['x', 'y']].values)
+            a_hat = a / round(np.linalg.norm(a),4)
+            print(sorted_rows_id)
+            for i in sorted_rows_id:
+                last_coord += a_hat*1.2
+                new_vert_id = put_vert(sheet, edge_id, last_coord)[0]
+                sheet.edge_df.loc[sheet.edge_df['srce']==i,'srce'] = new_vert_id
+                sheet.edge_df.loc[sheet.edge_df['trgt']==i,'trgt'] = new_vert_id
+                
+    # Now, for the case of non adjacent.
+    elif v_adj is None:
+        # The number of points we need to put on the edge is same as the rank.
+        a = vector(nearest , sheet.vert_df.loc[srce_id , ['x', 'y']].values)
+        a_hat = a / round(np.linalg.norm(a),4)
+        if rank == 2:
+            coord1 = nearest - 0.6*a_hat
+            coord2 = nearest + 0.6*a_hat
+            new_id_1 = put_vert(sheet, edge_id, coord1)
+            new_id_2 = put_vert(sheet, edge_id, coord2)
+            new_vert_id = [new_id_1, new_id_2]
+            # Now, the x-value sorting is based on the distance 
+            # between the point to the srce_id.
+            if nearest[0] - sheet.vert_df.loc[srce_id ,'x'] < 0:
+                sorted_rows = filtered_rows.sort_values(by='x', ascending = True)
+                sorted_rows_id = list(sorted_rows.index)
+            if nearest[0] - sheet.vert_df.loc[srce_id ,'x'] < 0:
+                sorted_rows = filtered_rows.sort_values(by='x', ascending = False)
+                sorted_rows_id = list(sorted_rows.index)
+            for i in sorted_rows_id:
+                for j in new_vert_id:
+                    sheet.edge_df.loc[sheet.edge_df['srce']==i,'srce'] = j
+                    sheet.edge_df.loc[sheet.edge_df['trgt']==i,'trgt'] = j
+        elif rank ==3 :
+            coord1 = nearest - 0.6*a_hat
+            coord2 = nearest
+            coord3 = nearest + 0.6*a_hat
+            new_id_1 = put_vert(sheet, edge_id, coord1)
+            new_id_2 = put_vert(sheet, edge_id, coord2)
+            new_id_3 = put_vert(sheet, edge_id, coord3)
+            new_vert_id = [new_id_1, new_id_2, new_id_3]
+            # Now, the x-value sorting is based on the distance 
+            # between the point to the srce_id.
+            if nearest[0] - sheet.vert_df.loc[srce_id ,'x'] < 0:
+                sorted_rows = filtered_rows.sort_values(by='x', ascending = True)
+                sorted_rows_id = list(sorted_rows.index)
+            if nearest[0] - sheet.vert_df.loc[srce_id ,'x'] < 0:
+                sorted_rows = filtered_rows.sort_values(by='x', ascending = False)
+                sorted_rows_id = list(sorted_rows.index)
+            for i in sorted_rows_id:
+                for j in new_vert_id:
+                    sheet.edge_df.loc[sheet.edge_df['srce']==i,'srce'] = j
+                    sheet.edge_df.loc[sheet.edge_df['trgt']==i,'trgt'] = j 
     
         
 
