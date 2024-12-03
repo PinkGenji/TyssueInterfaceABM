@@ -49,7 +49,7 @@ rng = np.random.default_rng(70)
 # Generate the cell sheet as three cells.
 num_x = 1
 num_y = 1
-sheet = Sheet.planar_sheet_2d('face', nx = num_x, ny=num_y, distx=1, disty=1)
+sheet = Sheet.planar_sheet_2d('face', nx = num_x, ny=num_y, distx=0.5, disty=0.5)
 geom.update_all(sheet)
 # remove non-enclosed faces
 sheet.remove(sheet.get_invalid())  
@@ -74,7 +74,7 @@ specs = {
        'area_elasticity': 110,
        'contractility': 0,
        'is_alive': 1,
-       'prefered_area': 2},
+       'prefered_area': 1},
    'settings': {
        'grad_norm_factor': 1.0,
        'nrj_norm_factor': 1.0
@@ -98,26 +98,38 @@ geom.update_all(sheet)
 
 fig, ax = plot_forces(sheet, geom, smodel, ['x', 'y'], scaling=0.1)
 
+sheet_view(sheet)
+sheet.face_df.loc[:,'area']
+
+
+# We need set the all the threshold value first.
+t1_threshold = 0.1
+t2_threshold = 0.1
+max_movement = t1_threshold/2
+
 # Now assume we want to go from t = 0 to t= 0.2, dt = 0.1
 t0 = 0
-t_end = 0.3
+t_end = 3
 dt = 0.01
 time_points = np.linspace(t0, t_end, int((t_end - t0) / dt) + 1)
-print(f'time points are: {time_points}.')
+
 
 for t in time_points:
-    print(f'start at t= {round(t, 5)}.')
+    #print(f'start at t= {round(t, 5)}.')
 
- # Force computing and updating positions.
- valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
- pos = sheet.vert_df.loc[valid_active_verts, sheet.coords].values
- # get the movement of position based on dynamical dt.
- dt, movement = time_step_bot(sheet, dt, max_dist_allowed = max_movement )
- new_pos = pos + movement
- # Save the new positions back to `vert_df`
- sheet.vert_df.loc[valid_active_verts , sheet.coords] = new_pos
- geom.update_all(sheet)
+     # Force computing and updating positions.
+    valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
+    pos = sheet.vert_df.loc[valid_active_verts, sheet.coords].values
+    # get the movement of position based on dynamical dt.
+    dt, movement = time_step_bot(sheet, dt, max_dist_allowed = max_movement )
+    new_pos = pos + movement
+     # Save the new positions back to `vert_df`
+    sheet.vert_df.loc[valid_active_verts , sheet.coords] = new_pos
+    geom.update_all(sheet)
 
+sheet_view(sheet)
+area = sheet.face_df.loc[:,'area'][0]
+print(f'After evolve {t} time, area is: {area}')
 
 """
 This is the end of the script.
