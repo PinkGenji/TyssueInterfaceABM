@@ -756,6 +756,16 @@ def are_vertices_in_same_face(sheet, vert1, vert2):
     return bool(faces_vert1.intersection(faces_vert2))
 
 
+def find_boundary(sheet):
+    """Find boundary vertices and edges."""
+    boundary_vert = set()
+    boundary_edge = set()
+    for i in sheet.edge_df.index:
+        if sheet.edge_df.loc[i, 'opposite'] == -1:
+            boundary_vert.add(sheet.edge_df.loc[i, 'srce'])
+            boundary_vert.add(sheet.edge_df.loc[i, 'trgt'])
+            boundary_edge.add(i)
+    return boundary_vert, boundary_edge
 
     
 

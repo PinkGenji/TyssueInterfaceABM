@@ -120,15 +120,9 @@ fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y, face)
 
-boundary_vert = set()
-boundary_edge = set()
-for i in sheet.edge_df.index:
-    if sheet.edge_df.loc[i,'opposite'] == -1:
-        boundary_vert.add(sheet.edge_df.loc[i,'srce'])
-        boundary_vert.add(sheet.edge_df.loc[i,'trgt'])
-        boundary_edge.add(i)
 
 
+boundary_vert, boundary_edge = find_boundary(sheet)
 
 
 """Check which vertex will collide with which edge"""    
@@ -247,7 +241,9 @@ for e in boundary_edge:
     geom.update_all(sheet)
     sheet.reset_index()
                         
-
+fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+for face, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y, face)
 
 
 
