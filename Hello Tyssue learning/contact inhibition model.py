@@ -112,7 +112,7 @@ area_intotal = []
 cell_ave_intime = []
 # Now assume we want to go from t = 0 to t= 0.2, dt = 0.1
 t = 0
-t_end = 0.005
+t_end = 200
 
 while t <= t_end:
     dt = 0.001
