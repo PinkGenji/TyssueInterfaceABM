@@ -58,11 +58,8 @@ sheet_view(sheet)
 sheet.get_extra_indices()
 # We need to creata a new colum to store the cell cycle time, default a 0, then minus.
 sheet.face_df['T_cycle'] = 0
-sheet.face_df['T_age'] = 0
 # Visualize the sheet.
-fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
-for face, data in sheet.face_df.iterrows():
-    ax.text(data.x, data.y, face)
+fig, ax = sheet_view(sheet,  mode = '2D')
 # First, we need a way to compute the energy, then use gradient descent.
 specs = {
     'edge': {
@@ -101,26 +98,22 @@ geom.update_all(sheet)
 fig, ax = plot_forces(sheet, geom, smodel, ['x', 'y'], scaling=0.1)
 
 # We need set the all the threshold value first.
-t1_threshold = 0.01
+t1_threshold = 0.1
 t2_threshold = 0.1
-d_min = 0.0008
-d_sep = 0.011
 division_threshold = 1
 inhibition_threshold = 0.8
 max_movement = t1_threshold/2
-time_stamp = []
-cell_counter = []
-area_intotal = []
-cell_ave_intime = []
+
 # Now assume we want to go from t = 0 to t= 0.2, dt = 0.1
-t0 = 0
+t0 =0
 t_end = 50
 dt = 0.001
-time_point = np.linspace(t0, t_end, int((t_end - t0) / dt) + 1)
+time_points = np.linspace(t0, t_end, int((t_end - t0) / dt) + 1)
+print(f'time points are: {time_points}')
 t = t0
 while t <= t_end:
     dt = 0.001
-    #print(f'start at t= {round(t, 5)}')
+    print(f'start at t= {round(t, 5)}')
 
     # Mesh restructure check
     # T1 transition, edge rearrangment check
@@ -151,60 +144,17 @@ while t <= t_end:
     sheet.reset_index(order = True)
     geom.update_all(sheet)
     
-    # T3 transition.
-    while True:
-        T3_collision = None
-        boundary_vert, boundary_edge = find_boundary(sheet)
-        if not boundary_edge:  # Exit if no boundary edges are found
-            break
-        
-        for e in boundary_edge:
-            # Extract source and target vertex IDs
-            srce_id, trgt_id = sheet.edge_df.loc[e, ['srce', 'trgt']]
-            # Extract source and target positions as numpy arrays
-            endpoint1 = sheet.vert_df.loc[srce_id, ['x', 'y']].values
-            endpoint2 = sheet.vert_df.loc[trgt_id, ['x', 'y']].values
-            endpoints = [endpoint1, endpoint2]
-            for v in boundary_vert:
-                #compute the dist needed for threshold comparing.
-                if v != srce_id and v!= trgt_id:
-                    if are_vertices_in_same_face(sheet, v, srce_id)==True and are_vertices_in_same_face(sheet, v, trgt_id)==True:
-                        break
-                    else:
-                        vertex = sheet.vert_df.loc[v,['x','y']].values
-                        dist, nearest1 = pnt2line(vertex, endpoint1 , endpoint2)
-                        print(f'end1: {srce_id}, end2: {trgt_id}, v: {v}  ')
-                        # Check the distance from the vertex to the edge.
-                        if dist < 1.1:
-                            T3_collision = e
-                            T3_transition(sheet, e, v, d_min, d_sep, nearest1)
-                            geom.update_all(sheet)
-                            sheet.reset_index()
-            break
-
-        if T3_collision is None:
-            break  # Exit loop if no edge was found to process
-
     # Cell division.
     # Store the centroid before iteration of cells.
     unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
     centre_data = unique_edges_df.loc[:,['face','fx','fy']]
     # Loop over all the faces.
-    cells_can_divide = sheet.face_df[(sheet.face_df['area'] >= division_threshold) & (sheet.face_df['T_age'] == sheet.face_df['T_cycle'])]
+    cells_can_divide = sheet.face_df[(sheet.face_df['area'] >= division_threshold) & (sheet.face_df['T_cycle'] == 0)]
     for index, series in cells_can_divide.iterrows():
-        daughter_index = division_1(sheet,rng=rng, cent_data= centre_data, cell_id = index, dt = dt)
-    # Update the T_age in mitosis.
-    cells_are_mitosis = sheet.face_df[(sheet.face_df['T_age'] != sheet.face_df['T_cycle'])]
-    
-# =============================================================================
-#     for i in cells_are_mitosis.index:
-#         new_prefered_area =  1/2*(sheet.face_df.loc[i,'T_age']/sheet.face_df.loc[i,'T_cycle'])+1/2
-#         sheet.face_df.loc[i,'prefered_area'] = new_prefered_area
-#         print(f'new_prefered_area: {new_prefered_area}')
-#     sheet.reset_index(order = True)
-#     geom.update_all(sheet)
-# =============================================================================
-    
+        daughter_index = division_2(sheet,rng=rng, cent_data= centre_data, cell_id = index)
+    sheet.reset_index(order = True)
+    geom.update_all(sheet)
+
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
     pos = sheet.vert_df.loc[valid_active_verts, sheet.coords].values
@@ -216,32 +166,39 @@ while t <= t_end:
     geom.update_all(sheet)
     
     #Need to update the T_cycle value based on their compression time.
-    become_free = sheet.face_df[(sheet.face_df['area'] >= inhibition_threshold) & (sheet.face_df['T_age'] < sheet.face_df['T_cycle'])]
+    become_free = sheet.face_df[(sheet.face_df['area'] >= inhibition_threshold) & (sheet.face_df['T_cycle'] > 0)]
     for i in become_free.index:
-        sheet.face_df.loc[i,'T_age'] = round(sheet.face_df.loc[i,'T_age']+ dt, 3)
-        T_age = sheet.face_df.loc[i,'T_age']
-        
+        sheet.face_df.loc[i,'T_cycle'] = round(sheet.face_df.loc[i,'T_cycle']- dt, 3)
+        T_cyc = sheet.face_df.loc[i,'T_cycle']
+        print(f'T_cycle for {i} is {T_cyc}')
     geom.update_all(sheet)
-    
-    # Add trackers for quantify.
-    cell_num_count = len(sheet.face_df)
+
     mean_area = sheet.face_df.loc[:,'area'].mean()
-    total_area = sheet.face_df.loc[:,'area'].sum()
+    max_area = sheet.face_df.loc[:,'area'].max()
+    min_area = sheet.face_df.loc[:,'area'].min()
+    print(f'At time {round(t, 3)}, mean area: {mean_area}, max area: {max_area}, min area: {min_area}')
+    # # Plot with title contain time.
+    if t in time_points[::1000]:
+        fig, ax = sheet_view(sheet)
+        ax.title.set_text(f'time = {round(t, 5)}, mean area: {mean_area}')
+        
+    t +=dt
     
-    time_stamp.append(t)
-    cell_counter.append(cell_num_count)
-    cell_ave_intime.append(mean_area)
-    area_intotal.append(total_area)
-
-    print(f'At time {t}, total cell: {cell_num_count}, total_area: {total_area}\n')
-
-    # if t in time_point[::10]:
-    #     fig, ax = sheet_view(sheet)
-    #     ax.title.set_text(f'time = {round(t, 5)}')
-    
-    # Update time_point
-    t += dt
-    t = round(t,5)
+# =============================================================================
+# 
+# draw_specs = sheet_spec()
+# draw_specs['face']['visible'] = True
+# okay = sheet.face_df[(sheet.face_df['area'] >= division_threshold) & (sheet.face_df['T_cycle'] > 0)]
+# for i in sheet.face_df.index:
+#     if i in okay.index:
+#         sheet.face_df['color'] = 0
+#     else:
+#         sheet.face_df['color'] = 1
+#         
+# draw_specs['face']['color'] = sheet.face_df['color']
+# draw_specs['face']['alpha'] = 0.5
+# fig, ax = sheet_view(sheet,['x', 'y'], **draw_specs)
+# =============================================================================
 
 
 

@@ -502,11 +502,6 @@ def division_1(sheet, rng, cent_data, cell_id, dt):
     sheet: a :class:`Sheet` object
     cell_id: int
         the index of the dividing cell
-    crit_area: float
-        the area at which 
-    growth_rate: float
-        increase in the area per unit time
-        A_0(t + dt) = A0(t) * (1 + growth_rate * dt)
     """
     condition = sheet.edge_df.loc[:,'face'] == cell_id
     edge_in_cell = sheet.edge_df[condition]
@@ -569,7 +564,8 @@ def time_step_bot(sheet,dt, max_dist_allowed):
     
     movement = dot_r*dt
     current_movement = np.linalg.norm(movement, axis=1)
-    while max(current_movement) > max_dist_allowed:
+    while max(current_movement, default=0) > max_dist_allowed:
+        print('dt adjusted')
         dt /=2
         movement = dot_r *dt
         current_movement = np.linalg.norm(movement, axis=1)
@@ -865,7 +861,74 @@ def T3_transition(sheet, edge_id, vert_id, d_min, d_sep, nearest):
                 for j in new_vert_id:
                     sheet.edge_df.loc[sheet.edge_df['srce']==i,'srce'] = j
                     sheet.edge_df.loc[sheet.edge_df['trgt']==i,'trgt'] = j 
+
+def division_2(sheet, rng, cent_data, cell_id):
+    """The cells keep growing, when the area exceeds a critical area, then
+    the cell divides.
     
+    Parameters
+    ----------
+    sheet: a :class:`Sheet` object
+    cell_id: int
+        the index of the dividing cell
+    crit_area: float
+        the area at which 
+    growth_rate: float
+        increase in the area per unit time
+        A_0(t + dt) = A0(t) * (1 + growth_rate * dt)
+    """
+    condition = sheet.edge_df.loc[:,'face'] == cell_id
+    edge_in_cell = sheet.edge_df[condition]
+    # We need to randomly choose one of the edges in cell 2.
+    chosen_index = rng.choice(list(edge_in_cell.index))
+    # Extract and store the centroid coordinate.
+    c0x = float(cent_data.loc[cent_data['face']==cell_id, ['fx']].values[0])
+    c0y = float(cent_data.loc[cent_data['face']==cell_id, ['fy']].values[0])
+    c0 = [c0x, c0y]
+
+    # Add a vertex in the middle of the chosen edge.
+    new_mid_index = add_vert(sheet, edge = chosen_index)[0]
+    # Extract for source vertex coordinates of the newly added vertex.
+    p0x = sheet.vert_df.loc[new_mid_index,'x']
+    p0y = sheet.vert_df.loc[new_mid_index,'y']
+    p0 = [p0x, p0y]
+
+    # Compute the directional vector from new_mid_point to centroid.
+    rx = c0x - p0x
+    ry = c0y - p0y
+    r  = [rx, ry]   # use the line in opposite direction.
+    # We need to use iterrows to iterate over rows in pandas df
+    # The iteration has the form of (index, series)
+    # The series can be sliced.
+    for index, row in edge_in_cell.iterrows():
+        s0x = row['sx']
+        s0y = row['sy']
+        t0x = row['tx']
+        t0y = row['ty']
+        v1 = [s0x-p0x,s0y-p0y]
+        v2 = [t0x-p0x,t0y-p0y]
+        # if the xprod_2d returns negative, then line intersects the line segment.
+        if xprod_2d(r, v1)*xprod_2d(r, v2) < 0 and index !=chosen_index :
+            dx = row['dx']
+            dy = row['dy']
+            c1 = dx*ry-dy*rx
+            c2 = s0y*rx-p0y*rx - s0x*ry + p0x*ry
+            k=c2/c1
+            intersection = [s0x+k*dx, s0y+k*dy]
+            oppo_index = put_vert(sheet, index, intersection)[0]
+            # Split the cell with a line.
+            new_face_index = face_division(sheet, mother = cell_id, vert_a = new_mid_index , vert_b = oppo_index )
+            # Put a vertex at the centroid, on the newly formed edge (last row in df).
+            cent_index = put_vert(sheet, edge = sheet.edge_df.index[-1], coord_put = c0)[0]
+            random_int_1 = rng.integers(10000, 15000) / 1000
+            random_int_2 = rng.integers(10000, 15000) / 1000
+            sheet.face_df.loc[cell_id,'T_cycle'] = np.array(random_int_1, dtype=np.float64)
+            sheet.face_df.loc[new_face_index,'T_cycle'] = np.array(random_int_2, dtype=np.float64)
+            sheet.face_df.loc[cell_id, 'prefered_area'] = 1
+            sheet.face_df.loc[new_face_index,'prefered_area'] = 1
+            print(f'cell {cell_id} is divided, dauther cell {new_face_index} is created.')
+            return new_face_index
+
         
 
 
