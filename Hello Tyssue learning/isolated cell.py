@@ -72,7 +72,8 @@ specs = {
     },
    'face': {
        'area_elasticity': 110,
-       'contractility': 0.5,
+       'perimeter': 3.0,
+       'contractility': 0,
        'is_alive': 1,
        'prefered_area': 1},
    'settings': {
@@ -139,32 +140,37 @@ sheet_view(sheet)
 area = sheet.face_df.loc[:,'area'][0]
 print(f'After evolve {t} time, area is: {area}')
 
-def to_nd(df, ndim):
-    """
-    Give a new shape to an input data by duplicating its column.
 
-    Parameters
-    ----------
 
-    df : input data that will be reshape
-    ndim : dimension of the new reshape data.
 
-    Returns
-    -------
-
-    df_nd : return array reshaped in ndim.
-
-    """
-    df_nd = np.asarray(df).reshape((df.size, 1))
-    return df_nd
-
-gamma_ = sheet.face_df.eval("contractility * perimeter * is_alive")
-gamma = sheet.upcast_face(gamma_)
-
-grad_srce = -sheet.edge_df[sheet.ucoords] * to_nd(gamma, len(sheet.coords))
-grad_srce.columns = ["g" + u for u in sheet.coords]
-grad_trgt = -grad_srce
-print(grad_srce, grad_trgt)
+# =============================================================================
+# def to_nd(df, ndim):
+#     """
+#     Give a new shape to an input data by duplicating its column.
+# 
+#     Parameters
+#     ----------
+# 
+#     df : input data that will be reshape
+#     ndim : dimension of the new reshape data.
+# 
+#     Returns
+#     -------
+# 
+#     df_nd : return array reshaped in ndim.
+# 
+#     """
+#     df_nd = np.asarray(df).reshape((df.size, 1))
+#     return df_nd
+# 
+# gamma_ = sheet.face_df.eval("contractility * perimeter * is_alive")
+# gamma = sheet.upcast_face(gamma_)
+# 
+# grad_srce = -sheet.edge_df[sheet.ucoords] * to_nd(gamma, len(sheet.coords))
+# grad_srce.columns = ["g" + u for u in sheet.coords]
+# grad_trgt = -grad_srce
+# print(grad_srce, grad_trgt)
+# =============================================================================
 
 """
 This is the end of the script.

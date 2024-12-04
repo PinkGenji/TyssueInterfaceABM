@@ -37,6 +37,8 @@ from tyssue.generation import extrude
 from tyssue.dynamics import model_factory, effectors
 from tyssue.topology.sheet_topology import remove_face, cell_division, face_division
 
+from tyssue.draw.plt_draw import plot_forces
+
 # 2D plotting
 from tyssue.draw import sheet_view, highlight_cells
 
@@ -70,6 +72,8 @@ sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwis
 fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
+
+
 
 """ Assign the cell type to face_df and edge_df """
 num_ct = num_x
@@ -200,6 +204,19 @@ sheet.vert_df['viscosity'] = 1.0
 sheet.update_specs(specs, reset = True)
 geom.update_all(sheet)
 
+# Define the list of faces to check
+target_faces = [0, 19, 20, 39]
+
+# Step 1: Identify edges associated with target faces
+edges_with_target_faces = sheet.edge_df[sheet.edge_df['face'].isin(target_faces)]
+
+# Step 2: Extract all unique vertices (`srce` and `trgt`) from these edges
+vertices_to_deactivate = pd.concat([edges_with_target_faces['srce'], 
+                                     edges_with_target_faces['trgt']]).unique()
+
+# Step 3: Update `is_active` in `vert_df` for these vertices
+sheet.vert_df.loc[sheet.vert_df.index.isin(vertices_to_deactivate), 'is_active'] = 0
+
 # Adjust for cell-boundary adhesion force.
 for i in sheet.edge_df.index:
     if sheet.edge_df.loc[i, 'opposite'] == -1:
@@ -207,8 +224,16 @@ for i in sheet.edge_df.index:
     else:
         continue
 
+for i in sheet.edge_df.index:
+    if sheet.edge_df.loc[i, 'cell_type'] == 'ST':
+        sheet.edge_df.loc[i, 'line_tension'] *=0.04
+    else:
+        continue
+
 
 geom.update_all(sheet)
+
+fig, ax = plot_forces(sheet, geom, smodel, ['x', 'y'], scaling=0.1)
 
 # We need set the all the threshold value first.
 t1_threshold = sheet.edge_df.loc[:,'length'].mean()/10
