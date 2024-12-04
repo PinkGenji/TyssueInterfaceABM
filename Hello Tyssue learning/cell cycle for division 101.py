@@ -357,7 +357,58 @@ plt.legend()
 # Show the plot
 plt.show()
 
+# Filter the data for time_stamp >= 80
+filtered_time = [t for t, a in zip(time_stamp, area_intotal) if t >= 80]
+filtered_area = [a for t, a in zip(time_stamp, area_intotal) if t >= 80]
 
+# Fit a linear model to the filtered data
+coefficients = np.polyfit(filtered_time, filtered_area, 1)  # Linear fit (degree 1)
+best_fit_line = np.poly1d(coefficients)
+
+# Plot the total area vs time
+plt.figure(figsize=(8, 6))
+plt.plot(time_stamp, area_intotal, linestyle='-', color='g', linewidth=1, label='Total Area')
+
+# Plot the best-fitted line
+plt.plot(
+    filtered_time,
+    best_fit_line(filtered_time),
+    linestyle='--',
+    color='r',
+    label='Best Fit Line (from t=80)'
+)
+
+# Add labels and title
+plt.xlabel('Time', fontsize=14)
+plt.ylabel('Total Area', fontsize=14)
+plt.title('Total Area vs Time', fontsize=16)
+
+# Add grid and legend
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.legend()
+
+# Show the plot
+plt.show()
+
+# Calculate mean area (assuming area_intotal represents the total area at each time point)
+# If you have the data at multiple time points and want the average over all faces/cells at each time point:
+mean_area = area_intotal  # If area_intotal is already the mean area
+
+# Plot mean area vs time
+plt.figure(figsize=(8, 6))
+plt.plot(time_stamp, mean_area, linestyle='-', color='m', linewidth=1, label='Mean Area')
+
+# Add labels and title
+plt.xlabel('Time', fontsize=14)
+plt.ylabel('Mean Area', fontsize=14)
+plt.title('Mean Area vs Time', fontsize=16)
+
+# Add grid and legend
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.legend()
+
+# Show the plot
+plt.show()
 
 import csv
 
