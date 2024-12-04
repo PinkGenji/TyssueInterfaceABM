@@ -823,12 +823,14 @@ def T3_transition(sheet, edge_id, vert_id, d_min, d_sep, nearest):
         # The number of points we need to put on the edge is same as the rank.
         a = vector(nearest , sheet.vert_df.loc[srce_id , ['x', 'y']].values)
         a_hat = a / round(np.linalg.norm(a),4)
+        print(f'rank: {rank}')
         if rank == 2:
             coord1 = nearest - 0.6*a_hat
             coord2 = nearest + 0.6*a_hat
-            new_id_1 = put_vert(sheet, edge_id, coord1)
-            new_id_2 = put_vert(sheet, edge_id, coord2)
+            new_id_1 = put_vert(sheet, edge_id, coord1)[0]
+            new_id_2 = put_vert(sheet, edge_id, coord2)[0]
             new_vert_id = [new_id_1, new_id_2]
+            print(new_vert_id)
             # Now, the x-value sorting is based on the distance 
             # between the point to the srce_id.
             if nearest[0] - sheet.vert_df.loc[srce_id ,'x'] < 0:
@@ -838,17 +840,18 @@ def T3_transition(sheet, edge_id, vert_id, d_min, d_sep, nearest):
                 sorted_rows = filtered_rows.sort_values(by='x', ascending = False)
                 sorted_rows_id = list(sorted_rows.index)
             for i in sorted_rows_id:
-                for j in new_vert_id:
-                    sheet.edge_df.loc[sheet.edge_df['srce']==i,'srce'] = j
-                    sheet.edge_df.loc[sheet.edge_df['trgt']==i,'trgt'] = j
+                for j in list(range(len(new_vert_id))):
+                    sheet.edge_df.loc[sheet.edge_df['srce']==i,'srce'] = new_vert_id[j]
+                    sheet.edge_df.loc[sheet.edge_df['trgt']==i,'trgt'] = new_vert_id[j]
         elif rank ==3 :
             coord1 = nearest - 0.6*a_hat
             coord2 = nearest
             coord3 = nearest + 0.6*a_hat
-            new_id_1 = put_vert(sheet, edge_id, coord1)
-            new_id_2 = put_vert(sheet, edge_id, coord2)
-            new_id_3 = put_vert(sheet, edge_id, coord3)
+            new_id_1 = put_vert(sheet, edge_id, coord1)[0]
+            new_id_2 = put_vert(sheet, edge_id, coord2)[0]
+            new_id_3 = put_vert(sheet, edge_id, coord3)[0]
             new_vert_id = [new_id_1, new_id_2, new_id_3]
+            print(new_vert_id)
             # Now, the x-value sorting is based on the distance 
             # between the point to the srce_id.
             if nearest[0] - sheet.vert_df.loc[srce_id ,'x'] < 0:
@@ -858,9 +861,9 @@ def T3_transition(sheet, edge_id, vert_id, d_min, d_sep, nearest):
                 sorted_rows = filtered_rows.sort_values(by='x', ascending = False)
                 sorted_rows_id = list(sorted_rows.index)
             for i in sorted_rows_id:
-                for j in new_vert_id:
-                    sheet.edge_df.loc[sheet.edge_df['srce']==i,'srce'] = j
-                    sheet.edge_df.loc[sheet.edge_df['trgt']==i,'trgt'] = j 
+                for j in list(range(len(new_vert_id))):
+                    sheet.edge_df.loc[sheet.edge_df['srce']==i,'srce'] = new_vert_id[j]
+                    sheet.edge_df.loc[sheet.edge_df['trgt']==i,'trgt'] = new_vert_id[j]
 
 def division_2(sheet, rng, cent_data, cell_id):
     """The cells keep growing, when the area exceeds a critical area, then
