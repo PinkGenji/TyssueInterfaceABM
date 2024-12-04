@@ -960,10 +960,11 @@ def neighbour_edge(sheet, face1, face2):
      # If no common edge is found
      return None       
 
+
 def edge_remover(sheet, edge_id):
     """
     Removes an edge and its opposite from the sheet and updates the 'face' column
-    to reflect the smaller edge ID as the face ID.
+    to reflect the face ID of the cell with the 'ST' type, if applicable.
 
     Args:
         sheet: The cell sheet containing edge and vertex information.
@@ -972,26 +973,38 @@ def edge_remover(sheet, edge_id):
     # Get the opposite edge
     oppo = sheet.edge_df.loc[edge_id, 'opposite']
     
-    # Ensure the smaller of the two edge IDs is assigned to the face
-    face1 = sheet.edge_df.loc[edge_id,'face']
+    # Retrieve the face IDs of the two edges
+    face1 = sheet.edge_df.loc[edge_id, 'face']
     face2 = sheet.edge_df.loc[oppo, 'face']
-    smaller_face_id = min(face1, face2)
+    
+    # Determine which face already has 'ST' type (if any)
+    face1_type = sheet.face_df.loc[face1, "cell_type"]
+    face2_type = sheet.face_df.loc[face2, "cell_type"]
+
+    if face1_type == 'ST':
+        new_face_id = face1
+    elif face2_type == 'ST':
+        new_face_id = face2
+    else:
+        new_face_id = min(face1, face2)  # Default to the smaller ID if neither is 'ST'
     
     # Update the face column for both edges
     for e in [edge_id, oppo]:
         face_id = sheet.edge_df.loc[e, 'face']
-        sheet.edge_df.loc[sheet.edge_df['face'] == face_id, 'face'] = smaller_face_id
+        sheet.edge_df.loc[sheet.edge_df['face'] == face_id, 'face'] = new_face_id
     
     # Drop the edge and its opposite
     sheet.edge_df.drop([edge_id, oppo], inplace=True)
-    # Update assign cell property.
-    sheet.face_df.loc[smaller_face_id , "cell_type"] = 'ST'
-        
-    # Find the edges associated with the given face ID
-    edges_to_update = sheet.edge_df[sheet.edge_df['face'] == smaller_face_id].index
+
+    # Assign 'ST' to the new face and update associated edges
+    sheet.face_df.loc[new_face_id, "cell_type"] = 'ST'
+    
+    # Find the edges associated with the new face ID
+    edges_to_update = sheet.edge_df[sheet.edge_df['face'] == new_face_id].index
 
     # Update the 'cell type' property for these edges
     sheet.edge_df.loc[edges_to_update, 'cell type'] = 'ST'
+
 
 
 def update_cell_type(sheet, face_id, new_type='ST'):
