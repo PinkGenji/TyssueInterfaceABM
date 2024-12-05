@@ -113,10 +113,12 @@ cell_ave_intime = []
 
 # Now assume we want to go from t = 0 to t= 0.2, dt = 0.1
 t0 =0
-t_end = 200
+
+t_end = 90
 dt = 0.001
-time_points = np.linspace(t0, t_end, int((t_end - t0) / dt) + 1)
-print(f'time points are: {time_points}')
+
+
+
 t = t0
 
 while t <= t_end:
@@ -152,41 +154,39 @@ while t <= t_end:
     sheet.reset_index(order = True)
     geom.update_all(sheet)
     
-# =============================================================================
-#     # T3 transition.
-#     while True:
-#         T3_collision = None
-#         boundary_vert, boundary_edge = find_boundary(sheet)
-#         if not boundary_edge:  # Exit if no boundary edges are found
-#             break
-#         
-#         for e in boundary_edge:
-#             # Extract source and target vertex IDs
-#             srce_id, trgt_id = sheet.edge_df.loc[e, ['srce', 'trgt']]
-#             # Extract source and target positions as numpy arrays
-#             endpoint1 = sheet.vert_df.loc[srce_id, ['x', 'y']].values
-#             endpoint2 = sheet.vert_df.loc[trgt_id, ['x', 'y']].values
-#             endpoints = [endpoint1, endpoint2]
-#             for v in boundary_vert:
-#                 #compute the dist needed for threshold comparing.
-#                 if v != srce_id and v!= trgt_id:
-#                     if are_vertices_in_same_face(sheet, v, srce_id)==True and are_vertices_in_same_face(sheet, v, trgt_id)==True:
-#                         break
-#                     else:
-#                         vertex = sheet.vert_df.loc[v,['x','y']].values
-#                         dist, nearest1 = pnt2line(vertex, endpoint1 , endpoint2)
-#                         print(f'end1: {srce_id}, end2: {trgt_id}, v: {v}  ')
-#                         # Check the distance from the vertex to the edge.
-#                         if dist < 1.1:
-#                             T3_collision = e
-#                             T3_transition(sheet, e, v, d_min, d_sep, nearest1)
-#                             geom.update_all(sheet)
-#                             sheet.reset_index()
-#             break
-# 
-#         if T3_collision is None:
-#             break  # Exit loop if no edge was found to process
-# =============================================================================
+    # T3 transition.
+    while True:
+        T3_collision = None
+        boundary_vert, boundary_edge = find_boundary(sheet)
+        if not boundary_edge:  # Exit if no boundary edges are found
+            break
+        
+        for e in boundary_edge:
+            # Extract source and target vertex IDs
+            srce_id, trgt_id = sheet.edge_df.loc[e, ['srce', 'trgt']]
+            # Extract source and target positions as numpy arrays
+            endpoint1 = sheet.vert_df.loc[srce_id, ['x', 'y']].values
+            endpoint2 = sheet.vert_df.loc[trgt_id, ['x', 'y']].values
+            endpoints = [endpoint1, endpoint2]
+            for v in boundary_vert:
+                #compute the dist needed for threshold comparing.
+                if v != srce_id and v!= trgt_id:
+                    if are_vertices_in_same_face(sheet, v, srce_id)==True and are_vertices_in_same_face(sheet, v, trgt_id)==True:
+                        break
+                    else:
+                        vertex = sheet.vert_df.loc[v,['x','y']].values
+                        dist, nearest1 = pnt2line(vertex, endpoint1 , endpoint2)
+                        # Check the distance from the vertex to the edge.
+                        if dist < d_min:
+                            print('T3 triggered')
+                            T3_collision = e
+                            T3_transition(sheet, e, v, d_min, d_sep, nearest1)
+                            geom.update_all(sheet)
+                            sheet.reset_index()
+            break
+
+        if T3_collision is None:
+            break  # Exit loop if no edge was found to process
 
         
     
@@ -229,12 +229,12 @@ while t <= t_end:
     cell_ave_intime.append(mean_area)
     area_intotal.append(total_area)
     print(f'At time {round(t, 3)}, cell_num: {cell_num_count}')
-    # # Plot with title contain time.
-    if t in time_points[::1000]:
-        fig, ax = sheet_view(sheet)
-        ax.title.set_text(f'time = {round(t, 5)}, mean area: {mean_area}')
         
     t +=dt
+    
+# Plot with title contain time.
+fig, ax = sheet_view(sheet)
+ax.title.set_text(f'time = {round(t, 5)}')
     
     
 """ Plot the quantities """
