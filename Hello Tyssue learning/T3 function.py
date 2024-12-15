@@ -51,16 +51,14 @@ def intersection_point(edge, vert):
     inteserction (which is the closest point), and the distance between the 
     vertex and the insection point.
 
-    Parameters
-    ----------
-    edge : TYPE
-        DESCRIPTION.
-    vert : TYPE
-        DESCRIPTION.
-
     Returns
     -------
-    None.
+    Distance: Float
+        This should be the distance between the incoming vertex and the inter-
+        section point.
+    Coordinate: List
+        This should be an list object that stores the coordinates of the inter-
+        section point.
 
     """
 
