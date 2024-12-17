@@ -42,6 +42,11 @@ def perturbate_T3(vert1, vert2):
     
 
     """
+    
+    pass
+
+
+
 
 def intersection_point(edge, vert):
     """
@@ -62,7 +67,43 @@ def intersection_point(edge, vert):
 
     """
 
+    pass
 
+
+
+
+def adjacency_check(sheet, vert1, vert2):
+    """
+    Returns True if vert1 and vert2 are connected by an edge. Otherwise False
+    """
+    
+    exists = sheet.edge_df[
+        ((sheet.edge_df['srce'] == vert1) & (sheet.edge_df['trgt'] == vert2)) |
+        ((sheet.edge_df['srce'] == vert2) & (sheet.edge_df['trgt'] == vert1))
+    ].any().any()  # Checks if any rows satisfy the condition
+
+    return exists  # Return True if such a row exists, False otherwise
+
+def form_edge(sheet, vert1, vert2):
+    """
+    This function constructs an edge between vert1 and vert2.
+
+    Parameters
+    ----------
+    sheet: eptm object
+    
+    vert1 : Int
+        ID of the vertex 1
+    vert2 : Int
+        ID of the vertex 2
+
+    Returns
+    -------
+    Int, the ID of the newly formed edge.
+
+    """
+    
+    edge_cols = sheet.edge_df()
 
 
 
