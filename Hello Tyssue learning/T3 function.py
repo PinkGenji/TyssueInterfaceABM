@@ -5,9 +5,6 @@ This script defines all the sub-fuctions needed for my T3 transition.
 Then I assemble them into a complete T3 transition main function.
 """
 
-import decimal as dc
-
-
 
 
 def case_classifier(edge, vert):
@@ -84,26 +81,68 @@ def adjacency_check(sheet, vert1, vert2):
 
     return exists  # Return True if such a row exists, False otherwise
 
-def form_edge(sheet, vert1, vert2):
-    """
-    This function constructs an edge between vert1 and vert2.
 
-    Parameters
-    ----------
-    sheet: eptm object
-    
-    vert1 : Int
-        ID of the vertex 1
-    vert2 : Int
-        ID of the vertex 2
+
+def merge_unconnected_vert(sheet,vert1, vert2):
+    """
+    This function marges two vertices that are not originally connected by an
+    edge.
+    First, the two vertices are connected by a new edge. 
+    Then calling the collapse_edge() function to merge the two vertices.
+
 
     Returns
     -------
-    Int, the ID of the newly formed edge.
+    ID of the merged vertex
 
     """
     
-    edge_cols = sheet.edge_df()
+    pass
+    
+    
+    
+    
+def insert_into_edge(sheet, edge, vert, position):
+    """
+    This function inserts the vertex (vert) into the edge (edge), the insertion
+    takes place at the coordinate specified by position
+    """
+
+    pass
+
+
+
+def resolve_local(sheet, end1, end2, midvert):
+    """
+    Vertices specified by end1, end2 and midvert should be colinear. 
+    
+    1) Use the edge formed by midvert and one of end1, end2 vertices as the
+    base vector.
+    
+    2) Store the coordinates of all vertices that are connected to midvert, not
+    including end1 and end2.
+    
+    3) Compute the dot product between each pair, form a list of vertex id based
+    on the dot product as an 'order'.
+    
+    4) Based on the ordered vertex list, put a new vertex on the corresponding 
+    edge with the correct coordinates, reconnect the vertices. 
+    Step (4) is processed in a vertex by vertex fashion.
+
+
+    """
+    
+    pass
+
+
+def T3_swap(sheet, edge, vert):
+    """
+    This is the final T3 transition function that is assembled from subfunctions
+    defined above.
+
+
+    """
+    pass
 
 
 
