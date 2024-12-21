@@ -5,7 +5,60 @@ This script defines all the sub-fuctions needed for my T3 transition.
 Then I assemble them into a complete T3 transition main function.
 """
 
+def swap_detection(sheet, edge, epsilon):
+    """
+    Given an edge ID and epsilon, this function returns a list of vertex ID 
+    that is within the "box" region of this edge that should perform T3 element
+    intersection operation.
 
+    Parameters
+    ----------
+    sheet : An Eptm instance
+    
+    edge : Int
+        ID of the edge
+    epsilon : float
+        epsilon used for calculating 'box' region.
+
+    Returns
+    -------
+    A list of vertex IDs that needs a T3 transition.
+
+    """
+    # Initialise the list for return use.
+    verts = []
+    # Grab the vertex ID of the endpoints of the edge.
+    edge_end1 = sheet.edge_df.loc[edge,'srce']
+    edge_end2 = sheet.edge_df.loc[edge,'trgt']
+    # Set the x1, y2 and x2, y2 values based on the edge_end1 and 2.
+    x1 = sheet.vert_df.loc[edge_end1, 'x']
+    x2 = sheet.vert_df.loc[edge_end2, 'x']
+    y1 = sheet.vert_df.loc[edge_end1, 'y']
+    y2 = sheet.vert_df.loc[edge_end2, 'y']
+    # Find the larger and smaller x,y values to compute the box region.
+    x_larger = max(x1, x2)
+    x_smaller = min(x1, x2)
+    y_larger = max(y1, y2)
+    y_smaller = min(y1, y2)
+    x_larger += epsilon
+    x_smaller -= epsilon
+    y_larger += epsilon
+    y_smaller -= epsilon
+    # Now define the box region.
+    # That is: {(x,y): x_smaller < x < x_larger and y_smaller < y < y_larger}
+    for i in sheet.vert_df.index:
+        x = sheet.vert_df.loc[i,'x']
+        y = sheet.vert_df.loc[i,'y']
+        if x_smaller < x < x_larger and y_smaller < y < y_larger:
+            verts.append(i)
+        else:
+            continue
+    return verts
+    
+    
+    
+    
+    
 
 def case_classifier(edge, vert):
     """
