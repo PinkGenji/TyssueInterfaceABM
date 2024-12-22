@@ -46,7 +46,7 @@ from tyssue.draw.plt_draw import plot_forces
 # import my own functions
 from my_headers import *
 
-from T3
+from T3_function import *
 
 """ Start programming. """
 # Generate the cell sheet as three cells.
@@ -63,15 +63,19 @@ fig, ax = sheet_view(sheet)
 for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
     
-delete_face(sheet, num_x)
-delete_face(sheet, num_x+1)
-delete_face(sheet, 15)
-deelete_face(sheet,16)
+delete_face(sheet, 5)
+delete_face(sheet, 6)
+delete_face(sheet, 17)
+delete_face(sheet,18)
+
 sheet.get_extra_indices()
 sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
 
 # Plot figures to check.
 # Draw the cell mesh with face labelling and edge arrows.
 fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
-for face, data in sheet.face_df.iterrows():
+for face, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y, face)
+    
+    
+    
