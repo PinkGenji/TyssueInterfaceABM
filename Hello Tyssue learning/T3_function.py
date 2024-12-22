@@ -5,6 +5,9 @@ This script defines all the sub-fuctions needed for my T3 transition.
 Then I assemble them into a complete T3 transition main function.
 """
 
+import numpy as np
+
+
 def swap_detection(sheet, edge, epsilon):
     """
     Given an edge ID and epsilon, this function returns a list of vertex ID 
@@ -57,19 +60,18 @@ def swap_detection(sheet, edge, epsilon):
             else:
                 continue
     return verts
-    
-    
-    
-    
+
     
 
-def case_classifier(edge, vert):
+def case_classifier(sheet, edge, vert):
     """
     This function takes a pair of edge and vertex, returns their relative
     position as case number.
 
     Parameters
     ----------
+    sheet : Eptm instance
+    
     edge : 
         ID of the edge.
     vert : 
@@ -82,7 +84,31 @@ def case_classifier(edge, vert):
     Case 2 means the closest point is between the endpoints of the edge.
 
     """
-    pass
+    # Extract the coordinate of the srce and trgt point.
+    edge_end1 = sheet.edge_df.loc[edge,['sx','sy']].to_numpy(dtype = float)
+    edge_end2 = sheet.edge_df.loc[edge,['tx','ty']].to_numpy(dtype = float)
+    # Unit vector of the line.
+    line_unit = sheet.edge_df.loc[edge,['ux','uy']].to_numpy(dtype= float)
+    # Now extract the coordinate of the point.
+    point = sheet.vert_df.loc[vert,['x','y']].to_numpy(dtype=float)
+    # adjust the coordinate of the point with regards to the srce.
+    # then take the unit vector of it.
+    srce_p = point-edge_end1
+    srce_p_unit = srce_p/np.linalg.norm(srce_p)
+    dot = np.dot(srce_p_unit, line_unit)
+    if dot <0:
+        nearest = edge_end1
+        distance = np.linalg.norm(nearest-point)
+        return 1, nearest, distance
+    elif dot >1:
+        nearest = edge_end2
+        distance = np.linalg.norm(nearest-point)
+        return 1, nearest, distance
+    else:
+        nearest = edge_end1 + dot*line_unit
+        distance = np.linalg.norm(nearest-point)
+        return 2, nearest, distance
+
 
 
 def perturbate_T3(vert1, vert2):
