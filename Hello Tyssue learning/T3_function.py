@@ -111,7 +111,7 @@ def case_classifier(sheet, edge, vert):
 
 
 
-def perturbate_T3(vert1, vert2):
+def perturbate_T3(sheet, vert1, vert2, d_sep):
     """
     This function should be used when case_classifier() returns case 1.
     
@@ -121,8 +121,28 @@ def perturbate_T3(vert1, vert2):
     
 
     """
+    # Extract the coordinates of two vertices, then draw a virtual line between.
+    v1_coord = sheet.vert_df.loc[vert1,['x','y']].to_numpy(dtype=float)
+    v2_coord = sheet.vert_df.loc[vert2,['x','y']].to_numpy(dtype=float)
+    virtual_line = v2_coord-v1_coord
+    # use unit vector of the line to find coordinate of the middle point.
+    length_vline = np.linalg.norm(virtual_line)
+    unit_vline = virtual_line/length_vline
+    mid_coord = v1_coord + length_vline/2 * unit_vline
+    # Use the vector from midpoint to v2 to find the perpendicular vector.
+    mid_v2 = v2_coord-mid_coord
+    mid_perpendicular = np.array([-mid_v2[1],mid_v2[0]])
+    mid_perpendicular = mid_perpendicular/np.linalg.norm(mid_perpendicular)
+    mid_perpendicular = d_sep * mid_perpendicular
     
-    pass
+    # Now, we need to update the postion of vert1 and vert2.
+    # Need the vector from v1 to mid for updating vert1.
+    v1_mid = mid_coord-v1_coord
+    sheet.vert_df.loc[vert1,['x','y']] += (v1_mid + mid_perpendicular )
+    # Then update vert2.
+    sheet.vert_df.loc[vert2,['x','y']] += (-mid_v2 - mid_perpendicular)
+    return True
+    
 
 
 
