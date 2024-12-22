@@ -47,12 +47,15 @@ def swap_detection(sheet, edge, epsilon):
     # Now define the box region.
     # That is: {(x,y): x_smaller < x < x_larger and y_smaller < y < y_larger}
     for i in sheet.vert_df.index:
-        x = sheet.vert_df.loc[i,'x']
-        y = sheet.vert_df.loc[i,'y']
-        if x_smaller < x < x_larger and y_smaller < y < y_larger:
-            verts.append(i)
-        else:
+        if i in [edge_end1, edge_end2]:
             continue
+        else:
+            x = sheet.vert_df.loc[i,'x']
+            y = sheet.vert_df.loc[i,'y']
+            if x_smaller < x < x_larger and y_smaller < y < y_larger:
+                verts.append(i)
+            else:
+                continue
     return verts
     
     
