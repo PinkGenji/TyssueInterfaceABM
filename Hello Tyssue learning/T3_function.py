@@ -6,6 +6,7 @@ Then I assemble them into a complete T3 transition main function.
 """
 
 import numpy as np
+from my_headers import put_vert
 
 
 def swap_detection(sheet, edge, epsilon):
@@ -63,10 +64,10 @@ def swap_detection(sheet, edge, epsilon):
 
     
 
-def case_classifier(sheet, edge, vert):
+def case_classifier(sheet, edge, vert, d_sep):
     """
-    This function takes a pair of edge and vertex, returns their relative
-    position as case number.
+    This function takes a pair of edge and vertex, returns the distance and 
+    the intersection point.
 
     Parameters
     ----------
@@ -80,8 +81,9 @@ def case_classifier(sheet, edge, vert):
     Returns
     -------
     1 or 2
-    Case 1 means the closest point is at one of the endpoints of the edge.
-    Case 2 means the closest point is between the endpoints of the edge.
+    Case 1 means the closest point is the srce vertex of the edge.
+    Case 2 means the closest point is the trgt vertex of the edge.
+    Case 3 means the closest point is between the endpoints of the edge.
 
     """
     # Extract the coordinate of the srce and trgt point.
@@ -97,17 +99,17 @@ def case_classifier(sheet, edge, vert):
     srce_p_unit = srce_p/np.linalg.norm(srce_p)
     dot = np.dot(srce_p_unit, line_unit)
     if dot <0:
-        nearest = edge_end1
+        nearest = edge_end1 + d_sep*line_unit
         distance = np.linalg.norm(nearest-point)
-        return 1, nearest, distance
+        return nearest, distance
     elif dot >1:
-        nearest = edge_end2
+        nearest = edge_end2 - d_sep*line_unit
         distance = np.linalg.norm(nearest-point)
-        return 1, nearest, distance
+        return nearest, distance
     else:
         nearest = edge_end1 + dot*line_unit
         distance = np.linalg.norm(nearest-point)
-        return 2, nearest, distance
+        return nearest, distance
 
 
 
@@ -146,42 +148,22 @@ def perturbate_T3(sheet, vert1, vert2, d_sep):
 
 
 
-
-def intersection_point(edge, vert):
+def adjacency_check(sheet, edge, vert):
     """
-    This function should be used when case_classifier() returns case 2.
+    Returns True if there is an edge between the vert and any one of
+    endpoints of the edge.
+    """
+    end1_id = sheet.edge_df.loc[edge,'srce']
+    end2_id = sheet.edge_df.loc[edge,'trgt']
     
-    This function takes the edge and vertex. It returns the coordinate of the 
-    inteserction (which is the closest point), and the distance between the 
-    vertex and the insection point.
+    # Check adjacency
+    is_adjacent_to_end1 = ((sheet.edge_df['srce'] == end1_id) & (sheet.edge_df['trgt'] == vert)).any() or \
+                          ((sheet.edge_df['srce'] == vert) & (sheet.edge_df['trgt'] == end1_id)).any()
+    is_adjacent_to_end2 = ((sheet.edge_df['srce'] == end2_id) & (sheet.edge_df['trgt'] == vert)).any() or \
+                          ((sheet.edge_df['srce'] == vert) & (sheet.edge_df['trgt'] == end2_id)).any()
 
-    Returns
-    -------
-    Distance: Float
-        This should be the distance between the incoming vertex and the inter-
-        section point.
-    Coordinate: List
-        This should be an list object that stores the coordinates of the inter-
-        section point.
-
-    """
-
-    pass
-
-
-
-
-def adjacency_check(sheet, vert1, vert2):
-    """
-    Returns True if vert1 and vert2 are connected by an edge. Otherwise False
-    """
-    
-    exists = sheet.edge_df[
-        ((sheet.edge_df['srce'] == vert1) & (sheet.edge_df['trgt'] == vert2)) |
-        ((sheet.edge_df['srce'] == vert2) & (sheet.edge_df['trgt'] == vert1))
-    ].any().any()  # Checks if any rows satisfy the condition
-
-    return exists  # Return True if such a row exists, False otherwise
+    # Return True if adjacency to either endpoint is found
+    return is_adjacent_to_end1 or is_adjacent_to_end2
 
 
 
@@ -208,6 +190,8 @@ def insert_into_edge(sheet, edge, vert, position):
     """
     This function inserts the vertex (vert) into the edge (edge), the insertion
     takes place at the coordinate specified by position
+    First, we put a new vertex on the edge with cut_place coordinate.
+    Then, we update all the entries of vert_id to the new vertex id.
     """
 
     pass
