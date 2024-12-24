@@ -207,11 +207,38 @@ def insert_into_edge(sheet, edge, vert, position):
     """
     This function inserts the vertex (vert) into the edge (edge), the insertion
     takes place at the coordinate specified by position
+    
     First, we put a new vertex on the edge with cut_place coordinate.
     Then, we update all the entries of vert_id to the new vertex id.
+    
+    Parameters
+    ----------
+    sheet : Eptm instance
+    
+    edge : 
+        ID of the edge.
+    vert : 
+        ID of the vertex.
+    position:
+        coordinate used to generate the new vertex.
+    
     """
-
-    pass
+    
+    # First, put a new vertex on the edge, the new vertex has ID, cut_id
+    cut_vert, cut_edge, cut_op_edge = put_vert(sheet, edge, position)
+    
+    # Update the relevant entry
+    for i in sheet.edge_df.index:
+        if sheet.edge_df.loc[i,'srce'] == vert:
+            sheet.edge_df.loc[i,'srce'] = cut_vert
+        elif sheet.edge_df.loc[i, 'trgt'] == vert:
+            sheet.edge_df.loc[i,'trgt'] = cut_vert
+        else:
+            continue
+    
+    # Then need to:
+        # sheet.reset_index()
+        # geom.update_all(sheet)
 
 
 
