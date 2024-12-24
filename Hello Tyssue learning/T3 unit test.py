@@ -68,9 +68,9 @@ delete_face(sheet, 6)
 delete_face(sheet, 17)
 delete_face(sheet,18)
 
-sheet.get_extra_indices()
 sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
-
+geom.update_all(sheet)
+sheet.get_extra_indices()   # extra_indices are not included in update_all.
 # Plot figures to check.
 # Draw the cell mesh with face labelling and edge arrows.
 fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
@@ -78,4 +78,4 @@ for face, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y, face)
     
     
-    
+
