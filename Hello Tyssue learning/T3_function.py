@@ -6,6 +6,10 @@ Then I assemble them into a complete T3 transition main function.
 """
 
 import numpy as np
+import pandas as pd
+
+from tyssue.topology.base_topology import collapse_edge
+
 from my_headers import put_vert
 
 
@@ -180,9 +184,22 @@ def merge_unconnected_vert(sheet,vert1, vert2):
     ID of the merged vertex
 
     """
+
+    # Get the last row for concat.
+    last_row = sheet.edge_df.tail(1)
+    # Concatenate the original dataframe with the last row
+    sheet.edge_df = pd.concat([sheet.edge_df, last_row], ignore_index=True)
     
-    pass
+    # Now connect the relevant verts by updating the entries.
+    sheet.edge_df.loc[sheet.edge_df.index[-1],'srce'] = vert1
+    sheet.edge_df.loc[sheet.edge_df.index[-1],'trgt'] = vert2
     
+    # Collapse the new edge.
+    return collapse_edge(sheet, sheet.edge_df.index[-1])
+    
+    # Note: Then need to sheet.reset_index(), then geom.update_all(sheet).
+
+
     
     
     
