@@ -235,10 +235,12 @@ def insert_into_edge(sheet, edge, vert, position):
             sheet.edge_df.loc[i,'trgt'] = cut_vert
         else:
             continue
-    
+    return cut_vert
     # Then need to:
         # sheet.reset_index()
         # geom.update_all(sheet)
+
+
 
 
 
@@ -262,7 +264,40 @@ def resolve_local(sheet, end1, end2, midvert):
 
     """
     
-    pass
+    # Collect all the vertices that are connected to the vertex.
+    associated_vert = set()
+    for i in sheet.edge_df.index:
+        srce = sheet.edge_df.loc[i, 'srce']
+        trgt = sheet.edge_df.loc[i, 'trgt']
+        if srce == midvert and trgt not in {end1, end2}:
+            associated_vert.add(trgt)
+        elif trgt == midvert and srce not in {end1, end2}:
+            associated_vert.add(srce)
+    print(associated_vert)
+
+    # Use midvert -> end1 to get a principle unit vector.
+    end1_coord = sheet.vert_df.loc[end1,['x','y']].to_numpy(dtype=float)
+    mid_coord = sheet.vert_df.loc[midvert,['x','y']].to_numpy(dtype=float)
+    principle_unit = end1_coord-mid_coord
+
+    pinciple_unit = principle_unit/np.linalg.norm(principle_unit)
+    
+    # For each vertex in associated_vert, we compute the dot product and get
+    # a dictionary, keys are the vertex ID and the values are the dot product.
+    dot_dict = {}
+    # Compute the unit vector of midvert -> associated.
+    for i in associated_vert:
+        temp_coord = sheet.vert_df.loc[i,['x','y']].to_numpy(dtype=float)
+        vect_unit = temp_coord-mid_coord
+        vect_unit = vect_unit/np.linalg.norm(vect_unit)
+        dot_product = np.dot( principle_unit , vect_unit )
+        dot_dict.update({i:dot_product})
+    # Sort the dictionary by values, from the largest to lowest.
+    dot_dict = dict(sorted(dot_dict.items(), key=lambda item: item[1], reverse=False))
+    
+    # Because largest 
+    
+
 
 
 def T3_swap(sheet, edge, vert):
