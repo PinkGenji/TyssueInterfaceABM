@@ -308,22 +308,34 @@ def resolve_local(sheet, end1, end2, midvert):
     # the distance between midvert and current element (ID of vertex) is d_sep*abs(mid_index - element_index)
     # IF element_index > mid_index, THEN consider the edge formed by end2 and midvert.
     # the distance between midvert and current element is then d_sep*abs(element_index-mid_index)
+    
+    # First, get the ID of the edge formed by midvert and end1.
+    for i in sheet.edge_df.index:
+        # Check for the edge formed by end1 and midvert
+        if (sheet.edge_df.loc[i, 'srce'] == end1 and sheet.edge_df.loc[i, 'trgt'] == midvert) or \
+           (sheet.edge_df.loc[i, 'srce'] == midvert and sheet.edge_df.loc[i, 'trgt'] == end1):
+            edge1 = i
+    
+        # Check for the edge formed by end2 and midvert
+        elif (sheet.edge_df.loc[i, 'srce'] == end2 and sheet.edge_df.loc[i, 'trgt'] == midvert) or \
+             (sheet.edge_df.loc[i, 'srce'] == midvert and sheet.edge_df.loc[i, 'trgt'] == end2):
+            edge2 = i
+    
     middle_index = len(sorted_keys)//2
     for i in sorted_keys:
         element_index = sorted_keys.index(i)
         if element_index == middle_index:
             continue
         elif element_index < middle_index:
-            edge_consider = 
-        else:
+            edge_consider = edge1
+            position = 
+            new_vert = put_vert(sheet, edge_consider, coord_put)
             
-        
+        else:
+            edge_consider = edge2
+            
     
-    
-    
-  
-        
-    
+
 
 
 
