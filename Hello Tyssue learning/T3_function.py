@@ -295,6 +295,32 @@ def resolve_local(sheet, end1, end2, midvert):
     dot_dict_sorted = dict(sorted(dot_dict.items(), key=lambda item: item[1], reverse=True))
     sorted_keys = list(dot_dict_sorted.keys()) 
     
+    # Now, we use len(sorted_keys)//2 to determine which index should be consider
+    # to stay at midvert.
+    # Then, for all element which has index less than middle is resolved to the 
+    # edge formed by midvert and end1. all element with index larger than middle
+    # is resolved to the edge formed by midvert and end2.
+    #
+    # Logic for resolve in an edge.
+    # mid_index: computed index that should stay, element_index: current element's index.
+    # IF element_index == mid_index, THEN stay
+    # IF element_index < mid_index, THEN consider the edge formed by end1 and midvert.
+    # the distance between midvert and current element (ID of vertex) is d_sep*abs(mid_index - element_index)
+    # IF element_index > mid_index, THEN consider the edge formed by end2 and midvert.
+    # the distance between midvert and current element is then d_sep*abs(element_index-mid_index)
+    middle_index = len(sorted_keys)//2
+    for i in sorted_keys:
+        element_index = sorted_keys.index(i)
+        if element_index == middle_index:
+            continue
+        elif element_index < middle_index:
+            edge_consider = 
+        else:
+            
+        
+    
+    
+    
   
         
     
