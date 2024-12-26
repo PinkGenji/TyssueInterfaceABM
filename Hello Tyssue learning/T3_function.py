@@ -273,7 +273,6 @@ def resolve_local(sheet, end1, end2, midvert):
             associated_vert.add(trgt)
         elif trgt == midvert and srce not in {end1, end2}:
             associated_vert.add(srce)
-    print(associated_vert)
 
     # Use midvert -> end1 to get a principle unit vector.
     end1_coord = sheet.vert_df.loc[end1,['x','y']].to_numpy(dtype=float)
@@ -293,9 +292,11 @@ def resolve_local(sheet, end1, end2, midvert):
         dot_product = np.dot( principle_unit , vect_unit )
         dot_dict.update({i:dot_product})
     # Sort the dictionary by values, from the largest to lowest.
-    dot_dict = dict(sorted(dot_dict.items(), key=lambda item: item[1], reverse=False))
+    dot_dict_sorted = dict(sorted(dot_dict.items(), key=lambda item: item[1], reverse=True))
+    sorted_keys = list(dot_dict_sorted.keys()) 
     
-    # Because largest 
+  
+        
     
 
 
