@@ -244,7 +244,7 @@ def insert_into_edge(sheet, edge, vert, position):
 
 
 
-def resolve_local(sheet, end1, end2, midvert):
+def resolve_local(sheet, end1, end2, midvert, d_sep):
     """
     Vertices specified by end1, end2 and midvert should be colinear. 
     
@@ -328,8 +328,10 @@ def resolve_local(sheet, end1, end2, midvert):
             continue
         elif element_index < middle_index:
             edge_consider = edge1
-            position = 
-            new_vert = put_vert(sheet, edge_consider, coord_put)
+            position = mid_coord + d_sep*(middle_index-element_index)*principle_unit
+            new_vert = put_vert(sheet, edge_consider, position)[0]
+            # Then update the relevent entries in the edge_df.
+            
             
         else:
             edge_consider = edge2
