@@ -198,19 +198,17 @@ while t <= t_end:
     sheet.reset_index(order = True)
     geom.update_all(sheet)
     
-# =============================================================================
-#     
-#     # Cell division.
-#     # Store the centroid before iteration of cells.
-#     unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
-#     centre_data = unique_edges_df.loc[:,['face','fx','fy']]
-#     # Loop over all the faces.
-#     cells_can_divide = sheet.face_df[(sheet.face_df['area'] >= division_threshold) & (sheet.face_df['T_cycle'] == 0)]
-#     for index, series in cells_can_divide.iterrows():
-#         daughter_index = division_2(sheet,rng=rng, cent_data= centre_data, cell_id = index)
-#     sheet.reset_index(order = True)
-#     geom.update_all(sheet)
-# =============================================================================
+    
+    # Cell division.
+    # Store the centroid before iteration of cells.
+    unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
+    centre_data = unique_edges_df.loc[:,['face','fx','fy']]
+    # Loop over all the faces.
+    cells_can_divide = sheet.face_df[(sheet.face_df['area'] >= division_threshold) & (sheet.face_df['T_cycle'] == 0)]
+    for index, series in cells_can_divide.iterrows():
+        daughter_index = division_2(sheet,rng=rng, cent_data= centre_data, cell_id = index)
+    sheet.reset_index(order = True)
+    geom.update_all(sheet)
 
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
