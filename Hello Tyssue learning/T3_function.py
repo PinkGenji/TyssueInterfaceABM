@@ -12,63 +12,9 @@ from tyssue.topology.base_topology import collapse_edge
 
 from my_headers import put_vert
 
-
-def swap_detection(sheet, edge, epsilon):
-    """
-    Given an edge ID and epsilon, this function returns a list of vertex ID 
-    that is within the "box" region of this edge that should perform T3 element
-    intersection operation.
-
-    Parameters
-    ----------
-    sheet : An Eptm instance
-    
-    edge : Int
-        ID of the edge
-    epsilon : float
-        epsilon used for calculating 'box' region.
-
-    Returns
-    -------
-    A list of vertex IDs that needs a T3 transition.
-
-    """
-    # Initialise the list for return use.
-    verts = []
-    # Grab the vertex ID of the endpoints of the edge.
-    edge_end1 = sheet.edge_df.loc[edge,'srce']
-    edge_end2 = sheet.edge_df.loc[edge,'trgt']
-    # Set the x1, y2 and x2, y2 values based on the edge_end1 and 2.
-    x1 = sheet.vert_df.loc[edge_end1, 'x']
-    x2 = sheet.vert_df.loc[edge_end2, 'x']
-    y1 = sheet.vert_df.loc[edge_end1, 'y']
-    y2 = sheet.vert_df.loc[edge_end2, 'y']
-    # Find the larger and smaller x,y values to compute the box region.
-    x_larger = max(x1, x2)
-    x_smaller = min(x1, x2)
-    y_larger = max(y1, y2)
-    y_smaller = min(y1, y2)
-    x_larger += epsilon
-    x_smaller -= epsilon
-    y_larger += epsilon
-    y_smaller -= epsilon
-    # Now define the box region.
-    # That is: {(x,y): x_smaller < x < x_larger and y_smaller < y < y_larger}
-    for i in sheet.vert_df.index:
-        if i in [edge_end1, edge_end2]:
-            continue
-        else:
-            x = sheet.vert_df.loc[i,'x']
-            y = sheet.vert_df.loc[i,'y']
-            if x_smaller < x < x_larger and y_smaller < y < y_larger:
-                verts.append(i)
-            else:
-                continue
-    return verts
-
     
 
-def case_classifier(sheet, edge, vert, d_sep):
+def dist_computer(sheet, edge, vert, d_sep):
     """
     This function takes a pair of edge and vertex, returns the distance and 
     the intersection point.
@@ -117,38 +63,6 @@ def case_classifier(sheet, edge, vert, d_sep):
 
 
 
-def perturbate_T3(sheet, vert1, vert2, d_sep):
-    """
-    This function should be used when case_classifier() returns case 1.
-    
-    This function takes two vertices. One of them is the incoming vertex, 
-    the other one is the endpoint of the edge. Then perturbate their location 
-    slightly.
-    
-
-    """
-    # Extract the coordinates of two vertices, then draw a virtual line between.
-    v1_coord = sheet.vert_df.loc[vert1,['x','y']].to_numpy(dtype=float)
-    v2_coord = sheet.vert_df.loc[vert2,['x','y']].to_numpy(dtype=float)
-    virtual_line = v2_coord-v1_coord
-    # use unit vector of the line to find coordinate of the middle point.
-    length_vline = np.linalg.norm(virtual_line)
-    unit_vline = virtual_line/length_vline
-    mid_coord = v1_coord + length_vline/2 * unit_vline
-    # Use the vector from midpoint to v2 to find the perpendicular vector.
-    mid_v2 = v2_coord-mid_coord
-    mid_perpendicular = np.array([-mid_v2[1],mid_v2[0]])
-    mid_perpendicular = mid_perpendicular/np.linalg.norm(mid_perpendicular)
-    mid_perpendicular = d_sep * mid_perpendicular
-    
-    # Now, we need to update the postion of vert1 and vert2.
-    # Need the vector from v1 to mid for updating vert1.
-    v1_mid = mid_coord-v1_coord
-    sheet.vert_df.loc[vert1,['x','y']] += (v1_mid + mid_perpendicular )
-    # Then update vert2.
-    sheet.vert_df.loc[vert2,['x','y']] += (-mid_v2 - mid_perpendicular)
-    return True
-    
 
 
 
@@ -171,7 +85,7 @@ def adjacency_check(sheet, edge, vert):
 
 
 
-def merge_unconnected_vert(sheet,vert1, vert2):
+def merge_unconnected_verts(sheet,vert1, vert2):
     """
     This function marges two vertices that are not originally connected by an
     edge.
@@ -236,9 +150,7 @@ def insert_into_edge(sheet, edge, vert, position):
         else:
             continue
     return cut_vert
-    # Then need to:
-        # sheet.reset_index()
-        # geom.update_all(sheet)
+    
 
 
 
@@ -279,7 +191,7 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
     mid_coord = sheet.vert_df.loc[midvert,['x','y']].to_numpy(dtype=float)
     principle_unit = end1_coord-mid_coord
 
-    pinciple_unit = principle_unit/np.linalg.norm(principle_unit)
+    principle_unit = principle_unit/np.linalg.norm(principle_unit)
     
     # For each vertex in associated_vert, we compute the dot product and get
     # a dictionary, keys are the vertex ID and the values are the dot product.
@@ -328,27 +240,56 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
             continue
         elif element_index < middle_index:
             edge_consider = edge1
-            position = mid_coord + d_sep*(middle_index-element_index)*principle_unit
+            position = mid_coord + d_sep*(middle_index - element_index)*principle_unit
             new_vert = put_vert(sheet, edge_consider, position)[0]
-            # Then update the relevent entries in the edge_df.
-            
-            
+            # Then update the relevant entries in the edge_df.
+            for i in sheet.edge_df.index:
+                if sheet.edge_df.loc[i,'srce'] == i:
+                    sheet.edge_df.loc[i,'srce'] = new_vert
+                elif sheet.edge_df.loc[i, 'trgt'] == i:
+                    sheet.edge_df.loc[i,'trgt'] = new_vert
+                else:
+                    continue
         else:
             edge_consider = edge2
-            
+            position = mid_coord - d_sep*(middle_index - element_index)*principle_unit
+            new_vert = put_vert(sheet, edge_consider, position)[0]
+            # Then update the relevant entries in the edge_df.
+            for i in sheet.edge_df.index:
+                if sheet.edge_df.loc[i,'srce'] == i:
+                    sheet.edge_df.loc[i,'srce'] = new_vert
+                elif sheet.edge_df.loc[i, 'trgt'] == i:
+                    sheet.edge_df.loc[i,'trgt'] = new_vert
+                else:
+                    continue
     
+    # Then need to:
+        # sheet.reset_index()
+        # geom.update_all(sheet)
 
 
 
 
-def T3_swap(sheet, edge, vert):
+def T3_transition(sheet, edge, vert):
     """
     This is the final T3 transition function that is assembled from subfunctions
     defined above.
-
-
+    
+    Logic:
+        For each boundary edge, use dist_computer to compute the distance and 
+        
+        If distance < d_min:
+            determine adjacency:
+                if adjacent:
+                    new_vert = put_vert @ nearest [0]
+                    merge_unconnected_verts(incoming_vert, new_vert)
+                if not adjacent:
+                    insert_into_edge(sheet, edge, incoming vert, position = nearest)
+                    resolve_local
+                    
+                    
     """
-    pass
+    
 
 
 
