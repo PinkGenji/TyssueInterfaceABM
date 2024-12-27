@@ -1023,4 +1023,103 @@ def update_cell_type(sheet, face_id, new_type='ST'):
     sheet.edge_df.loc[edges_to_update, 'cell type'] = new_type
 
 
+
+
+
+def swap_detection(sheet, edge, epsilon):
+    """
+    Given an edge ID and epsilon, this function returns a list of vertex ID 
+    that is within the "box" region of this edge that should perform T3 element
+    intersection operation.
+
+    Parameters
+    ----------
+    sheet : An Eptm instance
+    
+    edge : Int
+        ID of the edge
+    epsilon : float
+        epsilon used for calculating 'box' region.
+
+    Returns
+    -------
+    A list of vertex IDs that needs a T3 transition.
+
+    """
+    # Initialise the list for return use.
+    verts = []
+    # Grab the vertex ID of the endpoints of the edge.
+    edge_end1 = sheet.edge_df.loc[edge,'srce']
+    edge_end2 = sheet.edge_df.loc[edge,'trgt']
+    # Set the x1, y2 and x2, y2 values based on the edge_end1 and 2.
+    x1 = sheet.vert_df.loc[edge_end1, 'x']
+    x2 = sheet.vert_df.loc[edge_end2, 'x']
+    y1 = sheet.vert_df.loc[edge_end1, 'y']
+    y2 = sheet.vert_df.loc[edge_end2, 'y']
+    # Find the larger and smaller x,y values to compute the box region.
+    x_larger = max(x1, x2)
+    x_smaller = min(x1, x2)
+    y_larger = max(y1, y2)
+    y_smaller = min(y1, y2)
+    x_larger += epsilon
+    x_smaller -= epsilon
+    y_larger += epsilon
+    y_smaller -= epsilon
+    # Now define the box region.
+    # That is: {(x,y): x_smaller < x < x_larger and y_smaller < y < y_larger}
+    for i in sheet.vert_df.index:
+        if i in [edge_end1, edge_end2]:
+            continue
+        else:
+            x = sheet.vert_df.loc[i,'x']
+            y = sheet.vert_df.loc[i,'y']
+            if x_smaller < x < x_larger and y_smaller < y < y_larger:
+                verts.append(i)
+            else:
+                continue
+    return verts
+
+
+
+def perturbate_T3(sheet, vert1, vert2, d_sep):
+    """
+    This function can be used when two vertices are going to collide.
+    
+    Logic:
+        create a virtual line between the 2 vertices. 
+    
+
+    """
+    # Extract the coordinates of two vertices, then draw a virtual line between.
+    v1_coord = sheet.vert_df.loc[vert1,['x','y']].to_numpy(dtype=float)
+    v2_coord = sheet.vert_df.loc[vert2,['x','y']].to_numpy(dtype=float)
+    virtual_line = v2_coord-v1_coord
+    # use unit vector of the line to find coordinate of the middle point.
+    length_vline = np.linalg.norm(virtual_line)
+    unit_vline = virtual_line/length_vline
+    mid_coord = v1_coord + length_vline/2 * unit_vline
+    # Use the vector from midpoint to v2 to find the perpendicular vector.
+    mid_v2 = v2_coord-mid_coord
+    mid_perpendicular = np.array([-mid_v2[1],mid_v2[0]])
+    mid_perpendicular = mid_perpendicular/np.linalg.norm(mid_perpendicular)
+    mid_perpendicular = d_sep * mid_perpendicular
+    
+    # Now, we need to update the postion of vert1 and vert2.
+    # Need the vector from v1 to mid for updating vert1.
+    v1_mid = mid_coord-v1_coord
+    sheet.vert_df.loc[vert1,['x','y']] += (v1_mid + mid_perpendicular )
+    # Then update vert2.
+    sheet.vert_df.loc[vert2,['x','y']] += (-mid_v2 - mid_perpendicular)
+    return True
+    
+
+
+
+
+
+
+
+
+
+
 """ This is the end of the script. """
