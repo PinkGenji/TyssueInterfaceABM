@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from tyssue.topology.base_topology import collapse_edge
+from tyssue import PlanarGeometry as geom
 
 from my_headers import put_vert
 
@@ -109,7 +110,7 @@ def merge_unconnected_verts(sheet,vert1, vert2):
     sheet.edge_df.loc[sheet.edge_df.index[-1],'trgt'] = vert2
     
     # Collapse the new edge.
-    return collapse_edge(sheet, sheet.edge_df.index[-1])
+    return collapse_edge(sheet, sheet.edge_df.index[-1], reindex=False)
     
     # Note: Then need to sheet.reset_index(), then geom.update_all(sheet).
 
@@ -135,6 +136,10 @@ def insert_into_edge(sheet, edge, vert, position):
         ID of the vertex.
     position:
         coordinate used to generate the new vertex.
+        
+    Returns
+    ----------
+    cut_vert: the ID of the newly created vertex.
     
     """
     
@@ -172,7 +177,6 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
     4) Based on the ordered vertex list, put a new vertex on the corresponding 
     edge with the correct coordinates, reconnect the vertices. 
     Step (4) is processed in a vertex by vertex fashion.
-
 
     """
     
@@ -270,13 +274,18 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
 
 
 
-def T3_transition(sheet, edge, vert):
+
+
+def T3_transition(sheet, edge_collide, vert_incoming, nearest_coord, d_sep):
     """
     This is the final T3 transition function that is assembled from subfunctions
     defined above.
     
+    Presumption: I assume that I have used dist_computer() function already.
+    If distance < d_min, then I will call is T3_transition function to perform
+    T3 transition.
+    
     Logic:
-        For each boundary edge, use dist_computer to compute the distance and 
         
         If distance < d_min:
             determine adjacency:
@@ -286,10 +295,20 @@ def T3_transition(sheet, edge, vert):
                 if not adjacent:
                     insert_into_edge(sheet, edge, incoming vert, position = nearest)
                     resolve_local
-                    
-                    
+
     """
-    
+    # First, determine the adjacency.
+    if adjacency_check(sheet, edge_collide, vert_incoming):
+        new_vertex = put_vert(sheet, edge_collide, nearest_coord)[0]
+        merge_unconnected_verts(sheet, vert_incoming, new_vertex)
+    else:
+        middle_vertex = insert_into_edge(sheet, edge_collide, vert_incoming, nearest_coord)
+        endpoint1 = sheet.edge_df.loc[edge_collide,'srce'] 
+        endpoint2 = sheet.edge_df.loc[edge_collide,'trgt']
+        resolve_local(sheet, endpoint1, endpoint2, middle_vertex, d_sep)
+        
+    sheet.reset_index()
+    geom.update_all(sheet)
 
 
 
