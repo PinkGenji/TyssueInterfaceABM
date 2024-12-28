@@ -77,5 +77,44 @@ fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y, face)
     
-    
 
+
+""" Make adjustments to the geometry for unit test.  """
+
+# Setup d_min and d_sep values.
+d_min = sheet.edge_df.loc[:,'length'].min()/10
+d_sep = d_min*1.5
+print(f'd_min is set: {d_min}, d_sep is set: {d_sep}')
+
+# Case 1 from Fletcher 2013, changing the position of vertex 3.
+sheet.vert_df.loc[3,'x'] = sheet.vert_df.loc[29,'x'] - d_min*0.5
+sheet.vert_df.loc[3,'y'] = sheet.vert_df.loc[29,'y'] - d_min*0.5
+
+
+geom.update_all(sheet)
+sheet.get_extra_indices()  
+# Plot figures to check.
+fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+for face, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y, face)
+
+
+
+vert1 = sheet.vert_df.loc[3,['x','y']].to_numpy(dtype = float) 
+vert2 = sheet.vert_df.loc[29,['x','y']].to_numpy(dtype = float)
+d = np.linalg.norm(vert2-vert1)
+print(f'The np.lingal.norm computes the distance as: {d}.')
+
+# We know edge 3 is the colliding edge and vertex 3 is the incoming vertex.
+# Check if the dist_computer function is working as expected.
+sheet.edge_df.loc[3,['srce','trgt']]
+distance, nearest = dist_computer(sheet, 3, 3, d_sep)
+print(f'The distance computed by dist_computer is: {distance}.')
+
+
+
+
+
+
+
+""" This is the end of the script. """
