@@ -45,11 +45,13 @@ from tyssue.draw import sheet_view, highlight_cells
 from tyssue.draw.plt_draw import plot_forces, plot_forces2
 from tyssue.config.draw import sheet_spec
 # import my own functions
-from my_headers import *
+from my_headers import delete_face, lateral_split, time_step_bot
 
 rng = np.random.default_rng(70)
 
-# Generate the cell sheet as three cells.
+
+""" Initialize the geometry """
+
 num_x = 20
 num_y = 2
 sheet = Sheet.planar_sheet_2d('face', nx = num_x, ny=num_y, distx=0.5, disty=0.5)
@@ -66,6 +68,8 @@ for face, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y, face)
 sheet.get_extra_indices()
 
+
+""" Assign cell properties """
 
 # First we assign cell type in face data frame.
 num_ct = num_x
@@ -94,10 +98,6 @@ for i in list(range(len(sheet.face_df))):
     else:
         continue
 
-""" Add another column to store the growth speed. """
-sheet.face_df['growth_speed'] = 'N/A'
-
-''' Energy minimization '''
 specs = {
     'edge': {
         'is_active': 1,
@@ -143,9 +143,15 @@ for i in sheet.face_df.index:
     else:
         continue
     
+# Disable left and right hand side vertices.
+
+
+    
+    
 geom.update_all(sheet)
 
 fig, ax = plot_forces(sheet, geom, smodel, ['x', 'y'], scaling=0.1)
+
 
 
 """ Modelling the CT growth """
@@ -200,15 +206,7 @@ while t <= t_end:
     
     
     # Cell division.
-    # Store the centroid before iteration of cells.
-    unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
-    centre_data = unique_edges_df.loc[:,['face','fx','fy']]
-    # Loop over all the faces.
-    cells_can_divide = sheet.face_df[(sheet.face_df['area'] >= division_threshold) & (sheet.face_df['T_cycle'] == 0)]
-    for index, series in cells_can_divide.iterrows():
-        daughter_index = division_2(sheet,rng=rng, cent_data= centre_data, cell_id = index)
-    sheet.reset_index(order = True)
-    geom.update_all(sheet)
+    
 
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
