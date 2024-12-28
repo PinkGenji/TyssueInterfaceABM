@@ -31,36 +31,45 @@ def dist_computer(sheet, edge, vert, d_sep):
 
     Returns
     -------
-    1 or 2
-    Case 1 means the closest point is the srce vertex of the edge.
-    Case 2 means the closest point is the trgt vertex of the edge.
-    Case 3 means the closest point is between the endpoints of the edge.
+    distance: If the closest point is one of the endpoints of the edge,
+    then the distance is defined to be the Euclidean distance between the closer
+    endpoint and the incoming vertex. If the closest point is between the two
+    endpoints, then the distance is the Euclidean distance between the incoming
+    vertex and the point between the endpoints.
+    
+    nearest: This is the coordinate of the nearest point from the incoming
+    vertex to the edge.
+    
 
     """
     # Extract the coordinate of the srce and trgt point.
-    edge_end1 = sheet.edge_df.loc[edge,['sx','sy']].to_numpy(dtype = float)
-    edge_end2 = sheet.edge_df.loc[edge,['tx','ty']].to_numpy(dtype = float)
-    # Unit vector of the line.
-    line_unit = sheet.edge_df.loc[edge,['ux','uy']].to_numpy(dtype= float)
+    edge_end1 = sheet.edge_df.loc[edge,['srce']]
+    edge_end2 = sheet.edge_df.loc[edge,['trgt']]
+    end1_position = sheet.vert_df.loc[edge_end1, ['x','y']].to_numpy(dtype = float)
+    end2_position = sheet.vert_df.loc[edge_end2, ['x','y']].to_numpy(dtype = float)
+    # The line is from the end1 to end2.
+    line = end2_position - end1_position
+    line_unit = line /np.linalg.norm(line)
+    
     # Now extract the coordinate of the point.
     point = sheet.vert_df.loc[vert,['x','y']].to_numpy(dtype=float)
     # adjust the coordinate of the point with regards to the srce.
     # then take the unit vector of it.
-    srce_p = point-edge_end1
-    srce_p_unit = srce_p/np.linalg.norm(srce_p)
+    srce_p = point-end1_position
+    srce_p_unit = srce_p /np.linalg.norm(srce_p)
     dot = np.dot(srce_p_unit, line_unit)
     if dot <0:
-        nearest = edge_end1 + d_sep*line_unit
-        distance = np.linalg.norm(nearest-point)
-        return nearest, distance
+        distance = np.linalg.norm(point-end1_position)
+        nearest = end1_position + d_sep*line_unit
+        return distance, nearest
     elif dot >1:
-        nearest = edge_end2 - d_sep*line_unit
-        distance = np.linalg.norm(nearest-point)
-        return nearest, distance
+        distance = np.linalg.norm(point-end2_position)
+        nearest = end2_position - d_sep*line_unit
+        return distance, nearest
     else:
         nearest = edge_end1 + dot*line_unit
         distance = np.linalg.norm(nearest-point)
-        return nearest, distance
+        return distance, nearest
 
 
 
