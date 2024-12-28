@@ -555,6 +555,8 @@ def division_1(sheet, rng, cent_data, cell_id, dt):
             print(f'cell {cell_id} is divided, dauther cell {new_face_index} is created.')
             return new_face_index
 
+
+
 def time_step_bot(sheet,dt, max_dist_allowed):
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
