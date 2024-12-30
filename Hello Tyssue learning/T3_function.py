@@ -130,10 +130,13 @@ def merge_unconnected_verts(sheet,vert1, vert2):
 def insert_into_edge(sheet, edge, vert, position):
     """
     This function inserts the vertex (vert) into the edge (edge), the insertion
-    takes place at the coordinate specified by position
+    takes place at the coordinate specified by position, then update the relevant
+    rows in edge df.
     
     First, we put a new vertex on the edge with cut_place coordinate.
     Then, we update all the entries of vert_id to the new vertex id.
+    
+    Notice: To remove the old vertex, we can use sheet.reset_index() afterwards.
     
     Parameters
     ----------
@@ -155,17 +158,33 @@ def insert_into_edge(sheet, edge, vert, position):
     # First, put a new vertex on the edge, the new vertex has ID, cut_id
     cut_vert, cut_edge, cut_op_edge = put_vert(sheet, edge, position)
     
-    # Update the relevant entry
+    # Update the edge df entries, replace 'vert' by 'cut_vert'
     for i in sheet.edge_df.index:
         if sheet.edge_df.loc[i,'srce'] == vert:
             sheet.edge_df.loc[i,'srce'] = cut_vert
-        elif sheet.edge_df.loc[i, 'trgt'] == vert:
+        if sheet.edge_df.loc[i, 'trgt'] == vert:
             sheet.edge_df.loc[i,'trgt'] = cut_vert
         else:
             continue
     return cut_vert
-    
+    # Need to follow a sheet.reset_index() to remove the old vertex.
 
+def del_iso_vert(sheet):
+    """
+    This function removes isolated vertex without reindex.
+
+    """
+    
+    # Identify the connected vertices by checking which vertices are in the edge source or target
+    connected_vertices = set(sheet.edge_df.srce).union(sheet.edge_df.trgt)
+
+    # Filter out the disconnected vertices by retaining only those in the connected_vertices set
+    sheet.vert_df = sheet.vert_df.loc[sheet.vert_df.index.isin(connected_vertices)]
+
+    # Filter the faces to remove those that refer to disconnected vertices
+    sheet.face_df = sheet.face_df[
+        sheet.face_df.apply(lambda row: all(vertex in connected_vertices for vertex in row), axis=1)
+    ]
 
 
 
@@ -317,16 +336,21 @@ def T3_swap(sheet, edge_collide, vert_incoming, nearest_coord, d_sep):
     """
     # First, determine the adjacency.
     if adjacency_check(sheet, edge_collide, vert_incoming):
+        print('adjacent')
         new_vertex = put_vert(sheet, edge_collide, nearest_coord)[0]
         merge_unconnected_verts(sheet, vert_incoming, new_vertex)
+        
     else:
-        middle_vertex = insert_into_edge(sheet, edge_collide, vert_incoming, nearest_coord)
+        print('not adjacent')
         endpoint1 = sheet.edge_df.loc[edge_collide,'srce'] 
         endpoint2 = sheet.edge_df.loc[edge_collide,'trgt']
-        resolve_local(sheet, endpoint1, endpoint2, middle_vertex, d_sep)
+        print(f'end1: {endpoint1}, end2: {endpoint2}')
+        middle_vertex = insert_into_edge(sheet, edge_collide, vert_incoming, nearest_coord)
+        #resolve_local(sheet, endpoint1, endpoint2, middle_vertex, d_sep)
         
-    sheet.reset_index()
-    geom.update_all(sheet)
+        
+    # sheet.reset_index()
+    # geom.update_all(sheet)
 
 
 

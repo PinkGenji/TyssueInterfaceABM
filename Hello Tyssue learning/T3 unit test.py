@@ -86,17 +86,11 @@ Note: the code for case 1 and case 3 were wrote first, since creating case 2
 and case 4 involves vertex reindex. Hence I wrote case 1 & 3 first.
 """
 
-# Setup d_min and d_sep values.
-d_min = sheet.edge_df.loc[:,'length'].min()/10
-d_sep = d_min*1.5
-print(f'd_min is set: {d_min}, d_sep is set: {d_sep}')
 
 # Case 1 from Fletcher 2013, move vertex number 13 close enough to 
 # edge number 57, which is connecting vertex 51 and 50.
 sheet.vert_df.loc[13,'x'] = 5.7
 sheet.vert_df.loc[13,'y'] = 2.55
-distance, nearest = dist_computer(sheet = sheet, edge = 57, vert = 13, d_sep = d_sep)
-print(f'{distance}')
 
 geom.update_all(sheet)
 sheet.get_extra_indices()  
@@ -105,10 +99,45 @@ fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y, face)
 
+# Setup d_min and d_sep values.
+d_min = sheet.edge_df.loc[:,'length'].min()/10
+d_sep = d_min*1.5
+print(f'd_min is set: {d_min}, d_sep is set: {d_sep}')
+
+
+# Plot figures to check.
+fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+for face, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y, face)
+
+
+while True:
+    T3_todo = None
+    boundary_vert, boundary_edge = find_boundary(sheet)
+    
+    for edge_e in boundary_edge:
+        # Extract source and target vertex IDs
+        srce_id, trgt_id = sheet.edge_df.loc[edge_e, ['srce', 'trgt']]
+        for vertex_v in boundary_vert:
+            if vertex_v == srce_id or vertex_v == trgt_id:
+                continue
+            
+            distance, nearest = dist_computer(sheet, edge_e, vertex_v, d_sep)
+            if distance < d_min:
+                T3_todo = vertex_v
+                print(f'Found incoming vertex: {vertex_v} and colliding edge: {edge_e}')
+                T3_swap(sheet, edge_e, vertex_v, nearest, d_sep)
+                sheet.reset_index()
+                geom.update_all(sheet)
+                sheet_view(sheet, mode='quick')
+                break
+    if T3_todo is None:
+        break
+                
 
 # Case 3 from Fletcher 2013, changing the position of vertex 3.
-sheet.vert_df.loc[3,'x'] = sheet.vert_df.loc[29,'x'] - d_min*0.5
-sheet.vert_df.loc[3,'y'] = sheet.vert_df.loc[29,'y'] - d_min*0.5
+sheet.vert_df.loc[3,'x'] = 0.972
+sheet.vert_df.loc[3,'y'] = 2.347 
 
 geom.update_all(sheet)
 sheet.get_extra_indices()  
@@ -131,21 +160,19 @@ sheet.vert_df.loc[12,'x'] = 3.3
 sheet.vert_df.loc[12,'y'] = 4.8
 sheet.vert_df.loc[10,'y'] =3.8
 
-
-
 geom.update_all(sheet)
 sheet.get_extra_indices()
 fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y, face)
 
-# Case 3 from Fletcher 2013, first，adjust the position of vertex 22, 47and 56.
+# Case 2 from Fletcher 2013, first，adjust the position of vertex 22, 47and 56.
 
-sheet.vert_df.loc[22,'y'] = 0
+sheet.vert_df.loc[22,'y'] = -1
 sheet.vert_df.loc[47,'y'] = 0.5
-sheet.vert_df.loc[56,'x'] = 3.1
-sheet.vert_df.loc[56,'y'] = 0.05
-
+sheet.vert_df.loc[56,'x'] = 3.2
+sheet.vert_df.loc[56,'y'] = -0.5
+daughter = face_division(sheet, 4,  56, 54)
 geom.update_all(sheet)
 sheet.get_extra_indices()
 fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
@@ -155,6 +182,25 @@ for face, data in sheet.vert_df.iterrows():
 
 
 """ Implement T3 transition """
+
+# First, compute all boundary edge and boundary vertices.
+
+boundary_vert, boundary_edge = find_boundary(sheet)
+
+for edge_e in boundary_edge:
+    # Extract source and target vertex IDs
+    srce_id, trgt_id = sheet.edge_df.loc[edge_e, ['srce', 'trgt']]
+    for vertex_v in boundary_vert:
+        if vertex_v == srce_id or vertex_v == trgt_id:
+            continue
+        else:
+            distance, nearest = dist_computer(sheet, edge_e, vertex_v, d_sep)
+            if distance < d_min:
+                print(f'Found incoming vertex: {vertex_v}')
+
+                # T3_swap(sheet, edge_e, vertex_v, nearest, d_sep)
+                # geom.update_all(sheet)
+                # sheet_view(sheet, mode='quick')
 
 
 
