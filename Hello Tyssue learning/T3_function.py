@@ -235,6 +235,10 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
     # the distance between midvert and current element is then d_sep*abs(element_index-mid_index)
     
     # First, get the ID of the edge formed by midvert and end1.
+    # Initialize edge1 and edge2 to None, in case they are not found
+    edge1 = None
+    edge2 = None
+    
     for i in sheet.edge_df.index:
         # Check for the edge formed by end1 and midvert
         if (sheet.edge_df.loc[i, 'srce'] == end1 and sheet.edge_df.loc[i, 'trgt'] == midvert) or \
@@ -242,9 +246,14 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
             edge1 = i
     
         # Check for the edge formed by end2 and midvert
-        elif (sheet.edge_df.loc[i, 'srce'] == end2 and sheet.edge_df.loc[i, 'trgt'] == midvert) or \
+        if (sheet.edge_df.loc[i, 'srce'] == end2 and sheet.edge_df.loc[i, 'trgt'] == midvert) or \
              (sheet.edge_df.loc[i, 'srce'] == midvert and sheet.edge_df.loc[i, 'trgt'] == end2):
             edge2 = i
+    
+    # Ensure both edges are found before proceeding
+    if edge1 is None or edge2 is None:
+        raise ValueError(f"Edges between {midvert} and {end1} or {midvert} and {end2} not found.")
+
     
     middle_index = len(sorted_keys)//2
     for i in sorted_keys:
@@ -285,7 +294,7 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
 
 
 
-def T3_transition(sheet, edge_collide, vert_incoming, nearest_coord, d_sep):
+def T3_swap(sheet, edge_collide, vert_incoming, nearest_coord, d_sep):
     """
     This is the final T3 transition function that is assembled from subfunctions
     defined above.
