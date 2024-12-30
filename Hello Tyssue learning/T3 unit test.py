@@ -118,28 +118,50 @@ for face, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y, face)
 
 # Case 4 from Fletcher 2013, first put an edge cuts face 16 by connecting
-# vertex 12 and 17. then move vertex 12 close enough to the edge formed by 
-# vertex 42 and vertex 41, which is edge 106.
+# vertex 12 and 10. then adjust the position of vertex 41, and
+# move vertex 12 close enough to the edge formed by 
+# vertex 42 and vertex 41, which is edge 106. Lastly adjust the position of vertex 10.
 
 divide = face_division(sheet, 16, 12, 10)
 sheet.reset_index()
 geom.update_all(sheet)
 
 sheet.vert_df.loc[41,'y'] = 5
-
 sheet.vert_df.loc[12,'x'] = 3.3
 sheet.vert_df.loc[12,'y'] = 4.8
-
 sheet.vert_df.loc[10,'y'] =3.8
 
-dist, nearest = dist_computer(sheet, 106, 12, d_sep)
-print(f'distance: {dist}')
+
 
 geom.update_all(sheet)
 sheet.get_extra_indices()
 fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y, face)
+
+# Case 3 from Fletcher 2013, first，adjust the position of vertex 22, 47and 56.
+
+sheet.vert_df.loc[22,'y'] = 0
+sheet.vert_df.loc[47,'y'] = 0.5
+sheet.vert_df.loc[56,'x'] = 3.1
+sheet.vert_df.loc[56,'y'] = 0.05
+
+geom.update_all(sheet)
+sheet.get_extra_indices()
+fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+for face, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y, face)
+
+
+
+""" Implement T3 transition """
+
+
+
+
+
+
+
 
 
 """ This is the end of the script. """
