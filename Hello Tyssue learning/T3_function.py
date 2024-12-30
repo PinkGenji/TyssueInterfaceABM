@@ -39,36 +39,36 @@ def dist_computer(sheet, edge, vert, d_sep):
     
     nearest: This is the coordinate of the nearest point from the incoming
     vertex to the edge.
-    
 
     """
     # Extract the coordinate of the srce and trgt point.
     edge_end1 = sheet.edge_df.loc[edge,['srce']]
     edge_end2 = sheet.edge_df.loc[edge,['trgt']]
-    end1_position = sheet.vert_df.loc[edge_end1, ['x','y']].to_numpy(dtype = float)
-    end2_position = sheet.vert_df.loc[edge_end2, ['x','y']].to_numpy(dtype = float)
+    end1_position = sheet.vert_df.loc[edge_end1, ['x','y']].to_numpy(dtype = float).flatten()
+    end2_position = sheet.vert_df.loc[edge_end2, ['x','y']].to_numpy(dtype = float).flatten()
     # The line is from the end1 to end2.
-    line = end2_position - end1_position
-    line_unit = line /np.linalg.norm(line)
+    line = np.round(end2_position - end1_position,7)
+    line_length = np.round(np.linalg.norm(line),7)
+    line_unit = line /line_length
     
     # Now extract the coordinate of the point.
-    point = sheet.vert_df.loc[vert,['x','y']].to_numpy(dtype=float)
+    point = sheet.vert_df.loc[vert,['x','y']].to_numpy(dtype=float).flatten()
     # adjust the coordinate of the point with regards to the srce.
     # then take the unit vector of it.
-    srce_p = point-end1_position
-    srce_p_unit = srce_p /np.linalg.norm(srce_p)
-    dot = np.dot(srce_p_unit, line_unit)
+    srce_p = np.round(point-end1_position, 7)
+    srce_p_scaled = srce_p/line_length
+    dot = np.dot(srce_p_scaled, line_unit)
     if dot <0:
-        distance = np.linalg.norm(point-end1_position)
+        distance = np.round(np.linalg.norm(point-end1_position),7)
         nearest = end1_position + d_sep*line_unit
         return distance, nearest
     elif dot >1:
-        distance = np.linalg.norm(point-end2_position)
+        distance = np.round(np.linalg.norm(point-end2_position),7)
         nearest = end2_position - d_sep*line_unit
         return distance, nearest
     else:
-        nearest = edge_end1 + dot*line_unit
-        distance = np.linalg.norm(nearest-point)
+        nearest =  end1_position + dot * line
+        distance = np.round(np.linalg.norm(nearest-point),7)
         return distance, nearest
 
 
