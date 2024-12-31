@@ -191,7 +191,8 @@ def del_iso_vert(sheet):
 
 def resolve_local(sheet, end1, end2, midvert, d_sep):
     """
-    Vertices specified by end1, end2 and midvert should be colinear. 
+    end1, end2, midvert are IDs of vertices. Midvert is the middle vertex that
+    connects both end1 and end2.
     
     1) Use the edge formed by midvert and one of end1, end2 vertices as the
     base vector.
@@ -207,7 +208,7 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
     Step (4) is processed in a vertex by vertex fashion.
 
     """
-    
+
     # Collect all the vertices that are connected to the vertex.
     associated_vert = set()
     for i in sheet.edge_df.index:
@@ -238,21 +239,21 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
     # Sort the dictionary by values, from the largest to lowest.
     dot_dict_sorted = dict(sorted(dot_dict.items(), key=lambda item: item[1], reverse=True))
     sorted_keys = list(dot_dict_sorted.keys()) 
+    '''
+    Now, we use len(sorted_keys)//2 to determine which index should be consider
+    to stay at midvert.
+    Then, for all element which has index less than middle is resolved to the 
+    edge formed by midvert and end1. all element with index larger than middle
+    is resolved to the edge formed by midvert and end2.
     
-    # Now, we use len(sorted_keys)//2 to determine which index should be consider
-    # to stay at midvert.
-    # Then, for all element which has index less than middle is resolved to the 
-    # edge formed by midvert and end1. all element with index larger than middle
-    # is resolved to the edge formed by midvert and end2.
-    #
-    # Logic for resolve in an edge.
-    # mid_index: computed index that should stay, element_index: current element's index.
-    # IF element_index == mid_index, THEN stay
-    # IF element_index < mid_index, THEN consider the edge formed by end1 and midvert.
-    # the distance between midvert and current element (ID of vertex) is d_sep*abs(mid_index - element_index)
-    # IF element_index > mid_index, THEN consider the edge formed by end2 and midvert.
-    # the distance between midvert and current element is then d_sep*abs(element_index-mid_index)
-    
+    Logic for resolve in an edge:
+    mid_index: computed index that should stay, element_index: current element's index.
+    IF element_index == mid_index, THEN stay
+    IF element_index < mid_index, THEN consider the edge formed by end1 and midvert.
+    the distance between midvert and current element (ID of vertex) is d_sep*abs(mid_index - element_index)
+    IF element_index > mid_index, THEN consider the edge formed by end2 and midvert.
+    the distance between midvert and current element is then d_sep*abs(element_index-mid_index)
+    '''
     # First, get the ID of the edge formed by midvert and end1.
     # Initialize edge1 and edge2 to None, in case they are not found
     edge1 = None
@@ -274,35 +275,25 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
         raise ValueError(f"Edges between {midvert} and {end1} or {midvert} and {end2} not found.")
 
     
-    middle_index = len(sorted_keys)//2
-    for i in sorted_keys:
-        element_index = sorted_keys.index(i)
+    middle_index = len(sorted_keys) // 2
+    for element_index, vertex_id in enumerate(sorted_keys):
         if element_index == middle_index:
             continue
-        elif element_index < middle_index:
+
+        if element_index < middle_index:
             edge_consider = edge1
-            position = mid_coord + d_sep*(middle_index - element_index)*principle_unit
-            new_vert = put_vert(sheet, edge_consider, position)[0]
-            # Then update the relevant entries in the edge_df.
-            for i in sheet.edge_df.index:
-                if sheet.edge_df.loc[i,'srce'] == i:
-                    sheet.edge_df.loc[i,'srce'] = new_vert
-                elif sheet.edge_df.loc[i, 'trgt'] == i:
-                    sheet.edge_df.loc[i,'trgt'] = new_vert
-                else:
-                    continue
+            position = mid_coord + d_sep * (middle_index - element_index) * principle_unit
         else:
             edge_consider = edge2
-            position = mid_coord - d_sep*(middle_index - element_index)*principle_unit
-            new_vert = put_vert(sheet, edge_consider, position)[0]
-            # Then update the relevant entries in the edge_df.
-            for i in sheet.edge_df.index:
-                if sheet.edge_df.loc[i,'srce'] == i:
-                    sheet.edge_df.loc[i,'srce'] = new_vert
-                elif sheet.edge_df.loc[i, 'trgt'] == i:
-                    sheet.edge_df.loc[i,'trgt'] = new_vert
-                else:
-                    continue
+            position = mid_coord - d_sep * (element_index - middle_index) * principle_unit
+
+        # Put the new vertex on the edge and update edge_df
+        new_vert = put_vert(sheet, edge_consider, position)[0]
+        for i in sheet.edge_df.index:
+            if sheet.edge_df.loc[i, 'srce'] == vertex_id:
+                sheet.edge_df.loc[i, 'srce'] = new_vert
+            if sheet.edge_df.loc[i, 'trgt'] == vertex_id:
+                sheet.edge_df.loc[i, 'trgt'] = new_vert
     
     # Then need to:
         # sheet.reset_index()
@@ -346,7 +337,7 @@ def T3_swap(sheet, edge_collide, vert_incoming, nearest_coord, d_sep):
         endpoint2 = sheet.edge_df.loc[edge_collide,'trgt']
         print(f'end1: {endpoint1}, end2: {endpoint2}')
         middle_vertex = insert_into_edge(sheet, edge_collide, vert_incoming, nearest_coord)
-        #resolve_local(sheet, endpoint1, endpoint2, middle_vertex, d_sep)
+        resolve_local(sheet, endpoint1, endpoint2, middle_vertex, d_sep)
         
         
     # sheet.reset_index()
