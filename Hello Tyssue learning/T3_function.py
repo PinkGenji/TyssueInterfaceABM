@@ -188,7 +188,6 @@ def del_iso_vert(sheet):
 
 
 
-
 def resolve_local(sheet, end1, end2, midvert, d_sep):
     """
     end1, end2, midvert are IDs of vertices. Midvert is the middle vertex that
@@ -208,7 +207,6 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
     Step (4) is processed in a vertex by vertex fashion.
 
     """
-
     # Collect all the vertices that are connected to the vertex.
     associated_vert = set()
     for i in sheet.edge_df.index:
@@ -225,7 +223,7 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
     principle_unit = end1_coord-mid_coord
 
     principle_unit = principle_unit/np.linalg.norm(principle_unit)
-    
+
     # For each vertex in associated_vert, we compute the dot product and get
     # a dictionary, keys are the vertex ID and the values are the dot product.
     dot_dict = {}
@@ -274,22 +272,27 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
     if edge1 is None or edge2 is None:
         raise ValueError(f"Edges between {midvert} and {end1} or {midvert} and {end2} not found.")
 
-    
     middle_index = len(sorted_keys) // 2
+    print(f'middle index is: {middle_index}')
+    print(f'edge1: {edge1}, edge2: {edge2}')
+    print(sorted_keys)
+    
+    
     for element_index, vertex_id in enumerate(sorted_keys):
         if element_index == middle_index:
             continue
 
         if element_index < middle_index:
             edge_consider = edge1
-            position = mid_coord + d_sep * (middle_index - element_index) * principle_unit
+            position = mid_coord + d_sep * abs(middle_index - element_index) * principle_unit
+        
         else:
             edge_consider = edge2
-            position = mid_coord - d_sep * (element_index - middle_index) * principle_unit
+            position = mid_coord - d_sep * abs(element_index - middle_index) * principle_unit
 
         # Put the new vertex on the edge and update edge_df
         new_vert = put_vert(sheet, edge_consider, position)[0]
-        for i in sheet.edge_df.index:
+        for e_id in sheet.edge_df.index:
             if sheet.edge_df.loc[i, 'srce'] == vertex_id:
                 sheet.edge_df.loc[i, 'srce'] = new_vert
             if sheet.edge_df.loc[i, 'trgt'] == vertex_id:
@@ -298,8 +301,6 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
     # Then need to:
         # sheet.reset_index()
         # geom.update_all(sheet)
-
-
 
 
 
@@ -338,8 +339,8 @@ def T3_swap(sheet, edge_collide, vert_incoming, nearest_coord, d_sep):
         print(f'end1: {endpoint1}, end2: {endpoint2}')
         middle_vertex = insert_into_edge(sheet, edge_collide, vert_incoming, nearest_coord)
         resolve_local(sheet, endpoint1, endpoint2, middle_vertex, d_sep)
-        
-        
+
+
     # sheet.reset_index()
     # geom.update_all(sheet)
 
