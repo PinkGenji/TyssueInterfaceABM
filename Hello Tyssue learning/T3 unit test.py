@@ -71,6 +71,13 @@ delete_face(sheet,18)
 sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
 geom.update_all(sheet)
 sheet.get_extra_indices()   # extra_indices are not included in update_all.
+# Setup d_min and d_sep values.
+d_min = sheet.edge_df.loc[:,'length'].min()/10
+d_min = 0.13
+
+d_sep = d_min*3
+print(f'd_min is set: {d_min}, d_sep is set: {d_sep}')
+
 # Plot figures to check.
 # Draw the cell mesh with face labelling and edge arrows.
 fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
@@ -98,11 +105,6 @@ sheet.get_extra_indices()
 fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y, face)
-
-# Setup d_min and d_sep values.
-d_min = sheet.edge_df.loc[:,'length'].min()/10
-d_sep = d_min*1.5
-print(f'd_min is set: {d_min}, d_sep is set: {d_sep}')
 
 
 # Plot figures to check.
@@ -141,8 +143,13 @@ for face, data in sheet.vert_df.iterrows():
                 
 
 # Case 3 from Fletcher 2013, changing the position of vertex 3.
-sheet.vert_df.loc[3,'x'] = 0.972
-sheet.vert_df.loc[3,'y'] = 2.347 
+
+dist, nearest = dist_computer(sheet, 35, 3, d_sep)
+c_vert = put_vert(sheet, 35, nearest)[0]
+merge_unconnected_verts(sheet, 3, c_vert)
+
+sheet.vert_df.loc[3,'x'] = 0.9
+sheet.vert_df.loc[3,'y'] = 2.3
 
 geom.update_all(sheet)
 sheet.get_extra_indices()  
@@ -150,7 +157,33 @@ sheet.get_extra_indices()
 fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y, face)
-
+    
+''' Do T3 '''
+while True:
+    T3_todo = None
+    boundary_vert, boundary_edge = find_boundary(sheet)
+    
+    for edge_e in boundary_edge:
+        # Extract source and target vertex IDs
+        srce_id, trgt_id = sheet.edge_df.loc[edge_e, ['srce', 'trgt']]
+        for vertex_v in boundary_vert:
+            if vertex_v == srce_id or vertex_v == trgt_id:
+                continue
+            
+            distance, nearest = dist_computer(sheet, edge_e, vertex_v, d_sep)
+            if distance < d_min:
+                T3_todo = vertex_v
+                print(f'Found incoming vertex: {vertex_v} and colliding edge: {edge_e}')
+                T3_swap(sheet, edge_e, vertex_v, nearest, d_sep)
+                sheet.reset_index()
+                geom.update_all(sheet)
+                fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+                for face, data in sheet.vert_df.iterrows():
+                    ax.text(data.x, data.y, face)
+                break
+            
+    if T3_todo is None:
+        break
 
 """ Do T3 Transition """
 # while True:
@@ -200,6 +233,9 @@ sheet.get_extra_indices()
 fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y, face)
+    
+   
+    
 
 # Case 2 from Fletcher 2013, first，adjust the position of vertex 22, 47and 56.
 
@@ -214,10 +250,9 @@ fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y, face)
     
-""" do a single T3. """
+
 while True:
     T3_todo = None
-
     boundary_vert, boundary_edge = find_boundary(sheet)
     
     for edge_e in boundary_edge:

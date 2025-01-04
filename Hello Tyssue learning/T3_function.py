@@ -119,7 +119,7 @@ def merge_unconnected_verts(sheet,vert1, vert2):
     sheet.edge_df.loc[sheet.edge_df.index[-1],'trgt'] = vert2
     
     # Collapse the new edge.
-    return collapse_edge(sheet, sheet.edge_df.index[-1], reindex=False)
+    return collapse_edge(sheet, sheet.edge_df.index[-1], reindex=False, allow_two_sided=True)
     
     # Note: Then need to sheet.reset_index(), then geom.update_all(sheet).
 
@@ -157,7 +157,7 @@ def insert_into_edge(sheet, edge, vert, position):
     
     # First, put a new vertex on the edge, the new vertex has ID, cut_id
     cut_vert, cut_edge, cut_op_edge = put_vert(sheet, edge, position)
-    
+
     # Update the edge df entries, replace 'vert' by 'cut_vert'
     for i in sheet.edge_df.index:
         if sheet.edge_df.loc[i,'srce'] == vert:
@@ -330,7 +330,9 @@ def T3_swap(sheet, edge_collide, vert_incoming, nearest_coord, d_sep):
     if adjacency_check(sheet, edge_collide, vert_incoming):
         print('adjacent')
         new_vertex = put_vert(sheet, edge_collide, nearest_coord)[0]
+        print(f'Put vertex {new_vertex} on edge {edge_collide}')
         merge_unconnected_verts(sheet, vert_incoming, new_vertex)
+        print(f'Merged vertices {new_vertex} & {vert_incoming}!')
         
     else:
         print('not adjacent')
