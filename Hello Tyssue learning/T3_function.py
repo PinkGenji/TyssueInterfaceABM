@@ -8,7 +8,7 @@ Then I assemble them into a complete T3 transition main function.
 import numpy as np
 import pandas as pd
 
-from tyssue.topology.base_topology import collapse_edge
+from tyssue.topology.base_topology import collapse_edge, merge_vertices
 from tyssue import PlanarGeometry as geom
 
 from my_headers import put_vert
@@ -70,8 +70,6 @@ def dist_computer(sheet, edge, vert, d_sep):
         nearest =  end1_position + dot * line
         distance = np.round(np.linalg.norm(nearest-point),7)
         return distance, nearest
-
-
 
 
 
@@ -329,10 +327,32 @@ def T3_swap(sheet, edge_collide, vert_incoming, nearest_coord, d_sep):
     # First, determine the adjacency.
     if adjacency_check(sheet, edge_collide, vert_incoming):
         print('adjacent')
-        new_vertex = put_vert(sheet, edge_collide, nearest_coord)[0]
-        print(f'Put vertex {new_vertex} on edge {edge_collide}')
-        merge_unconnected_verts(sheet, vert_incoming, new_vertex)
-        print(f'Merged vertices {new_vertex} & {vert_incoming}!')
+        # Compute the distance between nearest_coord and the two endpoints
+        # Update the closer endpoint with nearest_coord.
+        # Then merge_vert(endpoint, vert_incoming)
+        ep1 = sheet.edge_df.loc[edge_collide,'srce'] 
+        ep2 = sheet.edge_df.loc[edge_collide,'trgt']
+        ep1_coord = sheet.vert_df.loc[ep1, ['x','y']].to_numpy(dtype = float)
+        ep2_coord = sheet.vert_df.loc[ep2,['x','y']].to_numpy(dtype = float)
+        vert_incoming_coord = sheet.vert_df.loc[vert_incoming,['x','y']].to_numpy(dtype = float)
+        d_ep1 = np.linalg.norm(ep1_coord-vert_incoming_coord)
+        d_ep2 = np.linalg.norm(ep2_coord-vert_incoming_coord)
+        
+        if d_ep1 > d_ep2: # Then endpoint2 is closer, update endpoint2.
+            sheet.vert_df.loc[ep2,'x'] = nearest_coord[0]
+            sheet.vert_df.loc[ep2, 'y'] = nearest_coord[1]
+            print(f'changed position of vert {ep2}')
+            merge_vertices(sheet, vert_incoming, ep2)
+
+            
+        if d_ep2 > d_ep1: # Then endpoint1 is closer, update endpoint1.
+            sheet.vert_df.loc[ep1,'x'] = nearest_coord[0]
+            sheet.vert_df.loc[ep1, 'y'] = nearest_coord[1]
+            print(f'changed position of vert {ep1}')
+            merge_vertices(sheet, vert_incoming, ep1)
+            
+            
+        
         
     else:
         print('not adjacent')
