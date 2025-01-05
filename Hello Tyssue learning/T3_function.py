@@ -116,7 +116,7 @@ def adjacency_check(sheet, edge, vert):
     ]
     
     if not adjacent_edge_to_end1.empty:
-        return 1, adjacent_edge_to_end1.index[0]
+        return 1, adjacent_edge_to_end1.iloc[0].name
     
     # Find adjacent edge to end2
     adjacent_edge_to_end2 = sheet.edge_df[
@@ -125,7 +125,8 @@ def adjacency_check(sheet, edge, vert):
     ]
     
     if not adjacent_edge_to_end2.empty:
-        return 2, adjacent_edge_to_end2.index[0]
+        return 2, adjacent_edge_to_end2.iloc[0].name
+
     
     # Return None if no adjacent edge is found
     return None
@@ -332,10 +333,10 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
         # Put the new vertex on the edge and update edge_df
         new_vert = put_vert(sheet, edge_consider, position)[0]
         for e_id in sheet.edge_df.index:
-            if sheet.edge_df.loc[i, 'srce'] == vertex_id:
-                sheet.edge_df.loc[i, 'srce'] = new_vert
-            if sheet.edge_df.loc[i, 'trgt'] == vertex_id:
-                sheet.edge_df.loc[i, 'trgt'] = new_vert
+            if sheet.edge_df.loc[e_id, 'srce'] == vertex_id:
+                sheet.edge_df.loc[e_id, 'srce'] = new_vert
+            if sheet.edge_df.loc[e_id, 'trgt'] == vertex_id:
+                sheet.edge_df.loc[e_id, 'trgt'] = new_vert
     
     # Then need to:
         # sheet.reset_index()
@@ -344,7 +345,7 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
 
 
 
-def resolve_local_adj(sheet, changed_vert, old_vert,edge, d_sep):
+def resolve_local_adj(sheet, changed_vert, old_vert, edge_between, d_sep):
     """
     Given the ID of the vertices that changed its position or stayed, I compute
     the unit vector from changed_vert to old_vert.
@@ -383,7 +384,18 @@ def resolve_local_adj(sheet, changed_vert, old_vert,edge, d_sep):
     sorted_keys = list(dot_dict_sorted.keys()) 
     
     # Now, I have a sorted list that contains the associated vertices.
-    # put_vert based on 
+    # put_vert at the positions that based on the element_index.
+    # the distance from the changed_vert can be calculated by the rule: 
+    # [len(sorted_keys)-1-element_index] * d_sep
+    for element_index, vertex_id in enumerate(sorted_keys):
+        # Put the new vertex on the edge and update edge_df
+        position = changed_coord + principle_unit*d_sep*(len(sorted_keys) -1 -element_index )
+        new_vert = put_vert(sheet, edge_between, position)[0]
+        for e_id in sheet.edge_df.index:
+            if sheet.edge_df.loc[i, 'srce'] == vertex_id:
+                sheet.edge_df.loc[i, 'srce'] = new_vert
+            if sheet.edge_df.loc[i, 'trgt'] == vertex_id:
+                sheet.edge_df.loc[i, 'trgt'] = new_vert
 
 
 
@@ -415,8 +427,17 @@ def T3_swap(sheet, edge_collide, vert_incoming, nearest_coord, d_sep):
 
     """
     # First, determine the adjacency.
-    adj_check, edge_connection = adjacency_check(sheet, edge_collide, vert_incoming)
-    if adj_check is not None :
+    result = adjacency_check(sheet, edge_collide, vert_incoming)
+    if result is None:
+        print("No adjacent edge found, proceeding with non-adjacent logic.")
+        endpoint1 = sheet.edge_df.loc[edge_collide,'srce'] 
+        endpoint2 = sheet.edge_df.loc[edge_collide,'trgt']
+        print(f'end1: {endpoint1}, end2: {endpoint2}')
+        middle_vertex = insert_into_edge(sheet, edge_collide, vert_incoming, nearest_coord)
+        resolve_local(sheet, endpoint1, endpoint2, middle_vertex, d_sep)
+    
+    else:
+        adj_check, edge_connection = result
         print('adjacent')
         # If it's adjacent, then move the connected endpoint to nearest.
         # Then merge the incoming vert with the connected endpoint.
@@ -436,6 +457,7 @@ def T3_swap(sheet, edge_collide, vert_incoming, nearest_coord, d_sep):
             collapse_edge(sheet, edge_connection, reindex=False, allow_two_sided=False)
             # The new edge is formed by id_kept and ep1.
             edge_new = get_edge_id(sheet, id_kept, ep1)
+            #resolve_local_adj(sheet, id_kept, ep1, edge_new, d_sep)
             
         if adj_check == 1: # Then it is connected to endpoint1.
             sheet.vert_df.loc[ep1,'x'] = nearest_coord[0]
@@ -445,19 +467,11 @@ def T3_swap(sheet, edge_collide, vert_incoming, nearest_coord, d_sep):
             collapse_edge(sheet, edge_connection, reindex=False, allow_two_sided=False)
             # The new edge is formed by id_kept and ep2.
             edge_new = get_edge_id(sheet, id_kept, ep2)
+            # Then resolve local.
+            #resolve_local_adj(sheet, id_kept, ep2, edge_new, d_sep)
             
             
-            
-         # Then need to resolve the local.
-        
-    else:
-        print('not adjacent')
-        endpoint1 = sheet.edge_df.loc[edge_collide,'srce'] 
-        endpoint2 = sheet.edge_df.loc[edge_collide,'trgt']
-        print(f'end1: {endpoint1}, end2: {endpoint2}')
-        middle_vertex = insert_into_edge(sheet, edge_collide, vert_incoming, nearest_coord)
-        resolve_local(sheet, endpoint1, endpoint2, middle_vertex, d_sep)
-
+   
 
     # sheet.reset_index()
     # geom.update_all(sheet)
