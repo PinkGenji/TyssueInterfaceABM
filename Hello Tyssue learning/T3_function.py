@@ -73,23 +73,63 @@ def dist_computer(sheet, edge, vert, d_sep):
 
 
 
+def get_edge_id(sheet, vert1, vert2):
+    """
+    Returns the ID of the edge that connects the given two vertices.
+    
+    Parameters:
+    - sheet: The sheet object containing edge_df (DataFrame with 'srce' and 'trgt' columns).
+    - vert1: ID of the first vertex.
+    - vert2: ID of the second vertex.
+    
+    Returns:
+    - The edge ID if an edge exists between the two vertices.
+    - None if no edge exists between vert1 and vert2.
+    """
+    # Find the edge where (vert1, vert2) or (vert2, vert1) are the endpoints
+    edge = sheet.edge_df[
+        ((sheet.edge_df['srce'] == vert1) & (sheet.edge_df['trgt'] == vert2)) |
+        ((sheet.edge_df['srce'] == vert2) & (sheet.edge_df['trgt'] == vert1))
+    ]
+    
+    if not edge.empty:
+        return edge.index[0]  # Return the edge ID (index)
+    
+    return None  # Return None if no edge is found
+
+
+
+
 
 def adjacency_check(sheet, edge, vert):
     """
-    Returns True if there is an edge between the vert and any one of
-    endpoints of the edge.
+    Returns the ID of the edge that connects the given vert to either
+    of the endpoints of the specified edge.
     """
-    end1_id = sheet.edge_df.loc[edge,'srce']
-    end2_id = sheet.edge_df.loc[edge,'trgt']
+    end1_id = sheet.edge_df.loc[edge, 'srce']
+    end2_id = sheet.edge_df.loc[edge, 'trgt']
     
-    # Check adjacency
-    is_adjacent_to_end1 = ((sheet.edge_df['srce'] == end1_id) & (sheet.edge_df['trgt'] == vert)).any() or \
-                          ((sheet.edge_df['srce'] == vert) & (sheet.edge_df['trgt'] == end1_id)).any()
-    is_adjacent_to_end2 = ((sheet.edge_df['srce'] == end2_id) & (sheet.edge_df['trgt'] == vert)).any() or \
-                          ((sheet.edge_df['srce'] == vert) & (sheet.edge_df['trgt'] == end2_id)).any()
+    # Find adjacent edge to end1
+    adjacent_edge_to_end1 = sheet.edge_df[
+        ((sheet.edge_df['srce'] == end1_id) & (sheet.edge_df['trgt'] == vert)) |
+        ((sheet.edge_df['srce'] == vert) & (sheet.edge_df['trgt'] == end1_id))
+    ]
+    
+    if not adjacent_edge_to_end1.empty:
+        return 1, adjacent_edge_to_end1.index[0]
+    
+    # Find adjacent edge to end2
+    adjacent_edge_to_end2 = sheet.edge_df[
+        ((sheet.edge_df['srce'] == end2_id) & (sheet.edge_df['trgt'] == vert)) |
+        ((sheet.edge_df['srce'] == vert) & (sheet.edge_df['trgt'] == end2_id))
+    ]
+    
+    if not adjacent_edge_to_end2.empty:
+        return 2, adjacent_edge_to_end2.index[0]
+    
+    # Return None if no adjacent edge is found
+    return None
 
-    # Return True if adjacency to either endpoint is found
-    return is_adjacent_to_end1 or is_adjacent_to_end2
 
 
 
@@ -166,6 +206,7 @@ def insert_into_edge(sheet, edge, vert, position):
             continue
     return cut_vert
     # Need to follow a sheet.reset_index() to remove the old vertex.
+
 
 def del_iso_vert(sheet):
     """
@@ -303,6 +344,55 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
 
 
 
+def resolve_local_adj(sheet, changed_vert, old_vert,edge, d_sep):
+    """
+    Given the ID of the vertices that changed its position or stayed, I compute
+    the unit vector from changed_vert to old_vert.
+    Then put new vertices on the edge at least d_sep away.
+    Then use the dot product trick, and update the relevant dataframes.
+
+    """
+    # Collect all the vertices that are connected to the vertex.
+    associated_vert = set()
+    for i in sheet.edge_df.index:
+        srce = sheet.edge_df.loc[i, 'srce']
+        trgt = sheet.edge_df.loc[i, 'trgt']
+        if srce == changed_vert and trgt not in {old_vert}:
+            associated_vert.add(trgt)
+        elif trgt == changed_vert and srce not in {old_vert}:
+            associated_vert.add(srce)
+
+    # Use midvert -> end1 to get a principle unit vector.
+    old_coord = sheet.vert_df.loc[changed_vert,['x','y']].to_numpy(dtype=float)
+    changed_coord = sheet.vert_df.loc[old_vert,['x','y']].to_numpy(dtype=float)
+    principle_unit = old_coord - changed_coord
+    principle_unit = principle_unit/np.linalg.norm(principle_unit)
+
+    # For each vertex in associated_vert, we compute the dot product and get
+    # a dictionary, keys are the vertex ID and the values are the dot product.
+    dot_dict = {}
+    # Compute the unit vector of midvert -> associated.
+    for i in associated_vert:
+        temp_coord = sheet.vert_df.loc[i,['x','y']].to_numpy(dtype=float)
+        vect_unit = temp_coord-changed_coord
+        vect_unit = vect_unit/np.linalg.norm(vect_unit)
+        dot_product = np.dot( principle_unit , vect_unit )
+        dot_dict.update({i:dot_product})
+    # Sort the dictionary by values, from the largest to lowest.
+    dot_dict_sorted = dict(sorted(dot_dict.items(), key=lambda item: item[1], reverse=True))
+    sorted_keys = list(dot_dict_sorted.keys()) 
+    
+    # Now, I have a sorted list that contains the associated vertices.
+    # put_vert based on 
+
+
+
+
+
+
+
+
+
 def T3_swap(sheet, edge_collide, vert_incoming, nearest_coord, d_sep):
     """
     This is the final T3 transition function that is assembled from subfunctions
@@ -325,34 +415,40 @@ def T3_swap(sheet, edge_collide, vert_incoming, nearest_coord, d_sep):
 
     """
     # First, determine the adjacency.
-    if adjacency_check(sheet, edge_collide, vert_incoming):
+    adj_check, edge_connection = adjacency_check(sheet, edge_collide, vert_incoming)
+    if adj_check is not None :
         print('adjacent')
-        # Compute the distance between nearest_coord and the two endpoints
-        # Update the closer endpoint with nearest_coord.
-        # Then merge_vert(endpoint, vert_incoming)
+        # If it's adjacent, then move the connected endpoint to nearest.
+        # Then merge the incoming vert with the connected endpoint.
+        # Merge means: the two vertices are merged into one, at the middle
+        # point of the edge that connected them.
         ep1 = sheet.edge_df.loc[edge_collide,'srce'] 
         ep2 = sheet.edge_df.loc[edge_collide,'trgt']
-        ep1_coord = sheet.vert_df.loc[ep1, ['x','y']].to_numpy(dtype = float)
-        ep2_coord = sheet.vert_df.loc[ep2,['x','y']].to_numpy(dtype = float)
-        vert_incoming_coord = sheet.vert_df.loc[vert_incoming,['x','y']].to_numpy(dtype = float)
-        d_ep1 = np.linalg.norm(ep1_coord-vert_incoming_coord)
-        d_ep2 = np.linalg.norm(ep2_coord-vert_incoming_coord)
-        
-        if d_ep1 > d_ep2: # Then endpoint2 is closer, update endpoint2.
+        # If adj_check is 1, then vert_incoming is connected to srce.
+        # If adj_check is 2, then vert_incoming is connected to trgt.
+    
+        if adj_check == 2: # Then it is connected to endpoint2 
             sheet.vert_df.loc[ep2,'x'] = nearest_coord[0]
             sheet.vert_df.loc[ep2, 'y'] = nearest_coord[1]
             print(f'changed position of vert {ep2}')
-            merge_vertices(sheet, vert_incoming, ep2)
-
+            # The id of the vertex after collapse is the smaller id of the vertices.
+            id_kept = min(sheet.edge_df.loc[edge_connection,['srce','trgt']] )
+            collapse_edge(sheet, edge_connection, reindex=False, allow_two_sided=False)
+            # The new edge is formed by id_kept and ep1.
+            edge_new = get_edge_id(sheet, id_kept, ep1)
             
-        if d_ep2 > d_ep1: # Then endpoint1 is closer, update endpoint1.
+        if adj_check == 1: # Then it is connected to endpoint1.
             sheet.vert_df.loc[ep1,'x'] = nearest_coord[0]
             sheet.vert_df.loc[ep1, 'y'] = nearest_coord[1]
             print(f'changed position of vert {ep1}')
-            merge_vertices(sheet, vert_incoming, ep1)
+            id_kept = min(sheet.edge_df.loc[edge_connection,['srce','trgt']] )
+            collapse_edge(sheet, edge_connection, reindex=False, allow_two_sided=False)
+            # The new edge is formed by id_kept and ep2.
+            edge_new = get_edge_id(sheet, id_kept, ep2)
             
             
-        
+            
+         # Then need to resolve the local.
         
     else:
         print('not adjacent')

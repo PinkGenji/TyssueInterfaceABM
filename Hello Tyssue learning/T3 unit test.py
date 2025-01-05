@@ -112,35 +112,37 @@ fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y, face)
 
-# =============================================================================
-# 
-# while True:
-#     T3_todo = None
-# 
-#     boundary_vert, boundary_edge = find_boundary(sheet)
-#     
-#     for edge_e in boundary_edge:
-#         # Extract source and target vertex IDs
-#         srce_id, trgt_id = sheet.edge_df.loc[edge_e, ['srce', 'trgt']]
-#         for vertex_v in boundary_vert:
-#             if vertex_v == srce_id or vertex_v == trgt_id:
-#                 continue
-#             
-#             distance, nearest = dist_computer(sheet, edge_e, vertex_v, d_sep)
-#             if distance < d_min:
-#                 T3_todo = vertex_v
-#                 print(f'Found incoming vertex: {vertex_v} and colliding edge: {edge_e}')
-#                 T3_swap(sheet, edge_e, vertex_v, nearest, d_sep)
-#                 sheet.reset_index()
-#                 geom.update_all(sheet)
-#                 sheet_view(sheet, mode='quick')
-#                 
-# 
-#                 break
-#     if T3_todo is None:
-#         break
-# =============================================================================
-                
+while True:
+    T3_todo = None
+    print('computing boundary indices.')
+    boundary_vert, boundary_edge = find_boundary(sheet)
+    
+    for edge_e in boundary_edge:
+        # Extract source and target vertex IDs
+        srce_id, trgt_id = sheet.edge_df.loc[edge_e, ['srce', 'trgt']]
+        for vertex_v in boundary_vert:
+            if vertex_v == srce_id or vertex_v == trgt_id:
+                continue
+            
+            distance, nearest = dist_computer(sheet, edge_e, vertex_v, d_sep)
+            if distance < d_min:
+                T3_todo = vertex_v
+                print(f'Found incoming vertex: {vertex_v} and colliding edge: {edge_e}')
+                T3_swap(sheet, edge_e, vertex_v, nearest, d_sep)
+                sheet.reset_index()
+                geom.update_all(sheet)
+                sheet.get_extra_indices()
+                fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+                for face, data in sheet.vert_df.iterrows():
+                    ax.text(data.x, data.y, face)
+                break
+        
+        if T3_todo is not None:
+            break  # Exit outer loop to restart with updated boundary
+
+            
+    if T3_todo is None:
+        break
 
 # Case 3 from Fletcher 2013, changing the position of vertex 3.
 sheet.vert_df.loc[3,'x'] = 0.9
@@ -155,25 +157,27 @@ fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y, face)
 
-
-
-dist, nearest = dist_computer(sheet, 35, 3, d_sep)
-v29 = sheet.vert_df.loc[29,['x','y']].to_numpy(dtype = float)
-v26 = sheet.vert_df.loc[26,['x','y']].to_numpy(dtype = float)
-dist29 = np.linalg.norm(v29-nearest)
-dist26 = np.linalg.norm(v26-nearest)
-dist29
-dist26  
-sheet.vert_df.loc[29,'x'] = nearest[0]
-sheet.vert_df.loc[29,'y'] = nearest[1]
-
-    
-merge_vertices(sheet,3, 29, reindex=False)
-sheet.reset_index()
-geom.update_all(sheet)
-fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
-for face, data in sheet.vert_df.iterrows():
-    ax.text(data.x, data.y, face)
+# =============================================================================
+# The following is the backbone of the logic I used for case 3.
+# 
+# dist, nearest = dist_computer(sheet, 35, 3, d_sep)
+# v29 = sheet.vert_df.loc[29,['x','y']].to_numpy(dtype = float)
+# v26 = sheet.vert_df.loc[26,['x','y']].to_numpy(dtype = float)
+# dist29 = np.linalg.norm(v29-nearest)
+# dist26 = np.linalg.norm(v26-nearest)
+# dist29
+# dist26  
+# sheet.vert_df.loc[29,'x'] = nearest[0]
+# sheet.vert_df.loc[29,'y'] = nearest[1]
+# 
+#     
+# merge_vertices(sheet,3, 29, reindex=False)
+# sheet.reset_index()
+# geom.update_all(sheet)
+# fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+# for face, data in sheet.vert_df.iterrows():
+#     ax.text(data.x, data.y, face)
+# =============================================================================
 
 
 ''' Do T3 '''
@@ -209,9 +213,6 @@ while True:
     if T3_todo is None:
         break
 
-    
-
-
 
 
 
@@ -234,26 +235,10 @@ sheet.get_extra_indices()
 fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y, face)
-    
-   
-    
-
-# Case 2 from Fletcher 2013, first，adjust the position of vertex 22, 47and 56.
-
-sheet.vert_df.loc[22,'y'] = -1
-sheet.vert_df.loc[47,'y'] = 0.5
-sheet.vert_df.loc[56,'x'] = 3.2
-sheet.vert_df.loc[56,'y'] = -0.5
-daughter = face_division(sheet, 4,  56, 54)
-geom.update_all(sheet)
-sheet.get_extra_indices()
-fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
-for face, data in sheet.vert_df.iterrows():
-    ax.text(data.x, data.y, face)
-    
 
 while True:
     T3_todo = None
+    print('computing boundary indices.')
     boundary_vert, boundary_edge = find_boundary(sheet)
     
     for edge_e in boundary_edge:
@@ -270,8 +255,62 @@ while True:
                 T3_swap(sheet, edge_e, vertex_v, nearest, d_sep)
                 sheet.reset_index()
                 geom.update_all(sheet)
-                sheet_view(sheet, mode='quick')
+                sheet.get_extra_indices()
+                fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+                for face, data in sheet.vert_df.iterrows():
+                    ax.text(data.x, data.y, face)
                 break
+        
+        if T3_todo is not None:
+            break  # Exit outer loop to restart with updated boundary
+
+            
+    if T3_todo is None:
+        break
+   
+    
+
+# Case 2 from Fletcher 2013, first，adjust the position of vertex 22, 47and 56.
+
+sheet.vert_df.loc[22,'y'] = -1
+sheet.vert_df.loc[47,'y'] = 0.5
+sheet.vert_df.loc[56,'x'] = 3.2
+sheet.vert_df.loc[56,'y'] = -0.5
+daughter = face_division(sheet, 4,  56, 54)
+geom.update_all(sheet)
+sheet.get_extra_indices()
+fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+for face, data in sheet.vert_df.iterrows():
+    ax.text(data.x, data.y, face)
+    
+while True:
+    T3_todo = None
+    print('computing boundary indices.')
+    boundary_vert, boundary_edge = find_boundary(sheet)
+    
+    for edge_e in boundary_edge:
+        # Extract source and target vertex IDs
+        srce_id, trgt_id = sheet.edge_df.loc[edge_e, ['srce', 'trgt']]
+        for vertex_v in boundary_vert:
+            if vertex_v == srce_id or vertex_v == trgt_id:
+                continue
+            
+            distance, nearest = dist_computer(sheet, edge_e, vertex_v, d_sep)
+            if distance < d_min:
+                T3_todo = vertex_v
+                print(f'Found incoming vertex: {vertex_v} and colliding edge: {edge_e}')
+                T3_swap(sheet, edge_e, vertex_v, nearest, d_sep)
+                sheet.reset_index()
+                geom.update_all(sheet)
+                sheet.get_extra_indices()
+                fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+                for face, data in sheet.vert_df.iterrows():
+                    ax.text(data.x, data.y, face)
+                break
+        
+        if T3_todo is not None:
+            break  # Exit outer loop to restart with updated boundary
+
             
     if T3_todo is None:
         break
@@ -282,26 +321,39 @@ while True:
 
 
 """ Implement T3 transition """
+# The following block of code should be re-used when need a T3 transition code.
 
-# First, compute all boundary edge and boundary vertices.
-
-boundary_vert, boundary_edge = find_boundary(sheet)
-
-for edge_e in boundary_edge:
-    # Extract source and target vertex IDs
-    srce_id, trgt_id = sheet.edge_df.loc[edge_e, ['srce', 'trgt']]
-    for vertex_v in boundary_vert:
-        if vertex_v == srce_id or vertex_v == trgt_id:
-            continue
-        else:
+while True:
+    T3_todo = None
+    print('computing boundary indices.')
+    boundary_vert, boundary_edge = find_boundary(sheet)
+    
+    for edge_e in boundary_edge:
+        # Extract source and target vertex IDs
+        srce_id, trgt_id = sheet.edge_df.loc[edge_e, ['srce', 'trgt']]
+        for vertex_v in boundary_vert:
+            if vertex_v == srce_id or vertex_v == trgt_id:
+                continue
+            
             distance, nearest = dist_computer(sheet, edge_e, vertex_v, d_sep)
             if distance < d_min:
-                print(f'Found incoming vertex: {vertex_v}')
+                T3_todo = vertex_v
+                print(f'Found incoming vertex: {vertex_v} and colliding edge: {edge_e}')
+                T3_swap(sheet, edge_e, vertex_v, nearest, d_sep)
+                sheet.reset_index()
+                geom.update_all(sheet)
+                sheet.get_extra_indices()
+                fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+                for face, data in sheet.vert_df.iterrows():
+                    ax.text(data.x, data.y, face)
+                break
+        
+        if T3_todo is not None:
+            break  # Exit outer loop to restart with updated boundary
 
-                # T3_swap(sheet, edge_e, vertex_v, nearest, d_sep)
-                # geom.update_all(sheet)
-                # sheet_view(sheet, mode='quick')
-
+            
+    if T3_todo is None:
+        break
 
 
 
