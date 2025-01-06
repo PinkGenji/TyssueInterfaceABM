@@ -113,7 +113,7 @@ from tyssue.topology.sheet_topology import cell_division
 
 # Write the behaviour function:
 
-def division(sheet, manager, cell_id=0, crit_area=2.0, growth_rate=0.1, dt=1.):
+def division(sheet, manager, cell_id, crit_area=2.0, growth_rate=0.1, dt=1.):
     """Defines a division behavior.
     
     Parameters
@@ -132,7 +132,7 @@ def division(sheet, manager, cell_id=0, crit_area=2.0, growth_rate=0.1, dt=1.):
     # if the cell area is larger than the crit_area, we let the cell divide.
     if sheet.face_df.loc[cell_id, "area"] > crit_area:
         # restore prefered_area
-        sheet.face_df.loc[12, "prefered_area"] = 1.0
+        sheet.face_df.loc[cell_id, "prefered_area"] = 1.0
         # Do division
         daughter = cell_division(sheet, cell_id, sgeom)
         # Update the topology
@@ -144,7 +144,7 @@ def division(sheet, manager, cell_id=0, crit_area=2.0, growth_rate=0.1, dt=1.):
 	# if the cell area is less than the threshold, update the area by growth.
     else:
         #
-        sheet.face_df.loc[12, "area"] *= (1 + dt * growth_rate)
+        sheet.face_df.loc[cell_id, "area"] *= (1 + dt * growth_rate)
         manager.append(division, cell_id=cell_id)
 
 from tyssue.behaviors import EventManager
@@ -194,8 +194,8 @@ draw_specs = {
     }
 }
 
-create_gif(history, "growth.gif", num_frames=30, margin=5, **draw_specs)
-display.Image("growth.gif")
+# create_gif(history, "growth.gif", num_frames=30, margin=5, **draw_specs)
+# display.Image("growth.gif")
 
 # Visualisation of the tissue
 fig, ax = sheet_view(sheet, mode="2D")

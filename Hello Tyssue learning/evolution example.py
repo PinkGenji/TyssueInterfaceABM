@@ -160,7 +160,7 @@ history = History(sheet)
 # After spliting, the cells grow to preferred area within 5 time steps.
 
 t = 0
-stop =10
+stop =5
 
 while manager.current and t < stop:
     for i in sheet.face_df.index:

@@ -97,6 +97,14 @@ for i in sheet.edge_df.index:
         continue
 geom.update_all(sheet)
 
+
+# Check the tissue is at its equilibrium
+solver = QSSolver()
+res = solver.find_energy_min(sheet, geom, smodel)
+# Visualisation of the tissue
+fig, ax = sheet_view(sheet, mode="2D")
+
+
 # We need set the all the threshold value first.
 t1_threshold = 0.1
 t2_threshold = 0.1

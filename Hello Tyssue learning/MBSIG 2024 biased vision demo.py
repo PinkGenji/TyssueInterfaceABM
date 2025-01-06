@@ -224,11 +224,13 @@ for i in sheet.edge_df.index:
     else:
         continue
 
-for i in sheet.edge_df.index:
-    if sheet.edge_df.loc[i, 'cell_type'] == 'ST':
-        sheet.edge_df.loc[i, 'line_tension'] *=0.04
-    else:
-        continue
+# =============================================================================
+# for i in sheet.edge_df.index:
+#     if sheet.edge_df.loc[i, 'cell_type'] == 'ST':
+#         sheet.edge_df.loc[i, 'line_tension'] *=5
+#     else:
+#         continue
+# =============================================================================
 
 
 geom.update_all(sheet)
@@ -251,6 +253,7 @@ dt = 0.01
 time_points = np.linspace(t0, t_end, int((t_end - t0) / dt) + 1)
 snapshots = [0.5,2.5, 5, 10, t_end]
 print(f'time points are: {time_points}.')
+
 
 for t in time_points:
     print(f'start at t= {round(t, 5)}.')
@@ -298,8 +301,5 @@ for t in time_points:
     # Plot with title contain time.
     if t in snapshots:
         fig, ax = sheet_view(sheet)
-        ax.title.set_text(f'time = {round(t, 5)}')
-
-
-
-
+        ax.title.set_text(f'time = {round(t, 5)}, uniform tension')
+ 

@@ -73,7 +73,6 @@ geom.update_all(sheet)
 sheet.get_extra_indices()   # extra_indices are not included in update_all.
 # Setup d_min and d_sep values.
 d_min = sheet.edge_df.loc[:,'length'].min()/10
-d_min=0.13
 d_sep = d_min*3
 
 print(f'd_min is set: {d_min}, d_sep is set: {d_sep}')
@@ -107,11 +106,6 @@ for face, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y, face)
 
 
-# Plot figures to check.
-fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
-for face, data in sheet.vert_df.iterrows():
-    ax.text(data.x, data.y, face)
-
 while True:
     T3_todo = None
     print('computing boundary indices.')
@@ -129,7 +123,7 @@ while True:
                 T3_todo = vertex_v
                 print(f'Found incoming vertex: {vertex_v} and colliding edge: {edge_e}')
                 T3_swap(sheet, edge_e, vertex_v, nearest, d_sep)
-                sheet.reset_index()
+                sheet.reset_index(order=False)
                 geom.update_all(sheet)
                 sheet.get_extra_indices()
                 fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
@@ -150,12 +144,15 @@ sheet.vert_df.loc[3,'y'] = 2.3
 
 geom.update_all(sheet)
 sheet.get_extra_indices()  
-sheet_view(sheet)
+d_min=0.13
+d_sep = d_min*3
 
 # Plot figures to check.
 fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
 for face, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y, face)
+
+
 
 # =============================================================================
 # The following is the backbone of the logic I used for case 3.
@@ -255,7 +252,6 @@ while True:
                 T3_swap(sheet, edge_e, vertex_v, nearest, d_sep)
                 sheet.reset_index()
                 geom.update_all(sheet)
-                sheet.get_extra_indices()
                 fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
                 for face, data in sheet.vert_df.iterrows():
                     ax.text(data.x, data.y, face)

@@ -99,8 +99,6 @@ def get_edge_id(sheet, vert1, vert2):
 
 
 
-
-
 def adjacency_check(sheet, edge, vert):
     """
     Returns the ID of the edge that connects the given vert to either
@@ -261,7 +259,6 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
     end1_coord = sheet.vert_df.loc[end1,['x','y']].to_numpy(dtype=float)
     mid_coord = sheet.vert_df.loc[midvert,['x','y']].to_numpy(dtype=float)
     principle_unit = end1_coord-mid_coord
-
     principle_unit = principle_unit/np.linalg.norm(principle_unit)
 
     # For each vertex in associated_vert, we compute the dot product and get
@@ -277,6 +274,7 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
     # Sort the dictionary by values, from the largest to lowest.
     dot_dict_sorted = dict(sorted(dot_dict.items(), key=lambda item: item[1], reverse=True))
     sorted_keys = list(dot_dict_sorted.keys()) 
+    print(f'associated vertices are: {sorted_keys} ')
     '''
     Now, we use len(sorted_keys)//2 to determine which index should be consider
     to stay at midvert.
@@ -313,30 +311,34 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
         raise ValueError(f"Edges between {midvert} and {end1} or {midvert} and {end2} not found.")
 
     middle_index = len(sorted_keys) // 2
-    print(f'middle index is: {middle_index}')
-    print(f'edge1: {edge1}, edge2: {edge2}')
     print(sorted_keys)
     
     
     for element_index, vertex_id in enumerate(sorted_keys):
+        print(f'Now resolving vert {vertex_id}')
         if element_index == middle_index:
             continue
 
         if element_index < middle_index:
             edge_consider = edge1
             position = mid_coord + d_sep * abs(middle_index - element_index) * principle_unit
-        
+            # Put the new vertex on the edge and update edge_df
+            new_vert = put_vert(sheet, edge_consider, position)[0]
+            for e_id in sheet.edge_df.index:
+                if sheet.edge_df.loc[e_id, 'srce'] == vertex_id and sheet.edge_df.loc[e_id,'trgt'] == midvert:
+                    sheet.edge_df.loc[e_id, 'trgt'] = new_vert
+                if sheet.edge_df.loc[i, 'trgt'] == vertex_id and sheet.edge_df.loc[e_id, 'srce'] == midvert:
+                    sheet.edge_df.loc[e_id, 'srce'] = new_vert
         else:
             edge_consider = edge2
             position = mid_coord - d_sep * abs(element_index - middle_index) * principle_unit
-
-        # Put the new vertex on the edge and update edge_df
-        new_vert = put_vert(sheet, edge_consider, position)[0]
-        for e_id in sheet.edge_df.index:
-            if sheet.edge_df.loc[e_id, 'srce'] == vertex_id:
-                sheet.edge_df.loc[e_id, 'srce'] = new_vert
-            if sheet.edge_df.loc[e_id, 'trgt'] == vertex_id:
-                sheet.edge_df.loc[e_id, 'trgt'] = new_vert
+            # Put the new vertex on the edge and update edge_df
+            new_vert = put_vert(sheet, edge_consider, position)[0]
+            for e_id in sheet.edge_df.index:
+                if sheet.edge_df.loc[e_id, 'srce'] == vertex_id and sheet.edge_df.loc[e_id,'trgt'] == midvert:
+                    sheet.edge_df.loc[e_id, 'trgt'] = new_vert
+                if sheet.edge_df.loc[e_id, 'trgt'] == vertex_id and sheet.edge_df.loc[e_id, 'srce'] == midvert:
+                    sheet.edge_df.loc[e_id, 'srce'] = new_vert
     
     # Then need to:
         # sheet.reset_index()
@@ -345,61 +347,66 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
 
 
 
-def resolve_local_adj(sheet, changed_vert, old_vert, edge_between, d_sep):
+def resolve_local_adj(sheet, merged_vert, old_vert, d_sep):
     """
     Given the ID of the vertices that changed its position or stayed, I compute
     the unit vector from changed_vert to old_vert.
     Then put new vertices on the edge at least d_sep away.
     Then use the dot product trick, and update the relevant dataframes.
-
+    ---------
+    merged_vert: ID of the vertex as a consequence of merged vertices.
+    old_vert: ID of the vertex that is not changed.
+    
+    
     """
     # Collect all the vertices that are connected to the vertex.
     associated_vert = set()
     for i in sheet.edge_df.index:
         srce = sheet.edge_df.loc[i, 'srce']
         trgt = sheet.edge_df.loc[i, 'trgt']
-        if srce == changed_vert and trgt not in {old_vert}:
+        if srce == merged_vert and trgt != old_vert:
             associated_vert.add(trgt)
-        elif trgt == changed_vert and srce not in {old_vert}:
+        elif trgt == merged_vert and srce != old_vert:
             associated_vert.add(srce)
 
-    # Use midvert -> end1 to get a principle unit vector.
-    old_coord = sheet.vert_df.loc[changed_vert,['x','y']].to_numpy(dtype=float)
-    changed_coord = sheet.vert_df.loc[old_vert,['x','y']].to_numpy(dtype=float)
-    principle_unit = old_coord - changed_coord
+    # Use to get a principle unit vector, arrow from merged_vert to old_vert.
+    old_coord = sheet.vert_df.loc[old_vert,['x','y']].to_numpy(dtype=float)
+    merged_coord = sheet.vert_df.loc[merged_vert,['x','y']].to_numpy(dtype=float)
+    principle_unit = old_coord - merged_coord
     principle_unit = principle_unit/np.linalg.norm(principle_unit)
 
     # For each vertex in associated_vert, we compute the dot product and get
     # a dictionary, keys are the vertex ID and the values are the dot product.
     dot_dict = {}
-    # Compute the unit vector of midvert -> associated.
+    # Compute the unit vector of merged_vert -> associated.
     for i in associated_vert:
         temp_coord = sheet.vert_df.loc[i,['x','y']].to_numpy(dtype=float)
-        vect_unit = temp_coord-changed_coord
+        vect_unit = temp_coord-merged_coord
         vect_unit = vect_unit/np.linalg.norm(vect_unit)
         dot_product = np.dot( principle_unit , vect_unit )
         dot_dict.update({i:dot_product})
     # Sort the dictionary by values, from the largest to lowest.
     dot_dict_sorted = dict(sorted(dot_dict.items(), key=lambda item: item[1], reverse=True))
     sorted_keys = list(dot_dict_sorted.keys()) 
+    print(f'sorted_keys: {sorted_keys}')
+    
     
     # Now, I have a sorted list that contains the associated vertices.
     # put_vert at the positions that based on the element_index.
     # the distance from the changed_vert can be calculated by the rule: 
-    # [len(sorted_keys)-1-element_index] * d_sep
+    # [len(sorted_keys)-1-element_index] * d_sep.
+    
+    # First, we need to know which edge is connecting id_kept and the old_vert.
+    edge_between = get_edge_id(sheet, merged_vert , old_vert )
     for element_index, vertex_id in enumerate(sorted_keys):
         # Put the new vertex on the edge and update edge_df
-        position = changed_coord + principle_unit*d_sep*(len(sorted_keys) -1 -element_index )
+        position = merged_coord + principle_unit*d_sep*(len(sorted_keys) -1 -element_index )
         new_vert = put_vert(sheet, edge_between, position)[0]
         for e_id in sheet.edge_df.index:
-            if sheet.edge_df.loc[i, 'srce'] == vertex_id:
-                sheet.edge_df.loc[i, 'srce'] = new_vert
-            if sheet.edge_df.loc[i, 'trgt'] == vertex_id:
-                sheet.edge_df.loc[i, 'trgt'] = new_vert
-
-
-
-
+            if sheet.edge_df.loc[e_id, 'srce'] == vertex_id and sheet.edge_df.loc[e_id,'trgt'] == merged_vert:
+                sheet.edge_df.loc[e_id, 'trgt'] = new_vert
+            if sheet.edge_df.loc[e_id, 'trgt'] == vertex_id and sheet.edge_df.loc[e_id,'srce'] == merged_vert :
+                sheet.edge_df.loc[e_id, 'srce'] = new_vert
 
 
 
@@ -457,7 +464,7 @@ def T3_swap(sheet, edge_collide, vert_incoming, nearest_coord, d_sep):
             collapse_edge(sheet, edge_connection, reindex=False, allow_two_sided=False)
             # The new edge is formed by id_kept and ep1.
             edge_new = get_edge_id(sheet, id_kept, ep1)
-            #resolve_local_adj(sheet, id_kept, ep1, edge_new, d_sep)
+            #resolve_local_adj(sheet, id_kept, ep1, d_sep)
             
         if adj_check == 1: # Then it is connected to endpoint1.
             sheet.vert_df.loc[ep1,'x'] = nearest_coord[0]
@@ -468,10 +475,7 @@ def T3_swap(sheet, edge_collide, vert_incoming, nearest_coord, d_sep):
             # The new edge is formed by id_kept and ep2.
             edge_new = get_edge_id(sheet, id_kept, ep2)
             # Then resolve local.
-            #resolve_local_adj(sheet, id_kept, ep2, edge_new, d_sep)
-            
-            
-   
+            #resolve_local_adj(sheet, id_kept, ep2,  d_sep)
 
     # sheet.reset_index()
     # geom.update_all(sheet)

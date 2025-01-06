@@ -54,7 +54,7 @@ rng = np.random.default_rng(70)
 
 num_x = 20
 num_y = 2
-sheet = Sheet.planar_sheet_2d('face', nx = num_x, ny=num_y, distx=0.5, disty=0.5)
+sheet = Sheet.planar_sheet_2d('face', nx = num_x, ny=num_y, distx=1, disty=1)
 geom.update_all(sheet)
 # remove non-enclosed faces
 sheet.remove(sheet.get_invalid())  
@@ -64,7 +64,7 @@ sheet.reset_index(order=True)
 geom.update_all(sheet)
   
 fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
-for face, data in sheet.vert_df.iterrows():
+for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
 sheet.get_extra_indices()
 
@@ -101,16 +101,16 @@ for i in list(range(len(sheet.face_df))):
 specs = {
     'edge': {
         'is_active': 1,
-        'line_tension': 10,
+        'line_tension': 0.12,
         'ux': 0.0,
         'uy': 0.0,
         'uz': 0.0
     },
    'face': {
-       'area_elasticity': 110,
-       'contractility': 0,
+       'area_elasticity': 1.0,
+       'contractility': 0.04,
        'is_alive': 1,
-       'prefered_area': 0.5},
+       'prefered_area': 1.0},
    'settings': {
        'grad_norm_factor': 1.0,
        'nrj_norm_factor': 1.0
@@ -123,31 +123,44 @@ sheet.vert_df['viscosity'] = 1.0
 # Update the specs (adds / changes the values in the dataframes' columns)
 sheet.update_specs(specs, reset = True)
 geom.update_all(sheet)
+# =============================================================================
+# 
+# # Adjust for cell-boundary adhesion force.
+# for i in sheet.edge_df.index:
+#     if sheet.edge_df.loc[i, 'opposite'] == -1:
+#         sheet.edge_df.loc[i, 'line_tension'] *=2
+#     else:
+#         continue
+# 
+# for i in sheet.edge_df.index:
+#     if sheet.edge_df.loc[i, 'cell_type'] == 'ST':
+#         sheet.edge_df.loc[i, 'is_alive'] =0
+#     else:
+#         continue
+#     
+# =============================================================================
 
-# Adjust for cell-boundary adhesion force.
-for i in sheet.edge_df.index:
-    if sheet.edge_df.loc[i, 'opposite'] == -1:
-        sheet.edge_df.loc[i, 'line_tension'] *=2
-    else:
-        continue
-
-for i in sheet.edge_df.index:
-    if sheet.edge_df.loc[i, 'cell_type'] == 'ST':
-        sheet.edge_df.loc[i, 'line_tension'] =0
-    else:
-        continue
-    
-for i in sheet.face_df.index:
-    if sheet.face_df.loc[i,'cell_type'] == 'ST':
-        sheet.face_df.loc[i,'prefered_area'] = 0.3
-    else:
-        continue
     
 # Disable left and right hand side vertices.
+# =============================================================================
+# for edge_id in sheet.edge_df.index:
+#     if sheet.edge_df.loc[edge_id,'face'] == 20:
+#         srce = sheet.edge_df.loc[edge_id,'srce']
+#         sheet.vert_df.loc[srce,'is_active'] = 0
+#     if sheet.edge_df.loc[edge_id,'face'] == 39:
+#         srce = sheet.edge_df.loc[edge_id,'srce']
+#         sheet.vert_df.loc[srce,'is_active'] = 0
+#     if sheet.edge_df.loc[edge_id,'face'] == 0:
+#         srce = sheet.edge_df.loc[edge_id,'srce']
+#         sheet.vert_df.loc[srce,'is_active'] = 0
+#     if sheet.edge_df.loc[edge_id,'face'] == 19:
+#         srce = sheet.edge_df.loc[edge_id,'srce']
+#         sheet.vert_df.loc[srce,'is_active'] = 0
+# 
+# for i in [0,19,20,39]:
+#     sheet.face_df.loc[i,'is_alive'] = 0
+# =============================================================================
 
-
-    
-    
 geom.update_all(sheet)
 
 fig, ax = plot_forces(sheet, geom, smodel, ['x', 'y'], scaling=0.1)
@@ -156,23 +169,60 @@ fig, ax = plot_forces(sheet, geom, smodel, ['x', 'y'], scaling=0.1)
 
 """ Modelling the CT growth """
 
+def division_stb(sheet, cell_id, division_threshold, division_rate, growth_rate,dt):
+    """Defines a lateral division behavior.
+    The function is composed of:
+        1. check if the cell is CT cell and ready to split.
+        2. generate a random number from (0,1), and compare with a threshold.
+        3. two daughter cells starts growing until reach a threshold.
+        
+    
+    Parameters
+    ----------
+    sheet: a :class:`Sheet` object
+    cell_id: int
+        the index of the dividing cell
+    crit_area: float
+        the area at which 
+    growth_speed: float
+        increase in the area per unit time
+        A_0(t + dt) = A0(t) + growth_speed
+    """
+
+    # if the cell area is larger than the crit_area, we let the cell divide.
+    if sheet.face_df.loc[cell_id, "cell_type"] == 'CT' and sheet.face_df.loc[cell_id, 'area'] > division_threshold:
+        # A random float number is generated between (0,1)
+        prob = np.random.uniform(0,1)
+        if prob < division_rate:
+            sheet.face_df.loc[face_id,'prefered_area'] = 1
+            daughter = lateral_split(sheet, mother = cell_id)
+            print(f"cell n°{daughter} is born")
+            geom.update_all(sheet)
+
+    elif sheet.face_df.loc[cell_id, "cell_type"] == 'CT' and sheet.face_df.loc[cell_id, 'area'] < division_threshold :
+        sheet.face_df.loc[cell_id,'prefered_area'] = sheet.face_df.loc[cell_id,'area'] + dt*growth_rate
+    
+    else:
+        pass
+
+
 from tyssue import History# The History object records all the time steps 
 history = History(sheet)
 
 
 t1_threshold = sheet.edge_df.loc[:,'length'].min() / 10
 t2_threshold = sheet.face_df.loc[:,'area'].min()/10
-division_threshold = sheet.face_df.loc[:,'prefered_area'].min()*0.8
-inhibition_threshold = 0.67
+division_threshold = 2
 max_movement = t1_threshold/2
 d_min = t1_threshold
 d_sep = d_min*1.5
 
 t = 0
-t_end = 0.01
+
+t_end = 1
 
 while t <= t_end:
-    dt = 0.001
+    dt = 0.01
     print(f'start at t= {round(t, 5)}')
 
     # Mesh restructure check
@@ -204,9 +254,33 @@ while t <= t_end:
     sheet.reset_index(order = True)
     geom.update_all(sheet)
     
+    # Mannual split cell 9.
+    sheet.face_df.loc[9,'prefered_area'] = 1
+    daughter = lateral_split(sheet, 9)
+    sheet.reset_index()
+    geom.update_all(sheet)
     
-    # Cell division.
-    
+# =============================================================================
+#     # Cell division, use lateral_split.
+#     for face_id in sheet.face_df.index:
+#         if sheet.face_df.loc[face_id,'cell_type'] == 'ST':
+#             continue
+#         else:
+#             if sheet.face_df.loc[face_id,'area'] > division_threshold:
+#                 rand_num = rng.random()
+#                 if rand_num < 0.1:
+#                     sheet.face_df.loc[face_id,'prefered_area'] = 1
+#                     daughter = lateral_split(sheet, face_id)
+#                     sheet.reset_index()
+#                     geom.update_all(sheet)
+#                     print(f'cell {daughter} was born')
+#                     
+#             if sheet.face_df.loc[face_id, 'area'] < division_threshold:
+#                 sheet.face_df.loc[face_id,'prefered_area'] += 0.1
+#                 geom.update_all(sheet)
+# =============================================================================
+                
+                
 
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
@@ -218,11 +292,11 @@ while t <= t_end:
     sheet.vert_df.loc[valid_active_verts , sheet.coords] = new_pos
     geom.update_all(sheet)
     
-    fig,ax = sheet_view(sheet)
-    ax.title.set_text(f't: {t}')
         
-    t +=dt
+    t += dt
 
+fig,ax = sheet_view(sheet)
+ax.title.set_text(f't: {round(t,3)}')
 
 
 
