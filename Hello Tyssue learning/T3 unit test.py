@@ -92,7 +92,6 @@ Note: the code for case 1 and case 3 were wrote first, since creating case 2
 and case 4 involves vertex reindex. Hence I wrote case 1 & 3 first.
 """
 
-
 # Case 1 from Fletcher 2013, move vertex number 13 close enough to 
 # edge number 57, which is connecting vertex 51 and 50.
 sheet.vert_df.loc[13,'x'] = 5.7
@@ -264,7 +263,6 @@ while True:
     if T3_todo is None:
         break
    
-    
 
 # Case 2 from Fletcher 2013, first，adjust the position of vertex 22, 47and 56.
 

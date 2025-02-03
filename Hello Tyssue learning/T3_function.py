@@ -311,7 +311,7 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
         raise ValueError(f"Edges between {midvert} and {end1} or {midvert} and {end2} not found.")
 
     middle_index = len(sorted_keys) // 2
-    print(sorted_keys)
+    print(f'middle index is: {middle_index}')
     
     
     for element_index, vertex_id in enumerate(sorted_keys):
@@ -320,6 +320,7 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
             continue
 
         if element_index < middle_index:
+            print(f'element index: {element_index}')
             edge_consider = edge1
             position = mid_coord + d_sep * abs(middle_index - element_index) * principle_unit
             # Put the new vertex on the edge and update edge_df
@@ -327,9 +328,11 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
             for e_id in sheet.edge_df.index:
                 if sheet.edge_df.loc[e_id, 'srce'] == vertex_id and sheet.edge_df.loc[e_id,'trgt'] == midvert:
                     sheet.edge_df.loc[e_id, 'trgt'] = new_vert
-                if sheet.edge_df.loc[i, 'trgt'] == vertex_id and sheet.edge_df.loc[e_id, 'srce'] == midvert:
+                if sheet.edge_df.loc[e_id, 'trgt'] == vertex_id and sheet.edge_df.loc[e_id, 'srce'] == midvert:
                     sheet.edge_df.loc[e_id, 'srce'] = new_vert
-        else:
+        if element_index > middle_index:
+            print(f'element index: {element_index}')
+
             edge_consider = edge2
             position = mid_coord - d_sep * abs(element_index - middle_index) * principle_unit
             # Put the new vertex on the edge and update edge_df
