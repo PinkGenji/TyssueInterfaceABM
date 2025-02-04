@@ -67,7 +67,7 @@ def dist_computer(sheet, edge, vert, d_sep):
         nearest = end2_position - d_sep*line_unit
         return distance, nearest
     else:
-        nearest =  end1_position + dot * line
+        nearest =  end1_position + dot * line_unit
         distance = np.round(np.linalg.norm(nearest-point),7)
         return distance, nearest
 
@@ -320,23 +320,24 @@ def resolve_local(sheet, end1, end2, midvert, d_sep):
             continue
 
         if element_index < middle_index:
-            print(f'element index: {element_index}')
+            print(f'element index: {element_index} < middle index')
             edge_consider = edge1
             position = mid_coord + d_sep * abs(middle_index - element_index) * principle_unit
             # Put the new vertex on the edge and update edge_df
             new_vert = put_vert(sheet, edge_consider, position)[0]
+            print(f'put a new vertex: {new_vert}')
             for e_id in sheet.edge_df.index:
                 if sheet.edge_df.loc[e_id, 'srce'] == vertex_id and sheet.edge_df.loc[e_id,'trgt'] == midvert:
                     sheet.edge_df.loc[e_id, 'trgt'] = new_vert
                 if sheet.edge_df.loc[e_id, 'trgt'] == vertex_id and sheet.edge_df.loc[e_id, 'srce'] == midvert:
                     sheet.edge_df.loc[e_id, 'srce'] = new_vert
         if element_index > middle_index:
-            print(f'element index: {element_index}')
-
+            print(f'element index: {element_index} > middle index')
             edge_consider = edge2
             position = mid_coord - d_sep * abs(element_index - middle_index) * principle_unit
             # Put the new vertex on the edge and update edge_df
             new_vert = put_vert(sheet, edge_consider, position)[0]
+            print(f'put a new vertex: {new_vert}')
             for e_id in sheet.edge_df.index:
                 if sheet.edge_df.loc[e_id, 'srce'] == vertex_id and sheet.edge_df.loc[e_id,'trgt'] == midvert:
                     sheet.edge_df.loc[e_id, 'trgt'] = new_vert
