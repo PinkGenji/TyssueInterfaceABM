@@ -493,8 +493,10 @@ def type1_transition_custom(sheet, edge01, multiplier=1.5):
 
     return edge01
 
-def division_1(sheet, rng, cent_data, cell_id, dt):
-    """The cells keep growing, when the area exceeds a critical area, then
+def division_mt(sheet, rng, cent_data, cell_id, dt):
+    """
+    This division function invovles mitosis index.
+    The cells keep growing, when the area exceeds a critical area, then
     the cell divides.
     
     Parameters

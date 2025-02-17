@@ -192,7 +192,7 @@ while t <= t_end:
     # Loop over all the faces.
     cells_can_divide = sheet.face_df[(sheet.face_df['area'] >= division_threshold) & (sheet.face_df['T_age'] == sheet.face_df['T_cycle'])]
     for index, series in cells_can_divide.iterrows():
-        daughter_index = division_1(sheet,rng=rng, cent_data= centre_data, cell_id = index, dt = dt)
+        daughter_index = division_mt(sheet,rng=rng, cent_data= centre_data, cell_id = index, dt = dt)
     # Update the T_age in mitosis.
     cells_are_mitosis = sheet.face_df[(sheet.face_df['T_age'] != sheet.face_df['T_cycle'])]
     
