@@ -124,7 +124,7 @@ t = Decimal("0")
 dt = Decimal("0.001")
 
 
-t_end = Decimal("80")
+t_end = Decimal("100")
 
 
 while t <= t_end:
@@ -261,6 +261,7 @@ while t <= t_end:
 
 fig, ax = sheet_view(sheet)
 ax.title.set_text(f'time = {round(t, 5)}')
+
 
 
 
