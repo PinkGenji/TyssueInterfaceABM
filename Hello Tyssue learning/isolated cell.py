@@ -39,7 +39,7 @@ from tyssue.topology.sheet_topology import remove_face, cell_division, face_divi
 
 # 2D plotting
 from tyssue.draw import sheet_view, highlight_cells
-from tyssue.draw.plt_draw import plot_forces, plot_forces2
+from tyssue.draw.plt_draw import plot_forces
 from tyssue.config.draw import sheet_spec
 # import my own functions
 from my_headers import *
@@ -59,50 +59,33 @@ sheet_view(sheet)
 sheet.get_extra_indices()
 # We need to creata a new colum to store the cell cycle time, default a 0, then minus.
 sheet.face_df['T_cycle'] = 0
-# Visualize the sheet.
+# print the cell area and visualize the cell.
+CA_initial = sheet.face_df.loc[0,'area']
+print(f'Initial Cell Area is: {CA_initial}')
 fig, ax = sheet_view(sheet,  mode = '2D')
 # First, we need a way to compute the energy, then use gradient descent.
-specs = {
-    'edge': {
-        'is_active': 1,
-        'line_tension': 10,
-        'ux': 0.0,
-        'uy': 0.0,
-        'uz': 0.0
-    },
-   'face': {
-       'area_elasticity': 110,
-       'perimeter': 3.0,
-       'contractility': 0,
-       'is_alive': 1,
-       'prefered_area': 1},
-   'settings': {
-       'grad_norm_factor': 1.0,
-       'nrj_norm_factor': 1.0
-   },
-   'vert': {
-       'is_active': 1
-   }
-}
+model = model_factory([
+    effectors.LineTension,
+    effectors.FaceContractility,
+    effectors.FaceAreaElasticity
+])
 sheet.vert_df['viscosity'] = 1.0
+model.specs
 # Update the specs (adds / changes the values in the dataframes' columns)
-sheet.update_specs(specs, reset = True)
-geom.update_all(sheet)
+sheet.update_specs(model.specs, reset=True)
 
-# Adjust for cell-boundary adhesion force.
-for i in sheet.edge_df.index:
-    if sheet.edge_df.loc[i, 'opposite'] == -1:
-        sheet.edge_df.loc[i, 'line_tension'] *=2
-    else:
-        continue
 geom.update_all(sheet)
-
+energy = model.compute_energy(sheet)
+print(f'Total energy: {energy: .3f}')
 
 # Check the tissue is at its equilibrium
 solver = QSSolver()
 res = solver.find_energy_min(sheet, geom, smodel)
-# Visualisation of the tissue
+# Print cell area after relaxation and plot the cell.
+CA_relaxed = sheet.face_df.loc[0,'area']
+print(f'Relaxed Cell Area is: {CA_relaxed}')
 fig, ax = sheet_view(sheet, mode="2D")
+
 
 
 # We need set the all the threshold value first.
