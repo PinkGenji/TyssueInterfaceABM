@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """
 This script aims to do two major tasks:
-    (1) set up the cell classes we need in the model.
+    (1) Set up the cell classes we need in the model.
     (2) Set up a model where there is an initial layer of STB and mature CT,
     demonstrate that we can swap CT from the mature CT group to the G2 (growing for mitosis)
     with some probability p.
+    (3) Set up the rules that goven how each class of cells change into another.
 """
 
 
