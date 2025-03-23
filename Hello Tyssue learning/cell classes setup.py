@@ -163,7 +163,13 @@ def select_S_to_F(face_df, sheet, rng, percentage=0.1):
     # Filter only those with at least one 'STB' neighbor
     valid_indices = [i for i in s_indices if any(face_df.loc[n, "class"] == "STB" for n in sheet.get_neighbours(i))]
 
-    number_to_change = int(len(valid_indices) * percentage*_
+    number_to_change = int(len(valid_indices) * percentage)
+    
+    if number_to_change > 0:
+        # Randomly select which 'S' cells will turn into 'F'
+        selected_indices = rng.choice(valid_indices, size=number_to_change, replace=False)
+        face_df.loc[selected_indices, "class"] = "F"  # Update selected cells
+
 
 
 
