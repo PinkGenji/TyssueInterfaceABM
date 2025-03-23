@@ -73,27 +73,51 @@ for i in sheet.face_df.index:
         sheet.face_df.loc[i,'cell_class'] = "STB"
 
 
+
 # Now we write a function that for an input of a cell dataframe, it changes
-# 10% of its "S" cells to "G1" class, and double the target area of new G1 cells.
-def select_S_to_G1(face_df, rng, percentage = 0.1):
+# 10% of its "S" cells to "G1" class, and doubles the target area of new G1 cells.
+def select_S_to_G1(face_df, rng, percentage=0.1):
+    """Converts 10% of 'S' cells to 'G1' and doubles their target area.
+    
+    Parameters:
+        face_df (DataFrame): DataFrame containing cell properties.
+        rng (np.random.Generator): Random number generator for reproducibility.
+        percentage (float): Probability of conversion (default 10%).
+    """
+
     s_cells = face_df['cell_class'] == "S"
-    s_indicies = face_df.index[s_cells] # Get indicies of the S cells.
-    number_to_change = int(len(s_indicies) * percentage)
-    if number_to_change >0:
+    s_indices = face_df.index[s_cells]  # Get indices of the S cells.
+    number_to_change = int(len(s_indices) * percentage)
+    
+    if number_to_change > 0:
         # Using RNG, we pick the indices of the cells that will change class.
-        selected_indices = rng.choice(s_indicies, size = number_to_change, replace = False)
-        face_df.loc[selected_indices, 'cell_class'] = 'G1' # Update selected cells.
-        face_df.loc[selected_indices,'prefered_area'] *= 2 # Double the target area.
-        
-# Now, we need to have a function that converts all "G1" cells reach 97%
-# of its target area (as an approximation of full size) to be "M" class.
+        selected_indices = rng.choice(s_indices, size=number_to_change, replace=False)
+        face_df.loc[selected_indices, 'cell_class'] = 'G1'  # Update selected cells.
+        face_df.loc[selected_indices, 'prefered_area'] *= 2  # Double the target area.
+
+
+# Now, we need to have a function that converts all "G1" cells that reach 97%
+# of their target area (as an approximation of full size) to be "M" class.
 def select_G1_to_M(face_df):
+    """Converts all 'G1' cells to 'M' when they reach 97% of their target area.
+    
+    Parameters:
+        face_df (DataFrame): DataFrame containing cell properties.
+    """
+
     for i in face_df.index:
-        if face_df.loc[i,'class'] == "G1" and face_df.loc[i,'area'] >= 0.97*face_df.loc[i,'prefered_area']:
-            sheet.face_df.loc[i,'class'] = "M" 
-            
+        if face_df.loc[i, 'class'] == "G1" and face_df.loc[i, 'area'] >= 0.97 * face_df.loc[i, 'prefered_area']:
+            face_df.loc[i, 'class'] = "M" 
+
+
 # Now, we write a function that performs cell division on all "M" cells.
 def divide_M_cells(face_df):
+    """Divides all 'M' cells and assigns both parent and daughter to 'G2'.
+    
+    Parameters:
+        face_df (DataFrame): DataFrame containing cell properties.
+    """
+
     M_cells = face_df[face_df["class"] == "M"].index.tolist()
 
     for cell_id in M_cells:
@@ -106,29 +130,42 @@ def divide_M_cells(face_df):
 
         print(f"Cell {cell_id} divided into {daughter_id} and both are now G2")
 
+
 # Now, we write a function that converts all "G2" cells to "S" class when their
 # area is 97% of the target area.
 def select_G2_to_S(face_df):
+    """Converts all 'G2' cells to 'S' when they reach 97% of their target area.
+    
+    Parameters:
+        face_df (DataFrame): DataFrame containing cell properties.
+    """
+
     for i in face_df.index:
-        if face_df.loc[i,'class'] == "G2" and face_df.loc[i,'area'] >= 0.97*face_df.loc[i,'prefered_area']:
-            sheet.face_df.loc[i,'class'] = "S" 
+        if face_df.loc[i, 'class'] == "G2" and face_df.loc[i, 'area'] >= 0.97 * face_df.loc[i, 'prefered_area']:
+            face_df.loc[i, 'class'] = "S" 
 
-# Now, we write a function, that if a 'S' class is in neighbour with "STB" cell,
-# then it will convert into "F" class by some probability, default as 10% again.
 
-def select_S_to_F(sheet, rng, probability=0.1):
-    S_cells = sheet.face_df[sheet.face_df["class"] == "S"].index.tolist()
+# Now, we write a function that converts an "S" cell to an "F" cell with 10%
+# probability, if it has at least one neighboring "STB" cell.
+def select_S_to_F(face_df, sheet, rng, percentage=0.1):
+    """Converts 10% of 'S' cells to 'F' if they have an 'STB' neighbor.
+    
+    Parameters:
+        face_df (DataFrame): DataFrame containing cell properties.
+        sheet: The tissue sheet object (to get neighbors).
+        rng (np.random.Generator): Random number generator for reproducibility.
+        percentage (float): Probability of conversion (default 10%).
+    """
 
-    for cell_id in S_cells:
-        # Get neighboring cell indices
-        neighbors = sheet.get_neighbours(cell_id)
+    s_cells = face_df["class"] == "S"
+    s_indices = face_df.index[s_cells]  # Get indices of the S cells
 
-        # Check if any neighbor is an "STB" cell
-        if any(sheet.face_df.loc[n, "class"] == "STB" for n in neighbors):
-            # Convert with given probability
-            if rng.random() < probability:
-                sheet.face_df.loc[cell_id, "class"] = "F"
-                print(f"Cell {cell_id} converted from 'S' to 'F' due to 'STB' neighbor.")
+    # Filter only those with at least one 'STB' neighbor
+    valid_indices = [i for i in s_indices if any(face_df.loc[n, "class"] == "STB" for n in sheet.get_neighbours(i))]
+
+    number_to_change = int(len(valid_indices) * percentage*_
+
+
 
 
 
