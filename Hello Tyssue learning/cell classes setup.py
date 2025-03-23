@@ -37,6 +37,40 @@ from my_headers import *
 
 rng = np.random.default_rng(70)    # Seed the random number generator.
 
+# Generate the cell sheet as three cells.
+num_x = 5
+num_y = 2
+sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = num_x, ny = num_y, distx = 1, disty = 1)
+geom.update_all(sheet)
+
+# remove non-enclosed faces
+sheet.remove(sheet.get_invalid())
+delete_face(sheet, 5)
+delete_face(sheet, 6)
+
+sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
+geom.update_all(sheet)
+
+# Plot the figure to see the index.
+fig, ax = sheet_view(sheet)
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
+
+# Add a new attribute to the face_df, called "cell class"
+sheet.face_df['cell_class'] = 'default'
+for i in sheet.face_df.index:
+    if i in [0,1,2,3,4]:
+        sheet.face_df.loc[i,'cell_class'] = "S" # Set them to be mature CT at start.
+    else:
+        sheet.face_df.loc[i,'cell_class'] = "STB"
+
+
+
+
+
+
+
+
 
 
 
