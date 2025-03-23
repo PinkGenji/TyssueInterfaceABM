@@ -63,24 +63,33 @@ sheet.face_df['T_cycle'] = 0
 CA_initial = sheet.face_df.loc[0,'area']
 print(f'Initial Cell Area is: {CA_initial}')
 fig, ax = sheet_view(sheet,  mode = '2D')
-# First, we need a way to compute the energy, then use gradient descent.
-model = model_factory([
-    effectors.LineTension,
-    effectors.FaceContractility,
-    effectors.FaceAreaElasticity
-])
-sheet.vert_df['viscosity'] = 1.0
-model.specs
-# Update the specs (adds / changes the values in the dataframes' columns)
-sheet.update_specs(model.specs, reset=True)
 
-geom.update_all(sheet)
-energy = model.compute_energy(sheet)
-print(f'Total energy: {energy: .3f}')
+
+# Setup the solver.
+solver = QSSolver()
+nondim_specs = config.dynamics.quasistatic_plane_spec()
+dim_model_specs = model.dimensionalize(nondim_specs)
+sheet.update_specs(dim_model_specs, reset=True)
+
+res = solver.find_energy_min(sheet, geom, model)
+
+print(sheet.face_df.loc[0,'area'])
+
+fig, ax = sheet_view(sheet)
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
+
+
+for i in sheet.face_df.index:
+    sheet.face_df.loc[i,'prefered_area'] =1
+    sheet.face_df.loc[i,'area_elasticity'] =500
+    sheet.face_df.loc[i,'contractility'] = 0.0
+    sheet.face_df.loc[i,'line_tension'] =0.0
+    sheet.face_df.loc[i,'sub_area'] =0.0
 
 # Check the tissue is at its equilibrium
-solver = QSSolver()
 res = solver.find_energy_min(sheet, geom, smodel)
+
 # Print cell area after relaxation and plot the cell.
 CA_relaxed = sheet.face_df.loc[0,'area']
 print(f'Relaxed Cell Area is: {CA_relaxed}')
@@ -88,80 +97,56 @@ fig, ax = sheet_view(sheet, mode="2D")
 
 
 
-# We need set the all the threshold value first.
-t1_threshold = 0.1
-t2_threshold = 0.1
-max_movement = t1_threshold/2
+""" The following part draw the plot of area_elasticity against cell area """
 
-move = time_step_bot(sheet, dt=0.01, max_dist_allowed = max_movement )[1]
+# Define specific area elasticity values to test
+area_elasticities = [1, 5, 10, 100, 200, 300, 500]
+resulting_areas = []
 
-fig, ax = plot_forces2(sheet, geom, smodel, movement=move, coords=['x', 'y'], dt=0.01, scaling=0.1)
-
-sheet_view(sheet)
-sheet.face_df.loc[:,'area']
-
-
-# Now assume we want to go from t = 0 to t= 0.2, dt = 0.1
-t0 = 0
-t_end = 4
-dt = 0.01
-time_points = np.linspace(t0, t_end, int((t_end - t0) / dt) + 1)
-
-
-
-from tyssue.dynamics.base_gradients import length_grad
-from tyssue.dynamics.planar_gradients import area_grad
-area_grad(sheet)
-
-for t in time_points:
-    #print(f'start at t= {round(t, 5)}.')
-
-     # Force computing and updating positions.
-    valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
-    pos = sheet.vert_df.loc[valid_active_verts, sheet.coords].values
-    # get the movement of position based on dynamical dt.
-    dt, movement = time_step_bot(sheet, dt, max_dist_allowed = max_movement )
-    new_pos = pos + movement
-     # Save the new positions back to `vert_df`
-    sheet.vert_df.loc[valid_active_verts , sheet.coords] = new_pos
+for elasticity in area_elasticities:
+    # Generate the cell sheet with a single cell
+    num_x, num_y = 1, 1
+    sheet = Sheet.planar_sheet_2d('face', nx=num_x, ny=num_y, distx=0.5, disty=0.5)
     geom.update_all(sheet)
-plot_forces2(sheet, geom, smodel, movement=movement, coords=['x', 'y'], dt=0.01, scaling=0.1)
+    
+    # Remove non-enclosed faces
+    sheet.remove(sheet.get_invalid())  
+    delete_face(sheet, 1)
+    sheet.reset_index(order=True)
 
-sheet_view(sheet)
-area = sheet.face_df.loc[:,'area'][0]
-print(f'After evolve {t} time, area is: {area}')
+    # Setup solver and update specs **before** setting elasticity
+    solver = QSSolver()
+    nondim_specs = config.dynamics.quasistatic_plane_spec()
+    dim_model_specs = model.dimensionalize(nondim_specs)
+    sheet.update_specs(dim_model_specs, reset=True)
+
+    # Manually override area elasticity after specs update
+    sheet.face_df['prefered_area'] = 1
+    sheet.face_df['area_elasticity'] = elasticity  # Must be set after update_specs
+    sheet.face_df['contractility'] = 0.0
+    sheet.face_df['line_tension'] = 0.0
+    sheet.face_df['sub_area'] = 0.0
+
+    # Solve for equilibrium
+    res = solver.find_energy_min(sheet, geom, model)
+    
+    # Store the resulting area
+    final_area = sheet.face_df.loc[0, 'area']
+    resulting_areas.append(final_area)
+
+# Plot results
+plt.figure(figsize=(8, 5))
+plt.plot(area_elasticities, resulting_areas, marker='o', linestyle='-')
+plt.xlabel("Area elasticity value ")
+plt.ylabel("Cell area")
+plt.title("Effect of Area Elasticity on Cell Area (with no contractility)")
+plt.grid(True)
+plt.show()
 
 
 
 
-# =============================================================================
-# def to_nd(df, ndim):
-#     """
-#     Give a new shape to an input data by duplicating its column.
-# 
-#     Parameters
-#     ----------
-# 
-#     df : input data that will be reshape
-#     ndim : dimension of the new reshape data.
-# 
-#     Returns
-#     -------
-# 
-#     df_nd : return array reshaped in ndim.
-# 
-#     """
-#     df_nd = np.asarray(df).reshape((df.size, 1))
-#     return df_nd
-# 
-# gamma_ = sheet.face_df.eval("contractility * perimeter * is_alive")
-# gamma = sheet.upcast_face(gamma_)
-# 
-# grad_srce = -sheet.edge_df[sheet.ucoords] * to_nd(gamma, len(sheet.coords))
-# grad_srce.columns = ["g" + u for u in sheet.coords]
-# grad_trgt = -grad_srce
-# print(grad_srce, grad_trgt)
-# =============================================================================
+
 
 """
 This is the end of the script.
