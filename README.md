@@ -1,2 +1,2 @@
 # tyssueHello
- This is the repo to store my files while learning the tyssue package
+This is the repo to store my vertex modelling code using Tyssue 
