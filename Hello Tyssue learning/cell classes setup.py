@@ -8,23 +8,19 @@ This script aims to do two major tasks:
     (3) Set up the rules that goven how each class of cells change into another.
 """
 
-
-# =============================================================================
-# First we need to surpress the version warnings from Pandas.
-import warnings 
-warnings.simplefilter(action='ignore', category=FutureWarning) 
-# =============================================================================
-
 # Load all required modules.
 
 import numpy as np
 import pandas as pd
 
+# file path related modules, and import my own functions.
+import sys
 import os
-import json
-import matplotlib as matplot
-import matplotlib.pylab as plt
-import ipyvolume as ipv
+
+
+
+# Drawing related modules
+import matplotlib.pyplot as plt
 
 from tyssue import Sheet, config #import core object
 from tyssue import PlanarGeometry as geom #for simple 2d geometry
@@ -41,29 +37,37 @@ from tyssue.draw import sheet_view, highlight_cells
 from tyssue.draw.plt_draw import plot_forces
 from tyssue.config.draw import sheet_spec
 # import my own functions
-from my_headers import *
+import my_headers as mh
 
 rng = np.random.default_rng(70)    # Seed the random number generator.
 
-# Generate the cell sheet as three cells.
-num_x = 5
-num_y = 2
+# Generate the initial cell sheet. Note: 6 horizontal and
+num_x = 6
+num_y = 4
 sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = num_x, ny = num_y, distx = 1, disty = 1)
 geom.update_all(sheet)
 
 # remove non-enclosed faces
 sheet.remove(sheet.get_invalid())
-delete_face(sheet, 5)
-delete_face(sheet, 6)
+
+# Delete the irregular polygons, plot the figure to see the index of irregular faces.
+fig, ax = sheet_view(sheet)
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face)
+plt.show()
+# polygon 4 and 5 are irregular.
+mh.delete_face(sheet, 4)
+mh.delete_face(sheet, 5)
+
 
 sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
 geom.update_all(sheet)
 
-# Plot the figure to see the index.
+# Plot the figure to see the inital setup is what we want.
 fig, ax = sheet_view(sheet)
 for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
-
+plt.show()
 
 # Add a new attribute to the face_df, called "cell class"
 sheet.face_df['cell_class'] = 'default'
