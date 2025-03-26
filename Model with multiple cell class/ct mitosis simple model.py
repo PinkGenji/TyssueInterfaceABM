@@ -48,14 +48,13 @@ print('Initial geometry plot generated. \n')
 # Add a new attribute to the face_df, called "cell class"
 sheet.face_df['cell_class'] = 'default'
 total_cell_num = len(sheet.face_df)
-
+print('Cell class attribute created for all cells and set value as "default". ')
 for i in range(0,num_x-2):  # These are the indices of bottom layer.
     sheet.face_df.loc[i,'cell_class'] = 'S'
 
 for i in range(num_x-2,len(sheet.face_df)):     # These are the indices of top layer.
     sheet.face_df.loc[i,'cell_class'] = 'STB'
 
-print('Initial geometry plot generated.')
 print(f'There are {total_cell_num} total cells; equally split into "S" and "STB" classes: ')
 cell_class_table = sheet.face_df['cell_class'].value_counts()
 print(cell_class_table)
@@ -63,7 +62,7 @@ print(cell_class_table)
 
 # Now, loop over all "S" cells, that we can change the cell property to "G1" with a probability of 0.7
 S_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist()
-print('Start changing "S" cell into "G1" by probability 0.7 \n')
+print('\n Start changing "S" cell into "G1" by probability 0.7 now. \n')
 for cell in S_cells:
     # Use rng to randomly generate a number between 1 and 10, this will determine the fate of the mature CT.
     cell_fate_roulette = rng.integers(1,11)
