@@ -1,6 +1,6 @@
 
 .DS_Store
-/Hello Tyssue learning/__pycache__
+*/__pycache__
 
 # Ignore .idea folder by ignoring followings
 .iws

@@ -1,41 +1,17 @@
 # -*- coding: utf-8 -*-
 """
 This script aims to do two major tasks:
-    (1) Set up the cell classes we need in the model.
-    (2) Set up a model where there is an initial layer of STB and mature CT,
-    demonstrate that we can swap CT from the mature CT group to the G2 (growing for mitosis)
-    with some probability p.
-    (3) Set up the rules that goven how each class of cells change into another.
+    (1) Generate a geometry of regular polygons to represent cell sheet.
+    (2) Set up and assign the cell classes we need in the model.
 """
 
 # Load all required modules.
-
 import numpy as np
-import pandas as pd
-
-# file path related modules, and import my own functions.
-import sys
-import os
-
-
-
-# Drawing related modules
 import matplotlib.pyplot as plt
-
-from tyssue import Sheet, config #import core object
+from tyssue import Sheet
 from tyssue import PlanarGeometry as geom #for simple 2d geometry
-
-## model and solver
-from tyssue.dynamics.planar_vertex_model import PlanarModel as smodel
-from tyssue.solvers.quasistatic import QSSolver
-from tyssue.generation import extrude
-from tyssue.dynamics import model_factory, effectors
-from tyssue.topology.sheet_topology import remove_face, cell_division, face_division
-
 # 2D plotting
-from tyssue.draw import sheet_view, highlight_cells
-from tyssue.draw.plt_draw import plot_forces
-from tyssue.config.draw import sheet_spec
+from tyssue.draw import sheet_view
 # import my own functions
 import my_headers as mh
 
