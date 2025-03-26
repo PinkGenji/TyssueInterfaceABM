@@ -63,7 +63,4 @@ print('The table summaries the number of different class of cells we have: ')
 print(cell_class_table)
 
 
-
-"""
-This is the end of the script.
-"""
+print('\n This is the end of this script. (＾• ω •＾)')
