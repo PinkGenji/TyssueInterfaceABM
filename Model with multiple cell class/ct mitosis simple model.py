@@ -60,14 +60,14 @@ cell_class_table = sheet.face_df['cell_class'].value_counts()
 print(cell_class_table)
 
 
-# Now, loop over all "S" cells, that we can change the cell property to "G1" with a probability of 0.7
+# Now, loop over all "S" cells, that we can change the cell property to "G2" with a probability of 0.7
 S_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist()
-print('\n Start changing "S" cell into "G1" by probability 0.7 now. \n')
+print('\n Start changing "S" cell into "G2" by probability 0.7 now. \n')
 for cell in S_cells:
     # Use rng to randomly generate a number between 1 and 10, this will determine the fate of the mature CT.
     cell_fate_roulette = rng.integers(1,11)
     if cell_fate_roulette <=7 :
-        sheet.face_df.loc[cell,'cell_class'] = 'G1'
+        sheet.face_df.loc[cell,'cell_class'] = 'G2'
     else:
         continue
 
