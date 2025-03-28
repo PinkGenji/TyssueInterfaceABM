@@ -11,14 +11,16 @@ This script models a time driven (and only time) cell cycle. Following are the a
 
 # Load all required modules.
 import numpy as np
+from decimal import Decimal, getcontext
 import matplotlib.pyplot as plt
 from tyssue import Sheet, config, History
 from tyssue import PlanarGeometry as geom #for simple 2d geometry
 from tyssue.dynamics import PlanarModel, effectors, model_factory
-from tyssue.solvers.viscous import EulerSolver
+from tyssue.topology.sheet_topology import  type1_transition
 # 2D plotting
 from tyssue.draw import sheet_view
-from tyssue.draw.plt_draw import  plot_forces
+from tyssue.topology.sheet_topology import cell_division
+
 # import my own functions
 import my_headers as mh
 
@@ -31,6 +33,8 @@ num_y = 4
 
 sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = num_x, ny = num_y, distx = 1, disty = 1)
 geom.update_all(sheet)
+#Updates the sheet geometry by updating: * the edge vector coordinates * the edge lengths * the face centroids
+# * the normals to each edge associated face * the face areas.
 
 # remove non-enclosed faces
 sheet.remove(sheet.get_invalid())
@@ -55,8 +59,10 @@ print('Initial geometry plot generated. \n')
 
 # Add a new attribute to the face_df, called "cell class"
 sheet.face_df['cell_class'] = 'default'
+sheet.face_df['timer'] = 'NA'
 total_cell_num = len(sheet.face_df)
-print('Cell class attribute created for all cells and set value as "default". ')
+
+print('New attributes: cell_class; timer created for all cells. \n ')
 for i in range(0,num_x-2):  # These are the indices of bottom layer.
     sheet.face_df.loc[i,'cell_class'] = 'S'
 
@@ -71,70 +77,86 @@ model = model_factory([
     effectors.FaceContractility,
     effectors.FaceAreaElasticity
 ])
+sheet.vert_df['viscosity'] = 1.0
 
 sheet.update_specs(model.specs, reset=True)
 
-sheet.settings['threshold_length'] = 1e-3
+# Set up the numerical calculation.
+t_0 = Decimal('0.0')
+t_end = Decimal('3.0')
+dt = Decimal('0.001')
+t = t_0
 
-sheet.update_specs(config.dynamics.quasistatic_plane_spec())
-sheet.face_df["prefered_area"] = sheet.face_df["area"].mean()
-history = History(sheet) #, extra_cols={"edge":["dx", "dy", "sx", "sy", "tx", "ty"]})
+cell1_class = sheet.face_df.loc[1,'cell_class']
+print(f'Cell 1 is in class: "{cell1_class}" at t=0.')
 
-sheet.vert_df['viscosity'] = 1.0
-sheet.edge_df.loc[[0, 17],  'line_tension'] *= 4
-sheet.face_df.loc[1,  'prefered_area'] *= 1.2
+while t <= t_end:
+    S_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist()
 
-fig, ax = plot_forces(sheet, geom, model, ['x', 'y'], 1)
-plt.show()
-history = History(sheet, save_every=2, dt=1)
-
-for i in range(10):
-    geom.scale(sheet, 1.02, list('xy'))
+    for cell in S_cells:
+        # Use rng to randomly generate a number between 1 and 10, this will determine the fate of the mature CT.
+        cell_fate_roulette = rng.random()
+        if cell_fate_roulette <= 0.1:
+            sheet.face_df.loc[cell, 'cell_class'] = 'G2'
+            if cell == 1:
+                print(f'Cell 1 enter "G2" at time {t}. ')
+            # Add a timer for each cell enters "G2".
+            sheet.face_df.loc[cell, 'timer'] = Decimal('0.3')
+        else:
+            continue
     geom.update_all(sheet)
-    # record only every `save_every` time
-    history.record()
 
-
-solver = EulerSolver(
-    sheet,
-    geom,
-    model,
-    history=history,
-    auto_reconnect=True)
-
-def on_topo_change(sheet):
-    print('Topology changed!\n')
-    print("reseting tension")
-    sheet.edge_df["line_tension"] = sheet.specs["edge"]["line_tension"]
-
-
-
-res = solver.solve(tf=15, dt=0.05, on_topo_change=on_topo_change,
-                   topo_change_args=(solver.eptm,))
-
-create_gif(solver.history, "sheet3.gif", num_frames=120)
-
-Image("sheet3.gif")
-
-
-# Assigning cells in "S" to "G2" by probability 0.5
-
-
-# Add a timer for each cell enters "G2".
-
-
-# At the end of the timer, "G2" becomes "M".
-
+    # At the end of the timer, "G2" becomes "M".
+    G2_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'G2'].tolist()
+    for cell in G2_cells:
+        if sheet.face_df.loc[cell, 'timer'] == 0:
+            sheet.face_df.loc[cell, 'cell_class'] = 'M'
+            if cell == 1:
+                print(f'Cell 1 enter "M" at time {t}. ')
+        else:
+            sheet.face_df.loc[cell, 'timer'] -= dt
 
 # For all cells in "M", divide the cell with no orientation preference. Then cells becomes "G1".
+    M_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'M'].tolist()
+    for cell in M_cells:
+        daugther = cell_division(sheet, cell, geom)
+        sheet.face_df.loc[cell, 'cell_class'] = 'G1'
+        sheet.face_df.loc[daugther, 'cell_class'] = 'G1'
+        if cell == 1:
+            print(f'Cell 1 enter "G1" at time {t}. ')
+        # Add a timer for each cell enters "G1".
+        sheet.face_df.loc[cell, 'timer'] = Decimal('0.3')
+        sheet.face_df.loc[daugther, 'timer'] = Decimal('0.3')
 
+    geom.update_all(sheet)
 
-# Add a timer for each cell enters "G1".
+    # At the end of the timer, "G1" class becomes "S".
+    G1_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'G1'].tolist()
+    for cell in G1_cells:
+        if sheet.face_df.loc[cell, 'timer'] == 0:
+            sheet.face_df.loc[cell, 'cell_class'] = 'S'
+            if cell == 1:
+                print(f'Cell 1 enter "S" at time {t}. ')
+        else:
+            sheet.face_df.loc[cell, 'timer'] -= dt
 
+    # # Force computing and updating positions.
+    # valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
+    # pos = sheet.vert_df.loc[valid_active_verts, sheet.coords].values
+    # # Compute the moving direction.
+    # dot_r = mh.my_ode(sheet)
+    # dot_r = Decimal(dot_r)
+    # new_pos = pos + dot_r * dt
+    # # Save the new positions back to `vert_df`
+    # sheet.vert_df.loc[valid_active_verts, sheet.coords] = new_pos
+    # geom.update_all(sheet)
+    #
+    geom.update_all(sheet)
+    t += dt
 
-# When timer is end, "G1" class becomes "S".
-
-
+geom.update_all(sheet)
+fig, ax = sheet_view(sheet)
+plt.show()
 
 
 print('\n This is the end of this script. (＾• ω •＾) ')
