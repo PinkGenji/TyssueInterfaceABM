@@ -81,16 +81,19 @@ sheet.vert_df['viscosity'] = 1.0
 
 sheet.update_specs(model.specs, reset=True)
 
+
+
 # Set up the numerical calculation.
-t_0 = Decimal('0.0')
-t_end = Decimal('3.0')
-dt = Decimal('0.001')
+t_0 = 0
+t_end = 3
+dt = 0.001
 t = t_0
 
 cell1_class = sheet.face_df.loc[1,'cell_class']
 print(f'Cell 1 is in class: "{cell1_class}" at t=0.')
 
 while t <= t_end:
+    print(f'Time @ {t}')
     S_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist()
 
     for cell in S_cells:
@@ -101,7 +104,7 @@ while t <= t_end:
             if cell == 1:
                 print(f'Cell 1 enter "G2" at time {t}. ')
             # Add a timer for each cell enters "G2".
-            sheet.face_df.loc[cell, 'timer'] = Decimal('0.3')
+            sheet.face_df.loc[cell, 'timer'] = 0.4
         else:
             continue
     geom.update_all(sheet)
@@ -109,7 +112,7 @@ while t <= t_end:
     # At the end of the timer, "G2" becomes "M".
     G2_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'G2'].tolist()
     for cell in G2_cells:
-        if sheet.face_df.loc[cell, 'timer'] == 0:
+        if sheet.face_df.loc[cell, 'timer'] < 0:
             sheet.face_df.loc[cell, 'cell_class'] = 'M'
             if cell == 1:
                 print(f'Cell 1 enter "M" at time {t}. ')
@@ -125,33 +128,33 @@ while t <= t_end:
         if cell == 1:
             print(f'Cell 1 enter "G1" at time {t}. ')
         # Add a timer for each cell enters "G1".
-        sheet.face_df.loc[cell, 'timer'] = Decimal('0.3')
-        sheet.face_df.loc[daugther, 'timer'] = Decimal('0.3')
+        sheet.face_df.loc[cell, 'timer'] = 0.11
+        sheet.face_df.loc[daugther, 'timer'] = 0.11
 
     geom.update_all(sheet)
 
     # At the end of the timer, "G1" class becomes "S".
     G1_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'G1'].tolist()
     for cell in G1_cells:
-        if sheet.face_df.loc[cell, 'timer'] == 0:
+        if sheet.face_df.loc[cell, 'timer'] < 0:
             sheet.face_df.loc[cell, 'cell_class'] = 'S'
             if cell == 1:
                 print(f'Cell 1 enter "S" at time {t}. ')
         else:
             sheet.face_df.loc[cell, 'timer'] -= dt
 
-    # # Force computing and updating positions.
-    # valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
-    # pos = sheet.vert_df.loc[valid_active_verts, sheet.coords].values
-    # # Compute the moving direction.
-    # dot_r = mh.my_ode(sheet)
-    # dot_r = Decimal(dot_r)
-    # new_pos = pos + dot_r * dt
-    # # Save the new positions back to `vert_df`
-    # sheet.vert_df.loc[valid_active_verts, sheet.coords] = new_pos
-    # geom.update_all(sheet)
-    #
+    # Force computing and updating positions.
+    valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
+    pos = sheet.vert_df.loc[valid_active_verts, sheet.coords].values
+    # Compute the moving direction.
+    dot_r = mh.my_ode(sheet)
+    new_pos = pos + dot_r * dt
+    # Save the new positions back to `vert_df`
+    sheet.vert_df.loc[valid_active_verts, sheet.coords] = new_pos
+    # Update the position of vertices.
     geom.update_all(sheet)
+
+    # Update time.
     t += dt
 
 geom.update_all(sheet)
