@@ -108,7 +108,7 @@ def closest_pair_dist(a,end1, end2):
         return a_hat
 
 def put_vert(eptm, edge, coord_put):
-    """Adds a vertex somewhere in the an edge,
+    """Adds a vertex somewhere in the edge,
 
     which is split as is its opposite(s)
 
@@ -161,34 +161,30 @@ def put_vert(eptm, edge, coord_put):
     ]
 
     new_vert = eptm.vert_df.loc[srce:srce]
-    eptm.vert_df = eptm.vert_df.append(new_vert, ignore_index=True)
+    eptm.vert_df = pd.concat([eptm.vert_df, new_vert], ignore_index=True)
     new_vert = eptm.vert_df.index[-1]
     eptm.vert_df.loc[new_vert, eptm.coords] = coord_put
-    new_edges = []
 
-    for p, p_data in parallels.iterrows():
-        eptm.edge_df.loc[p, "trgt"] = new_vert
-        eptm.edge_df = eptm.edge_df.append(p_data, ignore_index=True)
-        new_edge = eptm.edge_df.index[-1]
-        eptm.edge_df.loc[new_edge, "srce"] = new_vert
-        eptm.edge_df.loc[new_edge, "trgt"] = trgt
-        new_edges.append(new_edge)
+    eptm.edge_df.loc[parallels.index,'trgt'] = new_vert
+    eptm.edge_df = pd.concat([eptm.edge_df, parallels], ignore_index=True)
+    new_edges = eptm.edge_df.index[-parallels.index.size :]
+    eptm.edge_df.loc[new_edges,'srce'] = new_vert
+    eptm.edge_df.loc[new_edges,'trgt'] = trgt
 
-    new_opp_edges = []
-    for o, o_data in opposites.iterrows():
-        eptm.edge_df.loc[o, "srce"] = new_vert
-        eptm.edge_df = eptm.edge_df.append(o_data, ignore_index=True)
-        new_opp_edge = eptm.edge_df.index[-1]
-        eptm.edge_df.loc[new_opp_edge, "trgt"] = new_vert
-        eptm.edge_df.loc[new_opp_edge, "srce"] = trgt
-        new_opp_edges.append(new_opp_edge)
+    new_oppo_edges = []
+    if len(opposites.index):
+        eptm.edge_df.loc[opposites.index,'srce'] = new_vert
+        eptm.edge_df = pd.concat([eptm.edge_df, opposites], ignore_index=True)
+        new_oppo_edges = eptm.edge_df.index[-opposites.index.size :]
+        eptm.edge_df.loc[new_oppo_edges,'trgt'] = new_vert
+        eptm.edge_df.loc[new_oppo_edges,'srce'] = trgt
 
     # ## Sheet special case
     if len(new_edges) == 1:
         new_edges = new_edges[0]
-    if len(new_opp_edges) == 1:
-        new_opp_edges = new_opp_edges[0]
-    elif len(new_opp_edges) == 0:
+    if len(new_oppo_edges) == 1:
+        new_opp_edges = new_oppo_edges[0]
+    else:
         new_opp_edges = None
     return new_vert, new_edges, new_opp_edges
 
@@ -251,9 +247,9 @@ def lateral_split(eptm, mother):
     c0y = float(edge_in_cell[condition].loc[:,'fy'].values[0])
     c0 = [c0x, c0y]
     cent_dict = {'y': c0y, 'is_active': 1, 'x': c0x}
-    eptm.vert_df = eptm.vert_df.append(cent_dict, ignore_index = True)
-    # The append function adds the new row in the last row, we the use iloc to 
-    # get the index of the last row, hence the index of the centre point.
+    # Convert cent_dict into a DataFrame and concatenate it
+    cent_df = pd.DataFrame([cent_dict])
+    eptm.vert_df = pd.concat([eptm.vert_df, cent_df], ignore_index=True)
     cent_index = eptm.vert_df.index[-1]
     
     # Extract for source vertex coordinates
