@@ -547,11 +547,11 @@ def division_mt(sheet, rng, cent_data, cell_id):
             # Put a vertex at the centroid, on the newly formed edge (last row in df).
             cent_index = put_vert(sheet, edge = sheet.edge_df.index[-1], coord_put = c0)[0]
             # Draw two random numbers from uniform distribution [10,15] for mitosis cycle duration.
-            random_int_1 = rng.integers(10000, 15000) / 1000
-            random_int_2 = rng.integers(10000, 15000) / 1000
-            # Assign mitosis cycle duration to the two daughter cells.
-            sheet.face_df.loc[cell_id,'T_cycle'] = Decimal(random_int_1)
-            sheet.face_df.loc[new_face_index,'T_cycle'] = Decimal(random_int_2)
+            # random_int_1 = rng.integers(10000, 15000) / 1000
+            # random_int_2 = rng.integers(10000, 15000) / 1000
+            # # Assign mitosis cycle duration to the two daughter cells.
+            # sheet.face_df.loc[cell_id,'T_cycle'] = Decimal(random_int_1)
+            # sheet.face_df.loc[new_face_index,'T_cycle'] = Decimal(random_int_2)
 
             # Following lines are commented out: Instead of using a new variable, I will minus T_cycle after each dt step by dt.
             # sheet.face_df.loc[cell_id, 'T_age'] = dt
