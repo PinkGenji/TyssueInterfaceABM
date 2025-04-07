@@ -240,17 +240,6 @@ while t <= t_end:
     sheet.vert_df.loc[valid_active_verts, sheet.coords] = new_pos
     geom.update_all(sheet)
 
-    # We loop over every cell in the system.
-    # If T_cycle of the cell is zero, then do nothing.
-    # If T_cycle of the cell is smaller than zero, then correct it to be zero.
-    # If T_cycle of the cell is larger than zero, then minus it by dt.
-    # for cell in sheet.face_df.index:
-    #     if sheet.face_df.loc[cell, 'T_cycle'] < 0:
-    #         sheet.face_df.loc[cell, 'T_cycle'] = 0
-    #     if sheet.face_df.loc[cell, 'T_cycle'] > 0:
-    #         sheet.face_df.loc[cell, 'T_cycle'] -= dt
-
-
     # Add trackers for quantify.
     cell_num_count = len(sheet.face_df)
     S_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist())
@@ -258,14 +247,8 @@ while t <= t_end:
     G1_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'G1'].tolist())
     G2_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'G2'].tolist())
 
-    # time_stamp.append(t)
-    # cell_counter.append(cell_num_count)
-    # cell_ave_intime.append(mean_area)
-    # area_intotal.append(total_area)
 
     print(f'At time {t}, there are {S_count} S cells; {G2_count} G2 cells; {M_count} M cells; {G1_count} G1 cells. \n')
-
-
 
     # Update time_point
     t += dt
