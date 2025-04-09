@@ -390,47 +390,6 @@ def collapse_edge(sheet, edge, reindex=True, allow_two_sided=False):
     sheet.edge_df.drop(collapsed.index, axis=0, inplace=True)
     return srce
 
-def split_vert(sheet, vert, face, to_rewire, epsilon, recenter=False):
-    """Creates a new vertex and moves it towards the center of face.
-
-    The edges in to_rewire will be connected to the new vertex.
-
-    Parameters
-    ----------
-
-    sheet : a :class:`tyssue.Sheet` instance
-    vert : int, the index of the vertex to split
-    face : int, the index of the face where to move the vertex
-    to_rewire : :class:`pd.DataFrame` a subset of `sheet.edge_df`
-        where all the edges pointing to (or from) the old vertex will point
-        to (or from) the new.
-
-    Note
-    ----
-
-    This will leave opened faces and cells
-
-    """
-
-    # Add a vertex
-    this_vert = sheet.vert_df.loc[vert:vert]  # avoid type munching
-    sheet.vert_df = pd.concat([sheet.vert_df, this_vert], ignore_index=True)
-
-    new_vert = sheet.vert_df.index[-1]
-    # Move it towards the face center
-    r_ia = sheet.face_df.loc[face, sheet.coords] - sheet.vert_df.loc[vert, sheet.coords]
-    shift = r_ia * epsilon / np.linalg.norm(r_ia)
-    if recenter:
-        sheet.vert_df.loc[new_vert, sheet.coords] += shift / 2.0
-        sheet.vert_df.loc[vert, sheet.coords] -= shift / 2.0
-
-    else:
-        sheet.vert_df.loc[new_vert, sheet.coords] += shift
-
-    # rewire
-    sheet.edge_df.loc[to_rewire.index] = to_rewire.replace(
-        {"srce": vert, "trgt": vert}, new_vert
-    )
 
 
 def type1_transition_custom(sheet, edge01, multiplier=1.5):
