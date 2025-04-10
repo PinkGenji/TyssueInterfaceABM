@@ -26,6 +26,15 @@ from tyssue.topology.sheet_topology import cell_division
 from my_headers import *
 from T3_function import *
 
+import os
+import imageio.v2 as imageio
+
+
+# Create directory for frames
+os.makedirs("frames", exist_ok=True)
+frame_files = []
+
+
 rng = np.random.default_rng(70)    # Seed the random number generator.
 
 # Generate the initial cell sheet for bilayer.
@@ -176,9 +185,9 @@ while t <= t_end:
                     sheet.reset_index(order=False)
                     geom.update_all(sheet)
                     sheet.get_extra_indices()
-                    fig, ax = sheet_view(sheet, edge={'head_width': 0.1})
-                    for face, data in sheet.vert_df.iterrows():
-                        ax.text(data.x, data.y, face)
+                    # fig, ax = sheet_view(sheet, edge={'head_width': 0.1})
+                    # for face, data in sheet.vert_df.iterrows():
+                    #     ax.text(data.x, data.y, face)
                     break
 
             if T3_todo is not None:
@@ -262,14 +271,30 @@ while t <= t_end:
 
 
     print(f'At time {t:.4f}, there are {S_count} S cells; {G2_count} G2 cells; {M_count} M cells; {G1_count} G1 cells. \n')
+
     # Print the plot at this step.
     fig, ax = sheet_view(sheet)
     ax.title.set_text(f'time = {round(t, 5)}')
-    plt.show()
+    plt.tight_layout()
+
+    # Save to file instead of showing
+    frame_path = f"frames/frame_{t:.5f}.png"
+    plt.savefig(frame_path)
+    plt.close(fig)  # Close figure to prevent memory leaks
+    frame_files.append(frame_path)
 
     # Update time_point
     t += dt
 
+
+
+with imageio.get_writer('simulation_video.mp4', fps=1, format = 'ffmpeg') as writer:
+    for filename in frame_files:
+        image = imageio.imread(filename)
+        writer.append_data(image)
+writer.close()
+
+print("Video saved as simulation_video.mp4")
 
 
 
