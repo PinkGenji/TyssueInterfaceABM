@@ -30,8 +30,8 @@ frame_files = sorted([
     if fname.endswith('.png')  # Only include PNG files
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
-# Create a video writer using ffmpeg with 10 frames per second
-with imageio.get_writer('simulation_recording.mp4', fps=15, format='ffmpeg') as writer:
+# Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
+with imageio.get_writer('simulation_recording_with_dummy.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from file
