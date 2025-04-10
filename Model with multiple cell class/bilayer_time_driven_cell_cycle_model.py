@@ -29,10 +29,14 @@ from T3_function import *
 import os
 import imageio.v2 as imageio
 
-
+# Define the directory name
+frames_dir = "frames"
 # Create directory for frames
-os.makedirs("frames", exist_ok=True)
-frame_files = []
+if not os.path.exists(frames_dir):
+    print(f"Directory '{frames_dir}' does not exist. Creating it.")
+    os.makedirs(frames_dir)
+else:
+    print(f"Directory '{frames_dir}' already exists. Using existing folder.")
 
 
 rng = np.random.default_rng(70)    # Seed the random number generator.
@@ -288,13 +292,32 @@ while t <= t_end:
 
 
 
-with imageio.get_writer('simulation_video.mp4', fps=1, format = 'ffmpeg') as writer:
-    for filename in frame_files:
-        image = imageio.imread(filename)
-        writer.append_data(image)
-writer.close()
+""" 
+Next, generate a video of the evolution based on the plots saved at each time step.
+"""
+# Path to folder containing the frame images
+frame_folder = "frames"
 
-print("Video saved as simulation_video.mp4")
+# Helper function to extract the numeric part from a filename
+# For example, from "frame_12.png", it extracts 12
+def extract_number(fname):
+    match = re.search(r'\d+', fname)
+    return int(match.group()) if match else -1  # If no number found, use -1
+
+# List and numerically sort all .png files in the frame folder
+frame_files = sorted([
+    os.path.join(frame_folder, fname)
+    for fname in os.listdir(frame_folder)
+    if fname.endswith('.png')  # Only include PNG files
+], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
+
+# Create a video writer using ffmpeg with 10 frames per second
+with imageio.get_writer('simulation_recording_with_dummy.mp4', fps=15, format='ffmpeg') as writer:
+    # Read and append each frame in sorted order
+    for filename in frame_files:
+        image = imageio.imread(filename)  # Load image from file
+        writer.append_data(image)        # Write image to video
+
 
 
 
