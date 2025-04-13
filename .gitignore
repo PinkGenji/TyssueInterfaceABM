@@ -1,4 +1,4 @@
-
+# Ignore Mac cache and python cache
 .DS_Store
 */__pycache__
 
@@ -7,3 +7,7 @@
 **/.idea/workspace.xml
 **/.idea/tasks.xml
 .idea/
+
+# Ignore .mp4 videos and the folder frames that contains frame plots
+*.mp4
+*/frames
