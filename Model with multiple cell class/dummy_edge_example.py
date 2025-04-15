@@ -169,7 +169,7 @@ max_movement = t1_threshold / 2
 
 # Start simulating.
 t = 0
-t_end = 0.318 # So we have the dataset just before break point.
+t_end = 1 # So we have the dataset just before break point.
 
 while t <= t_end:
     dt = 0.001
@@ -299,8 +299,8 @@ while t <= t_end:
                 sheet.edge_df.loc[i, 'is_active'] = 0
                 sheet.edge_df.loc[opposite_edge, 'is_active'] = 0
             else:
-                sheet.edge_df.loc[i, 'is_active'] = 0
-                sheet.edge_df.loc[opposite_edge, 'is_active'] = 0
+                sheet.edge_df.loc[i, 'is_active'] = 1
+                sheet.edge_df.loc[opposite_edge, 'is_active'] = 1
         # Boundary edges are always active in this model.
         else: sheet.edge_df.loc[i, 'is_active'] = 1
 
