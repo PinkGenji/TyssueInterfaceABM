@@ -64,7 +64,7 @@ sheet.get_opposite()
 
 # Plot the figure to see the initial setup is what we want.
 fig, ax = sheet_view(sheet)
-for face, data in sheet.face_df.iterrows():
+for face, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y, face)
 plt.show()
 ax.set_title("Initial Bilayer Setup")  # Adding title
@@ -125,7 +125,6 @@ print(f'There are {total_cell_num} total cells; equally split into "S" and "STB"
 # Next I need to disable the edges between STB.
 # If a half edge belongs to STB and its opposite half edge also belongs to STB, then we disable both half edges.
 
-
 for i in sheet.edge_df.index:
     if sheet.edge_df.loc[i,'opposite'] != -1:
         associated_cell = sheet.edge_df.loc[i,'face']
@@ -136,6 +135,26 @@ for i in sheet.edge_df.index:
             sheet.edge_df.loc[opposite_edge,'is_active'] = 0
             print(f'Deactivated the mutual edge between {associated_cell} and {opposite_cell}.')
 
+# Next, I need to colour STB and others differently, and bold the dummy edges when plotting.
+from tyssue.config.draw import sheet_spec
+draw_specs = sheet_spec()
+# Enable face visibility.
+draw_specs['face']['visible'] = True
+for i in sheet.face_df.index:   # Assign face colour based on cell type.
+    if sheet.face_df.loc[i,'cell_class'] == 'STB': sheet.face_df.loc[i,'color'] = 0.7
+    else: sheet.face_df.loc[i,'color'] = 0.1
+draw_specs['face']['color'] = sheet.face_df['color']
+draw_specs['face']['alpha'] = 0.2   # Set transparency.
+
+# Enable edge visibility
+draw_specs['edge']['visible'] = True
+for i in sheet.edge_df.index:
+    if sheet.edge_df.loc[i,'is_active'] == 0: sheet.edge_df.loc[i,'width'] = 2
+    else: sheet.edge_df.loc[i,'width'] = 0.5
+draw_specs['edge']['width'] = sheet.edge_df['width']
+
+fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
+plt.show()
 
 # Now add the Euler solver to see how cells evolve.
 
@@ -150,7 +169,7 @@ max_movement = t1_threshold / 2
 
 # Start simulating.
 t = 0
-t_end = 1
+t_end = 0.318 # So we have the dataset just before break point.
 
 while t <= t_end:
     dt = 0.001
@@ -205,9 +224,6 @@ while t <= t_end:
                     sheet.reset_index(order=False)
                     geom.update_all(sheet)
                     sheet.get_extra_indices()
-                    # fig, ax = sheet_view(sheet, edge={'head_width': 0.1})
-                    # for face, data in sheet.vert_df.iterrows():
-                    #     ax.text(data.x, data.y, face)
                     break
 
             if T3_todo is not None:
@@ -271,6 +287,39 @@ while t <= t_end:
     sheet.reset_index(order=True)
     geom.update_all(sheet)
 
+    # Before computation the force, we need to make sure we disable the correct dummy edges.
+    sheet.get_extra_indices()   # make sure we have correct opposite edges computed.
+    for i in sheet.edge_df.index:
+        # For an internal edge, if it and its opposite edge are both belong to STB, disable it. otherwise, make it active.
+        if sheet.edge_df.loc[i, 'opposite'] != -1:
+            associated_cell = sheet.edge_df.loc[i, 'face']
+            opposite_edge = sheet.edge_df.loc[i, 'opposite']
+            opposite_cell = sheet.edge_df.loc[opposite_edge, 'face']
+            if sheet.face_df.loc[associated_cell, 'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell, 'cell_class'] == 'STB':
+                sheet.edge_df.loc[i, 'is_active'] = 0
+                sheet.edge_df.loc[opposite_edge, 'is_active'] = 0
+            else:
+                sheet.edge_df.loc[i, 'is_active'] = 0
+                sheet.edge_df.loc[opposite_edge, 'is_active'] = 0
+        # Boundary edges are always active in this model.
+        else: sheet.edge_df.loc[i, 'is_active'] = 1
+
+    # And update the drawing specs correctly according to active or not (dummy edge is bold).
+    # Assign cell colour by cell type. Pale yellow for STB, light purple for CTs.
+    for i in sheet.face_df.index:
+        if sheet.face_df.loc[i, 'cell_class'] == 'STB':
+            sheet.face_df.loc[i, 'color'] = 0.7
+        else:
+            sheet.face_df.loc[i, 'color'] = 0.1
+    draw_specs['face']['color'] = sheet.face_df['color']
+    # Assign edge thickness by its type.
+    for i in sheet.edge_df.index:
+        if sheet.edge_df.loc[i, 'is_active'] == 0:
+            sheet.edge_df.loc[i, 'width'] = 2
+        else:
+            sheet.edge_df.loc[i, 'width'] = 0.5
+    draw_specs['edge']['width'] = sheet.edge_df['width']
+
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
     pos = sheet.vert_df.loc[valid_active_verts, sheet.coords].values
@@ -293,7 +342,7 @@ while t <= t_end:
     print(f'At time {t:.4f}, there are {S_count} S cells; {G2_count} G2 cells; {M_count} M cells; {G1_count} G1 cells. \n')
 
     # create the plot at this step.
-    fig, ax = sheet_view(sheet)
+    fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
     ax.title.set_text(f'time = {round(t, 5)}')
     plt.tight_layout()
     # Save to file instead of showing
@@ -306,7 +355,7 @@ while t <= t_end:
     t += dt
 
 
-""" 
+"""
 Next, generate a video of the evolution based on the plots saved at each time step.
 """
 # Path to folder containing the frame images
@@ -326,11 +375,12 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video writer using ffmpeg with 10 frames per second
-with imageio.get_writer('simulation_recording_with_dummy.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('dummy_edge_example_coloured.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from file
         writer.append_data(image)        # Write image to video
+
 
 
 
