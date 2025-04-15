@@ -67,8 +67,9 @@ def dist_computer(sheet, edge, vert, d_sep):
         nearest = end2_position - d_sep*line_unit
         return distance, nearest
     else:
-        nearest =  end1_position + dot * line_unit
+        nearest = dot * line_unit
         distance = np.round(np.linalg.norm(nearest-point),7)
+        nearest = nearest + end1_position
         return distance, nearest
 
 
@@ -101,8 +102,7 @@ def get_edge_id(sheet, vert1, vert2):
 
 def adjacency_check(sheet, edge, vert):
     """
-    Returns the ID of the edge that connects the given vert to either
-    of the endpoints of the specified edge.
+    Returns the ID of the edge that connects the given vert to either of the endpoints of the specified edge.
     """
     end1_id = sheet.edge_df.loc[edge, 'srce']
     end2_id = sheet.edge_df.loc[edge, 'trgt']
@@ -125,7 +125,6 @@ def adjacency_check(sheet, edge, vert):
     if not adjacent_edge_to_end2.empty:
         return 2, adjacent_edge_to_end2.iloc[0].name
 
-    
     # Return None if no adjacent edge is found
     return None
 
@@ -134,8 +133,7 @@ def adjacency_check(sheet, edge, vert):
 
 def merge_unconnected_verts(sheet,vert1, vert2):
     """
-    This function marges two vertices that are not originally connected by an
-    edge.
+    This function merges two vertices that are not originally connected by an edge.
     First, the two vertices are connected by a new edge. 
     Then calling the collapse_edge() function to merge the two vertices.
 
@@ -418,12 +416,11 @@ def resolve_local_adj(sheet, merged_vert, old_vert, d_sep):
 
 def T3_swap(sheet, edge_collide, vert_incoming, nearest_coord, d_sep):
     """
-    This is the final T3 transition function that is assembled from subfunctions
-    defined above.
+    This is the final T3 transition function that is assembled using functions defined earlier in this script.
     
-    Presumption: I assume that I have used dist_computer() function already.
-    If distance < d_min, then I will call is T3_transition function to perform
-    T3 transition.
+    Presumption: I assume that I have used dist_computer() function to compute the distance between a pair of vertex and
+    edge already.
+    If distance < d_min, then I will call is T3_transition function to perform a T3 transition.
     
     Logic:
         
