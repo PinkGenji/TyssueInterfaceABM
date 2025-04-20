@@ -131,6 +131,28 @@ for i in sheet.edge_df.index:
             sheet.edge_df.loc[opposite_edge,'is_active'] = 0
 
 
+# Next, I need to colour STB and others differently, and bold the dummy edges when plotting.
+from tyssue.config.draw import sheet_spec
+draw_specs = sheet_spec()
+# Enable face visibility.
+draw_specs['face']['visible'] = True
+for i in sheet.face_df.index:   # Assign face colour based on cell type.
+    if sheet.face_df.loc[i,'cell_class'] == 'STB': sheet.face_df.loc[i,'color'] = 0.7
+    else: sheet.face_df.loc[i,'color'] = 0.1
+draw_specs['face']['color'] = sheet.face_df['color']
+draw_specs['face']['alpha'] = 0.2   # Set transparency.
+
+# Enable edge visibility
+draw_specs['edge']['visible'] = True
+for i in sheet.edge_df.index:
+    if sheet.edge_df.loc[i,'is_active'] == 0: sheet.edge_df.loc[i,'width'] = 2
+    else: sheet.edge_df.loc[i,'width'] = 0.5
+draw_specs['edge']['width'] = sheet.edge_df['width']
+
+fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
+plt.show()
+
+
 # Set the threshold values for mesh restructure.
 t1_threshold = sheet.edge_df['length'].mean()/10
 t2_threshold = sheet.face_df['area'].mean()/10
@@ -143,7 +165,7 @@ max_movement = t1_threshold / 2
 t = 0
 t_end = 1
 
-while t <= t_end:
+while t < t_end:
     dt = 0.001
 
     # Mesh restructure check
@@ -225,12 +247,12 @@ while t <= t_end:
         if can_fuse == 1 and cell_fate_roulette < 0.2:  # If CT is adjacent to STB, then it has 20% probability to fuse.
             sheet.face_df.loc[cell, 'cell_class'] = 'F'
             # Add a timer for each cell enters 'F'.
-            sheet.face_df.loc[cell, 'timer'] = 0.002
+            sheet.face_df.loc[cell, 'timer'] = 0.01
         if can_fuse == 1 and 0.2< cell_fate_roulette <0.5: # If CT is adjacent to STB, it has 30% probability to divide.
             sheet.face_df.loc[cell, 'cell_class'] = 'G2'
             sheet.face_df.loc[cell, 'timer'] = 0.4
 
-        if cell_fate_roulette <= 0.5 and can_fuse==0: # If CT is not adjacent to STB, then divide with probability 50%.
+        if cell_fate_roulette <= 0.3 and can_fuse==0: # If CT is not adjacent to STB, then divide with probability 50%.
             sheet.face_df.loc[cell, 'cell_class'] = 'G2'
             # Add a timer for each cell enters "G2".
             sheet.face_df.loc[cell, 'timer'] = 0.4
@@ -264,23 +286,6 @@ while t <= t_end:
         sheet.face_df.loc[daughter_index, 'timer'] = 0.11
     geom.update_all(sheet)
 
-    # At the end of the timer, "F" class becomes "STB, and edges between them become dummy edges.
-    F_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'F'].tolist()
-    for cell in F_cells:
-        if sheet.face_df.loc[cell, 'timer'] < 0:
-            sheet.face_df.loc[cell, 'cell_class'] = 'STB'
-            edges_in_cell = sheet.edge_df[sheet.edge_df['face'] == cell]
-            for edge in edges_in_cell.index:
-                if sheet.edge_df.loc[edge,'opposite'] != -1:
-                    opposite_edge = sheet.edge_df.loc[edge,'opposite']
-                    opposite_cell = sheet.edge_df.loc[opposite_edge,'face']
-                    if sheet.face_df.loc[opposite_cell,'cell_class'] == 'STB':
-                        sheet.edge_df.loc[edge,'is_active'] = 0
-                        sheet.edge_df.loc[opposite_edge,'is_active'] = 0
-        else:
-            sheet.face_df.loc[cell, 'timer'] -= dt
-
-
     # At the end of the timer, "G1" class becomes "S".
     G1_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'G1'].tolist()
     for cell in G1_cells:
@@ -291,6 +296,53 @@ while t <= t_end:
 
     sheet.reset_index(order=True)
     geom.update_all(sheet)
+
+    # At the end of the timer, "F" class becomes "STB.
+    F_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'F'].tolist()
+    for cell in F_cells:
+        if sheet.face_df.loc[cell, 'timer'] < 0:
+            sheet.face_df.loc[cell, 'cell_class'] = 'STB'
+        else:
+            sheet.face_df.loc[cell, 'timer'] -= dt
+
+    geom.update_all(sheet)
+
+    # Before computation the force, we need to make sure we disable the correct dummy edges.
+    sheet.get_extra_indices()  # make sure we have correct opposite edges computed.
+    for i in sheet.edge_df.index:
+        # For a non-boundary edge, if both of itself and its opposite edge are STB class, disable it. Otherwise, make it active.
+        if sheet.edge_df.loc[i, 'opposite'] != -1:
+            associated_cell = sheet.edge_df.loc[i, 'face']
+            opposite_edge = sheet.edge_df.loc[i, 'opposite']
+            opposite_cell = sheet.edge_df.loc[opposite_edge, 'face']
+            if sheet.face_df.loc[associated_cell, 'cell_class'] == 'STB' and sheet.face_df.loc[
+                opposite_cell, 'cell_class'] == 'STB':
+                sheet.edge_df.loc[i, 'is_active'] = 0
+                sheet.edge_df.loc[opposite_edge, 'is_active'] = 0
+            else:
+                sheet.edge_df.loc[i, 'is_active'] = 1
+                sheet.edge_df.loc[opposite_edge, 'is_active'] = 1
+        # Boundary edges are always active in this model.
+        else:
+            sheet.edge_df.loc[i, 'is_active'] = 1
+
+    # And update the drawing specs correctly according to active or not (dummy edge is bold).
+    # Assign cell colour by cell type. Pale yellow for STB, light purple for CTs.
+    for i in sheet.face_df.index:
+        if sheet.face_df.loc[i, 'cell_class'] == 'STB':
+            sheet.face_df.loc[i, 'color'] = 0.7
+        else:
+            sheet.face_df.loc[i, 'color'] = 0.1
+    draw_specs['face']['color'] = sheet.face_df['color']
+    # Assign edge thickness by its type.
+    for i in sheet.edge_df.index:
+        if sheet.edge_df.loc[i, 'is_active'] == 0:
+            sheet.edge_df.loc[i, 'width'] = 2
+        else:
+            sheet.edge_df.loc[i, 'width'] = 0.5
+    draw_specs['edge']['width'] = sheet.edge_df['width']
+
+
 
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
@@ -314,13 +366,12 @@ while t <= t_end:
     print(f'At time {t:.4f}: {F_count} in F; {S_count} in S; {G2_count} in G2; {M_count} in M; {G1_count} in G1. \n')
 
     # Print the plot at this step.
-    fig, ax = sheet_view(sheet)
+    fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
     ax.title.set_text(f'time = {round(t, 5)}')
     # Fix axis limits and aspect
     ax.set_xlim(-5, 20)  # Example limits — change to suit your sheet
     ax.set_ylim(-5, 5)
     ax.set_aspect('equal')
-
     # Save to file instead of showing
     frame_path = f"frames/frame_{t:.5f}.png"
     plt.savefig(frame_path)
@@ -348,7 +399,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('Dummy_edges_introduced_after_fuse.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('F_class_model_coloured.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from file
