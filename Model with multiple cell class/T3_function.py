@@ -67,9 +67,8 @@ def dist_computer(sheet, edge, vert, d_sep):
         nearest = end2_position - d_sep*line_unit
         return distance, nearest
     else:
-        nearest = dot * line_unit
+        nearest = end1_position + dot * line_unit
         distance = np.round(np.linalg.norm(nearest-point),7)
-        nearest = nearest + end1_position
         return distance, nearest
 
 
