@@ -976,24 +976,31 @@ def cell_merge(sheet, face1, face2, new_cell_class):
         face1 and face2: ID of the two cells that are going to be merged.
         new_cell_class: Cell class of the resultant cell after merge.
     """
-    # Use neighbour_edge to find the mutual edge
-    edge_id = neighbour_edge(sheet, face1, face2)
-    if edge_id is None:
-        raise ValueError(f"Cannot find mutual edge between face {face1} and {face2}")
-    # Get the opposite edge
-    oppo = sheet.edge_df.loc[edge_id, 'opposite']
+    # Identify all mutual edges between face1 and face2
+    mutual_edges = []
+    face1_edges = sheet.edge_df[sheet.edge_df["face"] == face1]
+    face2_edges = sheet.edge_df[sheet.edge_df["face"] == face2]
+
+    # Check for common edges by matching the 'opposite' relationship
+    for edge_id in face1_edges.index:
+        opposite_edge = sheet.edge_df.loc[edge_id, "opposite"]
+        if opposite_edge in face2_edges.index:
+            mutual_edges.append(edge_id)
+            mutual_edges.append(opposite_edge)
+
+    if not mutual_edges:
+        raise ValueError(f"No mutual edges found between face {face1} and face {face2}")
 
     new_face_id = min(face1, face2)  # Default to the smaller ID if neither is 'ST'
     obsolete_face_id = max(face1, face2)
     new_prefered_area = sheet.face_df.loc[face1,'prefered_area'] + sheet.face_df.loc[face2,'prefered_area']
 
-    # Reassign all edges from both faces to the new face ID
-    sheet.edge_df.loc[sheet.edge_df['face'] == face1, 'face'] = new_face_id
-    sheet.edge_df.loc[sheet.edge_df['face'] == face2, 'face'] = new_face_id
+    # Reassign all edges belonging to face1 or face2 to the new face ID
+    sheet.edge_df.loc[sheet.edge_df['face'].isin([face1, face2]), 'face'] = new_face_id
 
-    # Drop the edge and its opposite
-    sheet.edge_df.drop([edge_id, oppo], inplace=True)
-    # Drop the old face entry
+    # Drop all mutual edges
+    sheet.edge_df.drop(index=mutual_edges, inplace=True)
+    # Drop the obsolete face
     if obsolete_face_id in sheet.face_df.index:
         sheet.face_df.drop(index=obsolete_face_id, inplace=True)
 
