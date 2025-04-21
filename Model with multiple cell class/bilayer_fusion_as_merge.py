@@ -135,10 +135,6 @@ while True:
 
 # Finally, update geometry
 geom.update_all(sheet)
-
-
-# Step 3: Update geometry
-geom.update_all(sheet)
 sheet.get_extra_indices()
 
 
@@ -310,34 +306,33 @@ while t < t_end:
 
     # At the end of the timer, "F" class becomes "STB.
     F_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'F'].tolist()
+    # Find one current STB to merge into
+    STB_index = sheet.face_df.index[sheet.face_df['cell_class'] == 'STB'][0]
     for cell in F_cells:
+        # Skip if cell no longer exists (may have been merged already)
+        if cell not in sheet.face_df.index:
+            continue
         if sheet.face_df.loc[cell, 'timer'] < 0:
-            sheet.face_df.loc[cell, 'cell_class'] = 'STB'
+            sheet.face_df.loc[cell,'cell_class'] = 'STB'
+            # Then this cell must be merged with the only STB cell, update the new STB index after merge.
+            import code
+
+            try:
+                # Topology and opposite half-edge consistency check before cell merge.
+                sheet.reset_topo()
+                sheet.get_extra_indices()
+                STB_index = cell_merge(sheet, STB_index, cell, 'STB')
+            except ValueError as e:
+                print(f"\n[Merge Error] {e}")
+                print("Dropping into interactive shell. You can inspect `sheet`, `STB_index`, etc.\n")
+                code.interact(local=locals())  # opens a shell where you can type commands
         else:
             sheet.face_df.loc[cell, 'timer'] -= dt
 
+    sheet.reset_index(order = True)
     geom.update_all(sheet)
 
-    # Before computation the force, we need to make sure we disable the correct dummy edges.
-    sheet.get_extra_indices()  # make sure we have correct opposite edges computed.
-    for i in sheet.edge_df.index:
-        # For a non-boundary edge, if both of itself and its opposite edge are STB class, disable it. Otherwise, make it active.
-        if sheet.edge_df.loc[i, 'opposite'] != -1:
-            associated_cell = sheet.edge_df.loc[i, 'face']
-            opposite_edge = sheet.edge_df.loc[i, 'opposite']
-            opposite_cell = sheet.edge_df.loc[opposite_edge, 'face']
-            if sheet.face_df.loc[associated_cell, 'cell_class'] == 'STB' and sheet.face_df.loc[
-                opposite_cell, 'cell_class'] == 'STB':
-                sheet.edge_df.loc[i, 'is_active'] = 0
-                sheet.edge_df.loc[opposite_edge, 'is_active'] = 0
-            else:
-                sheet.edge_df.loc[i, 'is_active'] = 1
-                sheet.edge_df.loc[opposite_edge, 'is_active'] = 1
-        # Boundary edges are always active in this model.
-        else:
-            sheet.edge_df.loc[i, 'is_active'] = 1
-
-    # And update the drawing specs correctly according to active or not (dummy edge is bold).
+    # And update the drawing specs correctly
     # Assign cell colour by cell type. Pale yellow for STB, light purple for CTs.
     for i in sheet.face_df.index:
         if sheet.face_df.loc[i, 'cell_class'] == 'STB':
@@ -345,13 +340,7 @@ while t < t_end:
         else:
             sheet.face_df.loc[i, 'color'] = 0.1
     draw_specs['face']['color'] = sheet.face_df['color']
-    # Assign edge thickness by its type.
-    for i in sheet.edge_df.index:
-        if sheet.edge_df.loc[i, 'is_active'] == 0:
-            sheet.edge_df.loc[i, 'width'] = 2
-        else:
-            sheet.edge_df.loc[i, 'width'] = 0.5
-    draw_specs['edge']['width'] = sheet.edge_df['width']
+
 
 
 
