@@ -341,9 +341,6 @@ while t < t_end:
             sheet.face_df.loc[i, 'color'] = 0.1
     draw_specs['face']['color'] = sheet.face_df['color']
 
-
-
-
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
     pos = sheet.vert_df.loc[valid_active_verts, sheet.coords].values
@@ -355,7 +352,7 @@ while t < t_end:
     sheet.vert_df.loc[valid_active_verts, sheet.coords] = new_pos
     geom.update_all(sheet)
 
-    # Add trackers for quantify.
+    # Add trackers for quantities.
     cell_num_count = len(sheet.face_df)
     S_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist())
     M_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'M'].tolist())
@@ -365,7 +362,7 @@ while t < t_end:
 
     print(f'At time {t:.4f}: {F_count} in F; {S_count} in S; {G2_count} in G2; {M_count} in M; {G1_count} in G1. \n')
 
-    # Print the plot at this step.
+    # save the plot at this step.
     fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
     ax.title.set_text(f'time = {round(t, 5)}')
     # Fix axis limits and aspect
