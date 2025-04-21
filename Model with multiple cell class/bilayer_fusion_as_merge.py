@@ -125,7 +125,7 @@ geom.update_all(sheet)
 while True:
     pair = find_stb_neighbors(sheet)
     if pair is None:
-        print("✅ All STB cells are merged.")
+        print("All STB cells are merged.")
         break
 
     face1, face2 = pair
@@ -151,7 +151,7 @@ for i in sheet.face_df.index:   # Assign face colour based on cell type.
     if sheet.face_df.loc[i,'cell_class'] == 'STB': sheet.face_df.loc[i,'color'] = 0.7
     else: sheet.face_df.loc[i,'color'] = 0.1
 draw_specs['face']['color'] = sheet.face_df['color']
-draw_specs['face']['alpha'] = 1   # Set transparency.
+draw_specs['face']['alpha'] = 0.2   # Set transparency.
 
 # Enable edge visibility
 draw_specs['edge']['visible'] = True
@@ -160,7 +160,7 @@ for i in sheet.edge_df.index:
     else: sheet.edge_df.loc[i,'width'] = 0.5
 draw_specs['edge']['width'] = sheet.edge_df['width']
 
-fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
+fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs, mode='2D')
 plt.show()
 
 
@@ -410,7 +410,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('F_class_model_coloured.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('bilayer_fusion_as_merge.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from file
