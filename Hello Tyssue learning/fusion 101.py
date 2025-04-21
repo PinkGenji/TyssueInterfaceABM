@@ -109,8 +109,6 @@ for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
 plt.show()
 
-# Then update the properties of newly fused cell to be the same as ST.
-sheet.edge_df.loc[:,'cell_class']
 
 
 
