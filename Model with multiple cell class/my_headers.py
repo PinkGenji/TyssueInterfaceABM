@@ -985,6 +985,7 @@ def cell_merge(sheet, face1, face2, new_cell_class):
 
     new_face_id = min(face1, face2)  # Default to the smaller ID if neither is 'ST'
     obsolete_face_id = max(face1, face2)
+    new_prefered_area = sheet.face_df.loc[face1,'prefered_area'] + sheet.face_df.loc[face2,'prefered_area']
 
     # Reassign all edges from both faces to the new face ID
     sheet.edge_df.loc[sheet.edge_df['face'] == face1, 'face'] = new_face_id
@@ -998,6 +999,7 @@ def cell_merge(sheet, face1, face2, new_cell_class):
 
     # Assign 'ST' to the new face and update associated edges
     sheet.face_df.loc[new_face_id, "cell_class"] = new_cell_class
+    sheet.face_df.loc[new_face_id,'prefered_area'] = new_prefered_area
     return new_face_id
 
 
