@@ -120,6 +120,12 @@ for i in sheet.edge_df.index:
         continue
 geom.update_all(sheet)
 
+# Deactivate the four cells at four corners, avoid them from energy minimisation.
+for cell_id in [0,13,14,27]:
+    sheet.face_df.loc[cell_id,'is_alive'] = 0
+    for i in sheet.edge_df[sheet.edge_df['face'] == cell_id]['srce'].tolist():
+        sheet.vert_df.loc[i,'is_active'] = 0
+
 # Deactivate the edges between STB units.
 for i in sheet.edge_df.index:
     if sheet.edge_df.loc[i,'opposite'] != -1:
@@ -399,10 +405,10 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('F_class_model_coloured.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('Inactive_end_cells_dummy_edge.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
-        image = imageio.imread(filename)  # Load image from file
+        image = imageio.imread(filename)  # Load image from the folder
         writer.append_data(image)        # Write image to video
 
 
