@@ -120,6 +120,11 @@ for i in sheet.edge_df.index:
         continue
 geom.update_all(sheet)
 
+# Deactivate the four cells at four corners, avoid them from energy minimisation.
+for cell_id in [0,13,14,27]:
+    sheet.face_df.loc[cell_id,'is_alive'] = 0
+    for i in sheet.edge_df[sheet.edge_df['face'] == cell_id]['srce'].tolist():
+        sheet.vert_df.loc[i,'is_active'] = 0
 # Merge the STB units into one whole STB.
 # Repeatedly merge STB–STB neighbors until none remain
 while True:
@@ -396,7 +401,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('bilayer_fusion_as_merge.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('fixed_ends_cell_merge.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from file
