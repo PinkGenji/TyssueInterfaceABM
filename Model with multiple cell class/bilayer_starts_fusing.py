@@ -172,6 +172,7 @@ max_movement = t1_threshold / 2
 # Start simulating.
 t = 0
 t_end = 1
+switch = 1 # controller variable for fusion of cell 24
 
 while t < t_end:
     dt = 0.001
@@ -315,24 +316,30 @@ while t < t_end:
 
     geom.update_all(sheet)
 
-    # # Before computation the force, we need to make sure we disable the correct dummy edges.
-    # sheet.get_extra_indices()  # make sure we have correct opposite edges computed.
-    # for i in sheet.edge_df.index:
-    #     # For a non-boundary edge, if both of itself and its opposite edge are STB class, disable it. Otherwise, make it active.
-    #     if sheet.edge_df.loc[i, 'opposite'] != -1:
-    #         associated_cell = sheet.edge_df.loc[i, 'face']
-    #         opposite_edge = sheet.edge_df.loc[i, 'opposite']
-    #         opposite_cell = sheet.edge_df.loc[opposite_edge, 'face']
-    #         if sheet.face_df.loc[associated_cell, 'cell_class'] == 'STB' and sheet.face_df.loc[
-    #             opposite_cell, 'cell_class'] == 'STB':
-    #             sheet.edge_df.loc[i, 'is_active'] = 0
-    #             sheet.edge_df.loc[opposite_edge, 'is_active'] = 0
-    #         else:
-    #             sheet.edge_df.loc[i, 'is_active'] = 1
-    #             sheet.edge_df.loc[opposite_edge, 'is_active'] = 1
-    #     # Boundary edges are always active in this model.
-    #     else:
-    #         sheet.edge_df.loc[i, 'is_active'] = 1
+    # At t = 0.5, I select cell number 24 to fuse.
+    if switch == 1 and t > 0.5:
+        sheet.face_df.loc[24, 'cell_class'] = 'F'
+        sheet.face_df.loc[24, 'timer'] = 0.01
+        switch = 0      # turn off the switch, make sure we do this operation once only, at the first time t > 0.5
+
+    # Before computation the force, we need to make sure we disable the correct dummy edges.
+    sheet.get_extra_indices()  # make sure we have correct opposite edges computed.
+    for i in sheet.edge_df.index:
+        # For a non-boundary edge, if both of itself and its opposite edge are STB class, disable it. Otherwise, make it active.
+        if sheet.edge_df.loc[i, 'opposite'] != -1:
+            associated_cell = sheet.edge_df.loc[i, 'face']
+            opposite_edge = sheet.edge_df.loc[i, 'opposite']
+            opposite_cell = sheet.edge_df.loc[opposite_edge, 'face']
+            if sheet.face_df.loc[associated_cell, 'cell_class'] == 'STB' and sheet.face_df.loc[
+                opposite_cell, 'cell_class'] == 'STB':
+                sheet.edge_df.loc[i, 'is_active'] = 0
+                sheet.edge_df.loc[opposite_edge, 'is_active'] = 0
+            else:
+                sheet.edge_df.loc[i, 'is_active'] = 1
+                sheet.edge_df.loc[opposite_edge, 'is_active'] = 1
+        # Boundary edges are always active in this model.
+        else:
+            sheet.edge_df.loc[i, 'is_active'] = 1
 
     # And update the drawing specs correctly according to active or not (dummy edge is bold).
     # Assign cell colour by cell type. Pale yellow for STB, light purple for CTs.
@@ -377,8 +384,8 @@ while t < t_end:
     fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
     ax.title.set_text(f'time = {round(t, 5)}')
     # Fix axis limits and aspect
-    ax.set_xlim(-5, 20)  # Example limits — change to suit your sheet
-    ax.set_ylim(-5, 5)
+    ax.set_xlim(-5, 20)
+    ax.set_ylim(-5, 7)
     ax.set_aspect('equal')
     # Save to file instead of showing
     frame_path = f"frames/frame_{t:.5f}.png"
@@ -407,7 +414,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('trilayer_relaxation_only.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('trilayer_bulge_test.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
