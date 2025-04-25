@@ -2,7 +2,9 @@
 This script creates a bilayer geometry, then implement a multi-class cell system to it.
 
 The cell must be an S cell, and must be neighbouring an STB.
-We don’t know why cells fuse so we must recruit these cells to fuse (class "F") with some probability pf
+We don’t know why cells fuse, so we must recruit these cells to fuse (class "F") with some probability pf.
+
+A cell fusion is modelled as converting the mutual edges between F cells and STB cells into a dummy edge.
 """
 
 
@@ -38,9 +40,9 @@ else:
 
 rng = np.random.default_rng(70)    # Seed the random number generator.
 
-# Generate the initial cell sheet for bilayer.
+# Generate the initial cell sheet for tri-layer.
 num_x = 16
-num_y = 4
+num_y = 5
 
 sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = num_x, ny = num_y, distx = 1, disty = 1)
 geom.update_all(sheet)
@@ -65,8 +67,8 @@ sheet.get_opposite()
 fig, ax = sheet_view(sheet)
 for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
-plt.show()
 ax.set_title("Initial Bilayer Setup")  # Adding title
+plt.show()
 
 print('Initial geometry plot generated. \n')
 
@@ -77,13 +79,13 @@ sheet.face_df['timer'] = 'NA'
 total_cell_num = len(sheet.face_df)
 
 print('New attributes: cell_class; timer created for all cells. \n ')
-for i in range(0,num_x-2):  # These are the indices of bottom layer.
+for i in range(0,2*num_x-4):  # These are the indices of bottom layer.
     sheet.face_df.loc[i,'cell_class'] = 'S'
 
-for i in range(num_x-2,len(sheet.face_df)):     # These are the indices of top layer.
+for i in range(2*num_x-4,len(sheet.face_df)):     # These are the indices of top layer.
     sheet.face_df.loc[i,'cell_class'] = 'STB'
 
-print(f'There are {total_cell_num} total cells; equally split into "S" and "STB" classes. ')
+print(f'There are {total_cell_num} total cells; top layer is assigned to be "STB"; bottom two layers are assigned to be "S". \n" ')
 
 # Add dynamics to the model.
 specs = {
@@ -120,8 +122,8 @@ for i in sheet.edge_df.index:
         continue
 geom.update_all(sheet)
 
-# Deactivate the four cells at four corners, avoid them from energy minimisation.
-for cell_id in [0,13,14,27]:
+# Deactivate the cells on the leftmost and rightmost sides.
+for cell_id in [0,13,14,27,28,41]:
     sheet.face_df.loc[cell_id,'is_alive'] = 0
     for i in sheet.edge_df[sheet.edge_df['face'] == cell_id]['srce'].tolist():
         sheet.vert_df.loc[i,'is_active'] = 0
@@ -137,7 +139,7 @@ for i in sheet.edge_df.index:
             sheet.edge_df.loc[opposite_edge,'is_active'] = 0
 
 
-# Next, I need to colour STB and others differently, and bold the dummy edges when plotting.
+# Next, I need to colour STB and others differently and bold the dummy edges when plotting.
 from tyssue.config.draw import sheet_spec
 draw_specs = sheet_spec()
 # Enable face visibility.
@@ -240,25 +242,25 @@ while t < t_end:
 
     for cell in S_cells:
         # If it is in neighbour with STB, then use probability to assign into "F" class.
-        can_fuse = 0
-        neighbours = sheet.get_neighbors(cell)
-        for i in neighbours:
-            if sheet.face_df.loc[i, 'cell_class'] == 'STB':
-                can_fuse = 1
-                break
-            else:
-                continue
-        # Use rng to randomly generate a number between 1 and 10, this will determine the fate of the mature CT.
+        # can_fuse = 0
+        # neighbours = sheet.get_neighbors(cell)
+        # for i in neighbours:
+        #     if sheet.face_df.loc[i, 'cell_class'] == 'STB':
+        #         can_fuse = 1
+        #         break
+        #     else:
+        #         continue
+        # # Use rng to randomly generate a number between 1 and 10, this will determine the fate of the mature CT.
         cell_fate_roulette = rng.random()
-        if can_fuse == 1 and cell_fate_roulette < 0.2:  # If CT is adjacent to STB, then it has 20% probability to fuse.
-            sheet.face_df.loc[cell, 'cell_class'] = 'F'
-            # Add a timer for each cell enters 'F'.
-            sheet.face_df.loc[cell, 'timer'] = 0.01
-        if can_fuse == 1 and 0.2< cell_fate_roulette <0.5: # If CT is adjacent to STB, it has 30% probability to divide.
-            sheet.face_df.loc[cell, 'cell_class'] = 'G2'
-            sheet.face_df.loc[cell, 'timer'] = 0.4
+        # if can_fuse == 1 and cell_fate_roulette < 0.2:  # If CT is adjacent to STB, then it has 20% probability to fuse.
+        #     sheet.face_df.loc[cell, 'cell_class'] = 'F'
+        #     # Add a timer for each cell enters 'F'.
+        #     sheet.face_df.loc[cell, 'timer'] = 0.01
+        # if can_fuse == 1 and 0.2< cell_fate_roulette <0.5: # If CT is adjacent to STB, it has 30% probability to divide.
+        #     sheet.face_df.loc[cell, 'cell_class'] = 'G2'
+        #     sheet.face_df.loc[cell, 'timer'] = 0.4
 
-        if cell_fate_roulette <= 0.3 and can_fuse==0: # If CT is not adjacent to STB, then divide with probability 50%.
+        if cell_fate_roulette <= 0.3: # If CT is not adjacent to STB, then divide with probability 50%.
             sheet.face_df.loc[cell, 'cell_class'] = 'G2'
             # Add a timer for each cell enters "G2".
             sheet.face_df.loc[cell, 'timer'] = 0.4
@@ -276,21 +278,21 @@ while t < t_end:
 
     geom.update_all(sheet)
 
-    # Cell division.
-    # For all cells in "M", divide the cell. Then cells becomes "G1".
-    # Store the centroid before iteration of cells.
-    unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
-    centre_data = unique_edges_df.loc[:, ['face', 'fx', 'fy']]
-    # Cells in "M" class can be divided.
-    cells_can_divide = sheet.face_df.index[sheet.face_df['cell_class'] == 'M'].tolist()
-    for index in cells_can_divide:
-        daughter_index = division_mt(sheet, rng=rng, cent_data=centre_data, cell_id=index)
-        sheet.face_df.loc[index, 'cell_class'] = 'G1'
-        sheet.face_df.loc[daughter_index, 'cell_class'] = 'G1'
-        # Add a timer for each cell enters "G1".
-        sheet.face_df.loc[index, 'timer'] = 0.11
-        sheet.face_df.loc[daughter_index, 'timer'] = 0.11
-    geom.update_all(sheet)
+    # # Cell division.
+    # # For all cells in "M", divide the cell. Then cells becomes "G1".
+    # # Store the centroid before iteration of cells.
+    # unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
+    # centre_data = unique_edges_df.loc[:, ['face', 'fx', 'fy']]
+    # # Cells in "M" class can be divided.
+    # cells_can_divide = sheet.face_df.index[sheet.face_df['cell_class'] == 'M'].tolist()
+    # for index in cells_can_divide:
+    #     daughter_index = division_mt(sheet, rng=rng, cent_data=centre_data, cell_id=index)
+    #     sheet.face_df.loc[index, 'cell_class'] = 'G1'
+    #     sheet.face_df.loc[daughter_index, 'cell_class'] = 'G1'
+    #     # Add a timer for each cell enters "G1".
+    #     sheet.face_df.loc[index, 'timer'] = 0.11
+    #     sheet.face_df.loc[daughter_index, 'timer'] = 0.11
+    # geom.update_all(sheet)
 
     # At the end of the timer, "G1" class becomes "S".
     G1_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'G1'].tolist()
@@ -313,24 +315,24 @@ while t < t_end:
 
     geom.update_all(sheet)
 
-    # Before computation the force, we need to make sure we disable the correct dummy edges.
-    sheet.get_extra_indices()  # make sure we have correct opposite edges computed.
-    for i in sheet.edge_df.index:
-        # For a non-boundary edge, if both of itself and its opposite edge are STB class, disable it. Otherwise, make it active.
-        if sheet.edge_df.loc[i, 'opposite'] != -1:
-            associated_cell = sheet.edge_df.loc[i, 'face']
-            opposite_edge = sheet.edge_df.loc[i, 'opposite']
-            opposite_cell = sheet.edge_df.loc[opposite_edge, 'face']
-            if sheet.face_df.loc[associated_cell, 'cell_class'] == 'STB' and sheet.face_df.loc[
-                opposite_cell, 'cell_class'] == 'STB':
-                sheet.edge_df.loc[i, 'is_active'] = 0
-                sheet.edge_df.loc[opposite_edge, 'is_active'] = 0
-            else:
-                sheet.edge_df.loc[i, 'is_active'] = 1
-                sheet.edge_df.loc[opposite_edge, 'is_active'] = 1
-        # Boundary edges are always active in this model.
-        else:
-            sheet.edge_df.loc[i, 'is_active'] = 1
+    # # Before computation the force, we need to make sure we disable the correct dummy edges.
+    # sheet.get_extra_indices()  # make sure we have correct opposite edges computed.
+    # for i in sheet.edge_df.index:
+    #     # For a non-boundary edge, if both of itself and its opposite edge are STB class, disable it. Otherwise, make it active.
+    #     if sheet.edge_df.loc[i, 'opposite'] != -1:
+    #         associated_cell = sheet.edge_df.loc[i, 'face']
+    #         opposite_edge = sheet.edge_df.loc[i, 'opposite']
+    #         opposite_cell = sheet.edge_df.loc[opposite_edge, 'face']
+    #         if sheet.face_df.loc[associated_cell, 'cell_class'] == 'STB' and sheet.face_df.loc[
+    #             opposite_cell, 'cell_class'] == 'STB':
+    #             sheet.edge_df.loc[i, 'is_active'] = 0
+    #             sheet.edge_df.loc[opposite_edge, 'is_active'] = 0
+    #         else:
+    #             sheet.edge_df.loc[i, 'is_active'] = 1
+    #             sheet.edge_df.loc[opposite_edge, 'is_active'] = 1
+    #     # Boundary edges are always active in this model.
+    #     else:
+    #         sheet.edge_df.loc[i, 'is_active'] = 1
 
     # And update the drawing specs correctly according to active or not (dummy edge is bold).
     # Assign cell colour by cell type. Pale yellow for STB, light purple for CTs.
@@ -405,7 +407,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('Inactive_end_cells_dummy_edge.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('trilayer_relaxation_only.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
