@@ -16,6 +16,7 @@ from tyssue import Sheet
 from tyssue.topology.sheet_topology import remove_face
 from tyssue import PlanarGeometry as geom #for simple 2d geometry
 from tyssue.dynamics import effectors, model_factory
+from tyssue.io import hdf5 # For saving the datasets
 
 # 2D plotting
 from tyssue.draw import sheet_view
@@ -316,10 +317,10 @@ while t < t_end:
 
     geom.update_all(sheet)
 
-    # At t = 0.5, I select cell number 24 to fuse.
+    # At t = 0.5, I select cell number 20 to fuse.
     if switch == 1 and t > 0.5:
-        sheet.face_df.loc[24, 'cell_class'] = 'F'
-        sheet.face_df.loc[24, 'timer'] = 0.01
+        sheet.face_df.loc[20, 'cell_class'] = 'F'
+        sheet.face_df.loc[20, 'timer'] = 0.01
         switch = 0      # turn off the switch, make sure we do this operation once only, at the first time t > 0.5
 
     # Before computation the force, we need to make sure we disable the correct dummy edges.
@@ -395,6 +396,8 @@ while t < t_end:
     # Update time_point
     t += dt
 
+# Write the final sheet to a hdf5 file.
+hdf5.save_datasets('trilayer_bulge_data.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
@@ -414,7 +417,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('trilayer_bulge_test.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('trilayer_bulge_in_middle.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
