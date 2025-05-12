@@ -6,6 +6,7 @@ from tyssue import PlanarGeometry as geom
 # Visualisation
 from tyssue.draw import sheet_view
 import matplotlib.pyplot as plt
+from tyssue.topology.sheet_topology import remove_face
 
 # import my own functions
 import my_headers as mh
@@ -176,7 +177,7 @@ while t < t_end:
     tri_faces = sheet.face_df[(sheet.face_df["num_sides"] < 4) &
                               (sheet.face_df["area"] < t2_threshold)].index
     while len(tri_faces):
-        mh.remove_face(sheet, tri_faces[0])
+        remove_face(sheet, tri_faces[0])
         # Recompute the list of triangular faces below the area threshold after each removal
         tri_faces = sheet.face_df[(sheet.face_df["num_sides"] < 4) &
                                   (sheet.face_df["area"] < t2_threshold)].index
