@@ -123,11 +123,12 @@ for i in sheet.edge_df.index:
         continue
 geom.update_all(sheet)
 
-# Deactivate the cells on the leftmost and rightmost sides.
-for cell_id in [0,13,14,27,28,41]:
-    sheet.face_df.loc[cell_id,'is_alive'] = 0
-    for i in sheet.edge_df[sheet.edge_df['face'] == cell_id]['srce'].tolist():
-        sheet.vert_df.loc[i,'is_active'] = 0
+# Commented out the following code to avoid fixed ends of the cells.
+# # Deactivate the cells on the leftmost and rightmost sides.
+# for cell_id in [0,13,14,27,28,41]:
+#     sheet.face_df.loc[cell_id,'is_alive'] = 0
+#     for i in sheet.edge_df[sheet.edge_df['face'] == cell_id]['srce'].tolist():
+#         sheet.vert_df.loc[i,'is_active'] = 0
 
 # Deactivate the edges between STB units.
 for i in sheet.edge_df.index:
@@ -172,9 +173,11 @@ max_movement = t1_threshold / 2
 
 # Start simulating.
 t = 0
-t_end = 1
+t_end = 2
 switch = 1 # controller variable for fusion of cell 24
-
+t1_done = 0
+time_list = []
+STB_area = []
 while t < t_end:
     dt = 0.001
 
@@ -371,15 +374,31 @@ while t < t_end:
     sheet.vert_df.loc[valid_active_verts, sheet.coords] = new_pos
     geom.update_all(sheet)
 
-    # Add trackers for quantify.
-    cell_num_count = len(sheet.face_df)
-    S_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist())
-    M_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'M'].tolist())
-    G1_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'G1'].tolist())
-    G2_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'G2'].tolist())
-    F_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'F'].tolist())
+    if t1_done == 0 and t > 1:
 
-    print(f'At time {t:.4f}: {F_count} in F; {S_count} in S; {G2_count} in G2; {M_count} in M; {G1_count} in G1. \n')
+        # find the edge number by checking the mutual edge between cell 34 and 35.
+        sheet.get_extra_indices()
+        for i in sheet.edge_df.index:
+            if sheet.edge_df.loc[i, 'face'] == 34:
+                opposite_edge = sheet.edge_df.loc[i, 'opposite']
+                if opposite_edge != -1 and sheet.edge_df.loc[opposite_edge, 'face'] == 35:
+                    edge_to_process = i
+                    print(f'Edge {edge_to_process} is the edge we want to do T1 transition.')
+            else:
+                continue
+
+        # Do a T1 transition on the edge we want, find the edge number first.
+        type1_transition(sheet, edge_to_process, remove_tri_faces=False, multiplier=5)
+        geom.update_all(sheet)
+        sheet.reset_index(order=True)
+        t1_done = 1
+
+    # Tracking STB Area.
+    total_STB = sheet.face_df.loc[sheet.face_df['cell_class'] == 'STB', 'area'].sum()
+    STB_area.append(total_STB)
+    time_list.append(t)
+
+    print(f'Time at {t:.4f} computed.')
 
     # Print the plot at this step.
     fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
@@ -397,7 +416,7 @@ while t < t_end:
     t += dt
 
 # Write the final sheet to a hdf5 file.
-hdf5.save_datasets('trilayer_bulge_data.hdf5', sheet)
+hdf5.save_datasets('longer_fusion_unfixed_data.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
@@ -417,13 +436,21 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('trilayer_bulge_in_middle.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('longer_fusion_unfixed_ends.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
         writer.append_data(image)        # Write image to video
 
-
+plt.figure(figsize=(8, 5))
+plt.plot(time_list, STB_area, label='Total STB Area', color='purple')
+plt.xlabel('Time')
+plt.ylabel('STB Area')
+plt.title('STB Area Over Time')
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
 
 
 print('\n This is the end of this script. (＾• ω •＾) ')
