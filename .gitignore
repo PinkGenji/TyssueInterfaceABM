@@ -11,3 +11,7 @@
 # Ignore .mp4 videos and the folder frames that contains frame plots
 *.mp4
 */frames
+
+# Ignore HDF5 files
+*.hdf5
+
