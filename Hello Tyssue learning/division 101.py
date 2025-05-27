@@ -11,6 +11,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 # Load all required modules.
 
 import numpy as np
+import sys
 import pandas as pd
 
 import os
@@ -41,13 +42,21 @@ from tyssue.draw import sheet_view, highlight_cells
 from tyssue.draw.plt_draw import plot_forces
 
 # import my own functions
-from my_headers import delete_face, xprod_2d, put_vert, lateral_split, divisibility_check
+# import my own functions
+
+model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Model with multiple cell class'))
+sys.path.append(model_path)
+print("Model path:", model_path)
+print("Files in directory:", os.listdir(model_path))
+
+import my_headers as mh
+# from my_headers import delete_face, xprod_2d, put_vert, lateral_split, divisibility_check
 
 
 
 """ Here is the biased division. """
 # Generate the cell sheet as three cells.
-sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = 3, ny = 2, distx = 0.5, disty = 0.5)
+sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = 5, ny = 4, distx = 0.5, disty = 0.5)
 geom.update_all(sheet)
 
 # remove non-enclosed faces
@@ -57,17 +66,17 @@ sheet.remove(sheet.get_invalid())
 fig, ax = sheet_view(sheet)
 for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
-    
-delete_face(sheet, 4)
-delete_face(sheet, 3)
+plt.show()
+mh.delete_face(sheet, 4)
+mh.delete_face(sheet, 3)
 sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
 
 # Plot figures to check.
 # Draw the cell mesh with face labelling and edge arrows.
-fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+fig, ax = sheet_view(sheet)
 for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
-
+plt.show()
 # First, we need a way to compute the energy, then use gradient descent.
 specs = {
     'edge': {
@@ -94,7 +103,7 @@ sheet.vert_df['viscosity'] = 1.0
 # Update the specs (adds / changes the values in the dataframes' columns)
 sheet.update_specs(specs, reset = True)
 geom.update_all(sheet)
-
+sheet.get_extra_indices()
 # Adjust for cell-boundary adhesion force.
 for i in sheet.edge_df.index:
     if sheet.edge_df.loc[i, 'opposite'] == -1:
@@ -102,19 +111,15 @@ for i in sheet.edge_df.index:
     else:
         continue
 geom.update_all(sheet)
-fig, ax = plot_forces(sheet, geom, smodel, ['x', 'y'], scaling=0.1)
-
-solver = QSSolver()
-res = solver.find_energy_min(sheet, geom, smodel)
-sheet_view(sheet) 
 
 # Draw with vertex labelling.
 fig, ax= sheet_view(sheet, edge = {'head_width':0.1})
 for vert, data in sheet.vert_df.iterrows():
     ax.text(data.x, data.y+0.1, vert)
+plt.show()
 
 # Compute the basal boundary edge.
-sheet.get_opposite()
+sheet.get_extra_indices()
 condition = sheet.edge_df.loc[:,'face'] == 1
 edge_in_cell = sheet.edge_df[condition]
 basal_edges = edge_in_cell[ edge_in_cell.loc[:,'opposite']==-1 ]
@@ -164,7 +169,7 @@ for index, row in edge_in_cell.iterrows():
     v1 = [s0x-p0x,s0y-p0y]
     v2 = [t0x-p0x,t0y-p0y]
     # if the xprod_2d returns negative, then line intersects the line segment.
-    if xprod_2d(r, v1)*xprod_2d(r, v2) < 0:
+    if mh.xprod_2d(r, v1)* mh.xprod_2d(r, v2) < 0:
         #print(f'The edge that is intersecting is: {index}')
         dx = row['dx']
         dy = row['dy']
@@ -172,20 +177,20 @@ for index, row in edge_in_cell.iterrows():
         c2 = s0y*rx-p0y*rx - s0x*ry + p0x*ry
         k=c2/c1
         intersection = [s0x+k*dx, s0y+k*dy]
-        new_index = put_vert(sheet, index, intersection)[0]
+        new_index = mh.put_vert(sheet, index, intersection)[0]
     else:
         print('Error! No opposite intersection!')
 print(f'The intersection has coordinates: {intersection} with edge: {index}. ')
 
 first_half = face_division(sheet, mother = 1, vert_a = basal_mid, vert_b = new_index )
-added = put_vert(sheet, 39, c0)
+added = mh.put_vert(sheet, 39, c0)
 geom.update_all(sheet)
 
 
-fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+fig, ax = sheet_view(sheet)
 for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
-
+plt.show()
 
 fig, ax= sheet_view(sheet)
 for edge, data in edge_in_cell.iterrows():
@@ -196,13 +201,14 @@ sheet.edge_df.loc[sheet.edge_df.loc[:,'face'] == 1]
 sheet.update_num_sides()
 
 """ Jump here for shorted. """
-if divisibility_check(sheet, cell_id = 1):
-    daughter = lateral_split(sheet, mother = 1)
+if mh.divisibility_check(sheet, cell_id = 1):
+    daughter = mh.lateral_split(sheet, mother = 1)
     geom.update_all(sheet)
     
-    fig, ax = sheet_view(sheet, edge = {'head_width':0.1})
+    fig, ax = sheet_view(sheet)
     for face, data in sheet.face_df.iterrows():
         ax.text(data.x, data.y, face)
+    plt.show()
 else:
     print('Not appropriate cell to divide.')
 
@@ -222,8 +228,8 @@ fig, ax = sheet_view(sheet)
 for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
     
-delete_face(sheet, 4)
-delete_face(sheet, 3)
+mh.delete_face(sheet, 4)
+mh.delete_face(sheet, 3)
 sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
 
 # Plot figures to check.
@@ -276,20 +282,20 @@ for index, row in edge_in_cell.iterrows():
     v1 = [s0x-p0x,s0y-p0y]
     v2 = [t0x-p0x,t0y-p0y]
     # if the xprod_2d returns negative, then line intersects the line segment.
-    if xprod_2d(r, v1)*xprod_2d(r, v2) < 0 and index !=chosen_index :
+    if mh.xprod_2d(r, v1)* mh.xprod_2d(r, v2) < 0 and index !=chosen_index :
         dx = row['dx']
         dy = row['dy']
         c1 = dx*ry-dy*rx
         c2 = s0y*rx-p0y*rx - s0x*ry + p0x*ry
         k=c2/c1
         intersection = [s0x+k*dx, s0y+k*dy]
-        oppo_index = put_vert(sheet, index, intersection)[0]
+        oppo_index = mh.put_vert(sheet, index, intersection)[0]
     else:
         continue
 # Split the cell with a line.
 new_face_index = face_division(sheet, mother = 2, vert_a = new_mid_index , vert_b = oppo_index )
 # Put a vertex at the centroid, on the newly formed edge (last row in df).
-cent_index = put_vert(sheet, edge = sheet.edge_df.index[-1], coord_put = c0)[0]
+cent_index = mh.put_vert(sheet, edge = sheet.edge_df.index[-1], coord_put = c0)[0]
 # update geometry
 geom.update_all(sheet)
 
@@ -313,8 +319,8 @@ fig, ax = sheet_view(sheet)
 for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
     
-delete_face(sheet, 4)
-delete_face(sheet, 3)
+mh.delete_face(sheet, 4)
+mh.delete_face(sheet, 3)
 sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
 
 # Plot figures to check.
