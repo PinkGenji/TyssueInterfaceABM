@@ -116,7 +116,7 @@ for face, data in sheet.face_df.iterrows():
 plt.show()
 
 # Do a T1 transition on the edge we want, find the edge number first.
-mh.type1_transition(sheet, edge_to_process, remove_tri_faces=False, multiplier=1.5)
+mh.type1_transition(sheet, edge_to_process, remove_tri_faces=False, multiplier=5)
 geom.update_all(sheet)
 sheet.reset_index(order=True)
 # Enable face visibility.
@@ -392,7 +392,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('T1FusionTest.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('T1FusionTestLongerLength.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
