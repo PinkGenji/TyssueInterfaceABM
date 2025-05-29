@@ -376,12 +376,12 @@ while t < t_end:
 
     if t1_done == 0 and t > 0.5:
 
-        # find the edge number by checking the mutual edge between cell 29 and 14.
+        # find the edge number by checking the mutual edge between cell 19 and 34.
         sheet.get_extra_indices()
         for i in sheet.edge_df.index:
-            if sheet.edge_df.loc[i, 'face'] == 29:
+            if sheet.edge_df.loc[i, 'face'] == 19:
                 opposite_edge = sheet.edge_df.loc[i, 'opposite']
-                if opposite_edge != -1 and sheet.edge_df.loc[opposite_edge, 'face'] == 14:
+                if opposite_edge != -1 and sheet.edge_df.loc[opposite_edge, 'face'] == 34:
                     edge_to_process = i
                     print(f'Edge {edge_to_process} is the edge we want to do T1 transition.')
                     # Do a T1 transition on the edge we want, find the edge number first.
@@ -391,12 +391,12 @@ while t < t_end:
             else:
                 continue
 
-        # find the edge number by checking the mutual edge between cell 29 and 15.
+        # find the edge number by checking the mutual edge between cell 20 and 34.
         sheet.get_extra_indices()
         for i in sheet.edge_df.index:
-            if sheet.edge_df.loc[i, 'face'] == 29:
+            if sheet.edge_df.loc[i, 'face'] == 20:
                 opposite_edge = sheet.edge_df.loc[i, 'opposite']
-                if opposite_edge != -1 and sheet.edge_df.loc[opposite_edge, 'face'] == 15:
+                if opposite_edge != -1 and sheet.edge_df.loc[opposite_edge, 'face'] == 34:
                     edge_to_process = i
                     print(f'Edge {edge_to_process} is the edge we want to do T1 transition.')
                     # Do a T1 transition on the edge we want, find the edge number first.
@@ -433,7 +433,7 @@ while t < t_end:
     t += dt
 
 # Write the final sheet to a hdf5 file.
-hdf5.save_datasets('detached_STB_t5.hdf5', sheet)
+hdf5.save_datasets('detached_STB_middle.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
@@ -453,7 +453,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('detached_STB_t5.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('detached_STB_middle.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
