@@ -173,7 +173,7 @@ max_movement = t1_threshold / 2
 
 # Start simulating.
 t = 0
-t_end = 5
+t_end = 3
 # switch = 1 # controller variable for fusion of cell 24
 t1_done = 0
 time_list = []
@@ -410,6 +410,32 @@ while t < t_end:
 
         t1_done = 1
 
+    # At the time step followed by the detachment, remove the cell 34 from the system, as if it is shed from STB layer.
+    if t1_done == 1 and t > 0.55:
+        remove_face(sheet, 34)
+        geom.update_all(sheet)
+
+        # Then reload the draw sepcs
+        # Enable face visibility.
+        draw_specs['face']['visible'] = True
+        for i in sheet.face_df.index:  # Assign face colour based on cell type.
+            if sheet.face_df.loc[i, 'cell_class'] == 'STB':
+                sheet.face_df.loc[i, 'color'] = 0.7
+            else:
+                sheet.face_df.loc[i, 'color'] = 0.1
+        draw_specs['face']['color'] = sheet.face_df['color']
+        draw_specs['face']['alpha'] = 0.2  # Set transparency.
+
+        # Enable edge visibility
+        draw_specs['edge']['visible'] = True
+        for i in sheet.edge_df.index:
+            if sheet.edge_df.loc[i, 'is_active'] == 0:
+                sheet.edge_df.loc[i, 'width'] = 2
+            else:
+                sheet.edge_df.loc[i, 'width'] = 0.5
+        draw_specs['edge']['width'] = sheet.edge_df['width']
+
+
     # Tracking STB Area.
     total_STB = sheet.face_df.loc[sheet.face_df['cell_class'] == 'STB', 'area'].sum()
     STB_area.append(total_STB)
@@ -433,7 +459,7 @@ while t < t_end:
     t += dt
 
 # Write the final sheet to a hdf5 file.
-hdf5.save_datasets('detached_STB_middle.hdf5', sheet)
+hdf5.save_datasets('shed_as_direct_remove.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
@@ -453,7 +479,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('detached_STB_middle.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('shed_as_direct_remove.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
