@@ -414,6 +414,7 @@ while t < t_end:
     if t1_done == 1 and t > 0.55:
         remove_face(sheet, 34)
         geom.update_all(sheet)
+        t1_done = 2     # So we avoid repeating t1 operation and remove face.
 
         # Then reload the draw sepcs
         # Enable face visibility.
