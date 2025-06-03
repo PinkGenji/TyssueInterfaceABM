@@ -106,7 +106,7 @@ for cell_id in [0,13,14,27,28,41]:
     for i in sheet.edge_df[sheet.edge_df['face'] == cell_id]['srce'].tolist():
         sheet.vert_df.loc[i,'is_active'] = 0
 
-# Deactivate the edges between STB units.
+# Deactivate the edges between STB units, that is, becoming dummy edges.
 for i in sheet.edge_df.index:
     if sheet.edge_df.loc[i,'opposite'] != -1:
         associated_cell = sheet.edge_df.loc[i,'face']
@@ -190,8 +190,54 @@ fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
 plt.show()
 print('STB unit 34 is detached.')
 
-
 # Next, remove the STB unit number 34, then check if there are any unwanted vertices.
+remove_face(sheet, 34)
+geom.update_all(sheet)
+
+# Make sure we have the dummy edges consistently.
+for i in sheet.edge_df.index:
+    if sheet.edge_df.loc[i,'opposite'] != -1:
+        associated_cell = sheet.edge_df.loc[i,'face']
+        opposite_edge = sheet.edge_df.loc[i,'opposite']
+        opposite_cell = sheet.edge_df.loc[opposite_edge,'face']
+        if sheet.face_df.loc[associated_cell,'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell,'cell_class'] == 'STB':
+            sheet.edge_df.loc[i,'is_active'] = 0
+            sheet.edge_df.loc[opposite_edge,'is_active'] = 0
+
+# Update face draw specs
+draw_specs['face']['visible'] = True
+for i in sheet.face_df.index:   # Assign face colour based on cell type.
+    if sheet.face_df.loc[i,'cell_class'] == 'STB': sheet.face_df.loc[i,'color'] = 0.7
+    else: sheet.face_df.loc[i,'color'] = 0.1
+draw_specs['face']['color'] = sheet.face_df['color']
+draw_specs['face']['alpha'] = 0.2   # Set transparency.
+
+# update edge specs
+draw_specs['edge']['visible'] = True
+for i in sheet.edge_df.index:
+    if sheet.edge_df.loc[i,'is_active'] == 0: sheet.edge_df.loc[i,'width'] = 2
+    else: sheet.edge_df.loc[i,'width'] = 0.5
+draw_specs['edge']['width'] = sheet.edge_df['width']
+
+fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
+plt.show()
+
+# Need to show all the vertices.
+sheet.vert_df['rand'] = np.linspace(0.0, 1.0, num=sheet.vert_df.shape[0])
+
+cmap = plt.colormaps.get_cmap('viridis')
+color_cmap = cmap(sheet.vert_df.rand)
+draw_specs['vert']['visible'] = True
+
+draw_specs['vert']['color'] = color_cmap
+draw_specs['vert']['alpha'] = 0.5
+draw_specs['vert']['s'] = 50
+coords = ['x', 'y']
+fig, ax = sheet_view(sheet, coords, **draw_specs)
+fig.set_size_inches((10, 10))
+plt.show()
+
+
 
 
 
