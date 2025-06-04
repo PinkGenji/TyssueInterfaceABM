@@ -89,6 +89,23 @@ for i in range(num_x-2,len(sheet.face_df)):     # These are the indices of top l
 
 print(f'There are {total_cell_num} total cells; equally split into "S" and "STB" classes. ')
 
+# Apply drawing specs, so STB and CT have different colours.
+from tyssue.config.draw import sheet_spec
+draw_specs = sheet_spec()
+# Enable face visibility.
+draw_specs['face']['visible'] = True
+for i in sheet.face_df.index:   # Assign face colour based on cell type.
+    if sheet.face_df.loc[i,'cell_class'] == 'STB': sheet.face_df.loc[i,'color'] = 0.7
+    else: sheet.face_df.loc[i,'color'] = 0.1
+draw_specs['face']['color'] = sheet.face_df['color']
+draw_specs['face']['alpha'] = 0.2   # Set transparency.
+
+
+fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
+ax.axis('off')  # Remove axis
+plt.show()
+
+
 # Add dynamics to the model.
 specs = {
     'edge': {
