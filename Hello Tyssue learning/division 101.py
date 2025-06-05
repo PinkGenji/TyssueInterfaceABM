@@ -76,6 +76,7 @@ sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwis
 fig, ax = sheet_view(sheet)
 for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
+ax.axis('off')    # Remove axis in plot.
 plt.show()
 # First, we need a way to compute the energy, then use gradient descent.
 specs = {
@@ -190,6 +191,7 @@ geom.update_all(sheet)
 fig, ax = sheet_view(sheet)
 for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
+ax.axis('off')
 plt.show()
 
 fig, ax= sheet_view(sheet)
