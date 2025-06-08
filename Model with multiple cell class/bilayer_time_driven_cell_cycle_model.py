@@ -82,7 +82,9 @@ total_cell_num = len(sheet.face_df)
 
 print('New attributes: cell_class; timer created for all cells. \n ')
 for i in range(0,num_x-2):  # These are the indices of bottom layer.
-    sheet.face_df.loc[i,'cell_class'] = 'S'
+    sheet.face_df.loc[i,'cell_class'] = 'G1'
+    # Add a timer for each cell enters "G1".
+    sheet.face_df.loc[i, 'timer'] = 0.11
 
 for i in range(num_x-2,len(sheet.face_df)):     # These are the indices of top layer.
     sheet.face_df.loc[i,'cell_class'] = 'STB'
@@ -163,6 +165,16 @@ while t <= t_end:
         edge_to_process = None
         for index in sheet.edge_df.index:
             if sheet.edge_df.loc[index, 'length'] < t1_threshold:
+                # Adding safeguard to skip malformed transitions
+                srce = sheet.edge_df.loc[index, 'srce']
+                trgt = sheet.edge_df.loc[index, 'trgt']
+                # Ensure both vertices are part of exactly 2 faces (simple topology)
+                if (
+                        (sheet.edge_df['srce'] == srce).sum() > 5 or
+                        (sheet.edge_df['trgt'] == trgt).sum() > 5
+                ):
+                    print(f"Skipping edge {index} due to weird topology.")
+                    continue
                 edge_to_process = index
                 edge_length = sheet.edge_df.loc[edge_to_process, 'length']
                 # print(f'Edge {edge_to_process} is too short: {edge_length}')
@@ -293,25 +305,34 @@ while t <= t_end:
 
     print(f'At time {t:.4f}, there are {S_count} S cells; {G2_count} G2 cells; {M_count} M cells; {G1_count} G1 cells. \n')
 
-    # Print the plot at this step.
-    fig, ax = sheet_view(sheet)
+    # Generate the plot at this time step.
+    # Enable face visibility.
+    draw_specs['face']['visible'] = True
+    for i in sheet.face_df.index:  # Assign face colour based on cell type.
+        if sheet.face_df.loc[i, 'cell_class'] == 'STB':
+            sheet.face_df.loc[i, 'color'] = 0.7
+        else:
+            sheet.face_df.loc[i, 'color'] = 0.1
+    draw_specs['face']['color'] = sheet.face_df['color']
+    draw_specs['face']['alpha'] = 0.2  # Set transparency.
+    fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
     ax.title.set_text(f'time = {round(t, 5)}')
-    plt.tight_layout()
-
-    # Save to file instead of showing
+    # Fix axis limits and aspect.
+    ax.set_xlim(-5, 20)
+    ax.set_ylim(-5, 7)
+    ax.set_aspect('equal')
+    # Save to file instead of showing.
     frame_path = f"frames/frame_{t:.5f}.png"
     plt.savefig(frame_path)
     plt.close(fig)  # Close figure to prevent memory leaks
-    frame_files.append(frame_path)
 
     # Update time_point
     t += dt
 
 
 
-""" 
-Next, generate a video of the evolution based on the plots saved at each time step.
-"""
+
+""" Generate the video based on the frames saved. """
 # Path to folder containing the frame images
 frame_folder = "frames"
 
@@ -328,11 +349,11 @@ frame_files = sorted([
     if fname.endswith('.png')  # Only include PNG files
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
-# Create a video writer using ffmpeg with 10 frames per second
-with imageio.get_writer('simulation_recording_with_dummy.mp4', fps=15, format='ffmpeg') as writer:
+# Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
+with imageio.get_writer('bilayer_starts_with_G1.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
-        image = imageio.imread(filename)  # Load image from file
+        image = imageio.imread(filename)  # Load image from the folder
         writer.append_data(image)        # Write image to video
 
 
