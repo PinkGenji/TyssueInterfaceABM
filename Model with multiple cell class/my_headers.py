@@ -5,10 +5,11 @@ This script contains all my personal defined functions to be used.
 import numpy as np
 import pandas as pd
 import math
+from collections import Counter
 from decimal import Decimal
 
 from tyssue.topology.sheet_topology import type1_transition
-from tyssue.topology.base_topology import add_vert
+from tyssue.topology.base_topology import add_vert, drop_two_sided_faces
 from tyssue.topology.sheet_topology import face_division
 from tyssue import PlanarGeometry as geom
 from tyssue.dynamics.planar_vertex_model import PlanarModel as model
@@ -1110,6 +1111,48 @@ def perturbate_T3(sheet, vert1, vert2, d_sep):
     # Then update vert2.
     sheet.vert_df.loc[vert2, ['x', 'y']] += (-mid_v2 - mid_perpendicular)
     return True
+
+def extrude_face(sheet, face_index):
+    """
+    This is a function that removes a face with face_index, but only deletes vertices that are unique to that face,
+    i.e., not shared with any other faces.
+
+    This function returns the indices of the vertices that are removed.
+    """
+    # 1. Get the face's half-edges
+    face_edges = sheet.edge_df[sheet.edge_df["face"] == face_index]
+    face_edge_indices = face_edges.index
+
+    # 2. Get the face's vertices
+    face_verts = np.union1d(face_edges["srce"].values, face_edges["trgt"].values)
+
+    # 3. Drop the face's edges (they're only half-edges owned by this face)
+    sheet.edge_df.drop(index=face_edge_indices, inplace=True)
+
+    # 4. Drop the face
+    sheet.face_df.drop(index=face_index, inplace=True)
+
+    # 5. Determine which face vertices are now unused (not in any edge)
+    remaining_edges = sheet.edge_df
+    remaining_verts = np.union1d(
+        remaining_edges["srce"].values,
+        remaining_edges["trgt"].values
+    )
+
+    removable_verts = [v for v in face_verts if v not in remaining_verts]
+
+    # 6. Drop unused vertices
+    if removable_verts:
+        sheet.vert_df.drop(index=removable_verts, inplace=True)
+
+    # 7. Topology and indexing cleanup
+    drop_two_sided_faces(sheet)  # only if relevant
+    sheet.reset_index()
+    sheet.reset_topo()
+
+    return removable_verts
+
+
 
 
 """ This is the end of the script. """
