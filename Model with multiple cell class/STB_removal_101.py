@@ -246,6 +246,11 @@ draw_specs['edge']['width'] = sheet.edge_df['width']
 fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
 plt.show()
 
+fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face, fontsize=10, color="r")
+plt.show()
+
 # Need to show all the vertices.
 # sheet.vert_df['rand'] = np.linspace(0.0, 1.0, num=sheet.vert_df.shape[0])
 #
@@ -431,7 +436,7 @@ while t < t_end:
 
     # Deactivate the cells on the leftmost and rightmost sides after time elapsed by 1.
     if deactivate_ends == 0 and t > 1:
-        for cell_id in [0, 13, 14, 27, 28, 41]:
+        for cell_id in [0, 13, 14, 27, 28, 40]:
             sheet.face_df.loc[cell_id, 'is_alive'] = 0
             for i in sheet.edge_df[sheet.edge_df['face'] == cell_id]['srce'].tolist():
                 sheet.vert_df.loc[i, 'is_active'] = 0
