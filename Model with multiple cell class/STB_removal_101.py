@@ -117,14 +117,14 @@ geom.update_all(sheet)
 
 
 # Deactivate the edges between STB units, that is, becoming dummy edges.
-for i in sheet.edge_df.index:
-    if sheet.edge_df.loc[i,'opposite'] != -1:
-        associated_cell = sheet.edge_df.loc[i,'face']
-        opposite_edge = sheet.edge_df.loc[i,'opposite']
-        opposite_cell = sheet.edge_df.loc[opposite_edge,'face']
-        if sheet.face_df.loc[associated_cell,'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell,'cell_class'] == 'STB':
-            sheet.edge_df.loc[i,'is_active'] = 0
-            sheet.edge_df.loc[opposite_edge,'is_active'] = 0
+# for i in sheet.edge_df.index:
+#     if sheet.edge_df.loc[i,'opposite'] != -1:
+#         associated_cell = sheet.edge_df.loc[i,'face']
+#         opposite_edge = sheet.edge_df.loc[i,'opposite']
+#         opposite_cell = sheet.edge_df.loc[opposite_edge,'face']
+#         if sheet.face_df.loc[associated_cell,'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell,'cell_class'] == 'STB':
+#             sheet.edge_df.loc[i,'is_active'] = 0
+#             sheet.edge_df.loc[opposite_edge,'is_active'] = 0
 
 draw_specs = sheet_spec()
 # Enable face visibility.
@@ -214,19 +214,19 @@ plt.show()
 
 
 # Assign the dummy edges if they are the mutual edges between STB units.
-for i in sheet.edge_df.index:
-    if sheet.edge_df.loc[i,'opposite'] != -1:
-        associated_cell = sheet.edge_df.loc[i,'face']
-        opposite_edge = sheet.edge_df.loc[i,'opposite']
-        opposite_cell = sheet.edge_df.loc[opposite_edge,'face']
-        if sheet.face_df.loc[associated_cell,'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell,'cell_class'] == 'STB':
-            sheet.edge_df.loc[i,'is_active'] = 0
-            sheet.edge_df.loc[opposite_edge,'is_active'] = 0
-        else:
-            sheet.edge_df.loc[i,'is_active'] = 1
-            sheet.edge_df.loc[opposite_edge,'is_active'] = 1
-    else:
-        sheet.edge_df.loc[i,'is_active'] = 1
+# for i in sheet.edge_df.index:
+#     if sheet.edge_df.loc[i,'opposite'] != -1:
+#         associated_cell = sheet.edge_df.loc[i,'face']
+#         opposite_edge = sheet.edge_df.loc[i,'opposite']
+#         opposite_cell = sheet.edge_df.loc[opposite_edge,'face']
+#         if sheet.face_df.loc[associated_cell,'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell,'cell_class'] == 'STB':
+#             sheet.edge_df.loc[i,'is_active'] = 0
+#             sheet.edge_df.loc[opposite_edge,'is_active'] = 0
+#         else:
+#             sheet.edge_df.loc[i,'is_active'] = 1
+#             sheet.edge_df.loc[opposite_edge,'is_active'] = 1
+#     else:
+#         sheet.edge_df.loc[i,'is_active'] = 1
 
 # Update face draw specs
 draw_specs['face']['visible'] = True
@@ -390,22 +390,22 @@ while t < t_end:
     geom.update_all(sheet)
 
     # Before computation the force, we need to make sure we disable the correct dummy edges.
-    sheet.get_extra_indices()  # make sure we have correct opposite edges computed.
-    for i in sheet.edge_df.index:
-        # For a non-boundary edge, if both of itself and its opposite edge are STB class, disable it. Otherwise, make it active.
-        if sheet.edge_df.loc[i, 'opposite'] != -1:
-            associated_cell = sheet.edge_df.loc[i, 'face']
-            opposite_edge = sheet.edge_df.loc[i, 'opposite']
-            opposite_cell = sheet.edge_df.loc[opposite_edge, 'face']
-            if sheet.face_df.loc[associated_cell, 'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell, 'cell_class'] == 'STB':
-                sheet.edge_df.loc[i, 'is_active'] = 0
-                sheet.edge_df.loc[opposite_edge, 'is_active'] = 0
-            else:
-                sheet.edge_df.loc[i, 'is_active'] = 1
-                sheet.edge_df.loc[opposite_edge, 'is_active'] = 1
-        # Boundary edges are always active in this model.
-        else:
-            sheet.edge_df.loc[i, 'is_active'] = 1
+    # sheet.get_extra_indices()  # make sure we have correct opposite edges computed.
+    # for i in sheet.edge_df.index:
+    #     # For a non-boundary edge, if both of itself and its opposite edge are STB class, disable it. Otherwise, make it active.
+    #     if sheet.edge_df.loc[i, 'opposite'] != -1:
+    #         associated_cell = sheet.edge_df.loc[i, 'face']
+    #         opposite_edge = sheet.edge_df.loc[i, 'opposite']
+    #         opposite_cell = sheet.edge_df.loc[opposite_edge, 'face']
+    #         if sheet.face_df.loc[associated_cell, 'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell, 'cell_class'] == 'STB':
+    #             sheet.edge_df.loc[i, 'is_active'] = 0
+    #             sheet.edge_df.loc[opposite_edge, 'is_active'] = 0
+    #         else:
+    #             sheet.edge_df.loc[i, 'is_active'] = 1
+    #             sheet.edge_df.loc[opposite_edge, 'is_active'] = 1
+    #     # Boundary edges are always active in this model.
+    #     else:
+    #         sheet.edge_df.loc[i, 'is_active'] = 1
 
     # And update the drawing specs correctly according to active or not (dummy edge is bold).
     # Assign cell colour by cell type. Pale yellow for STB, light purple for CTs.
@@ -477,7 +477,7 @@ while t < t_end:
     t += dt
 
 # Write the final sheet to a hdf5 file.
-hdf5.save_datasets('STB_removal_nodes_kept.hdf5', sheet)
+hdf5.save_datasets('STB_removal_uniform_dynamic.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
@@ -497,7 +497,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('STB_removal_nodes_kept.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('STB_removal_uniform_dynamic.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
