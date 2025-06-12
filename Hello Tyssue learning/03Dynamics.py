@@ -38,9 +38,11 @@ from tyssue.draw import sheet_view
 from tyssue.draw.plt_draw import plot_forces
 from tyssue.io import hdf5
 
-# Set the working directory to the location of the file first, we do it manually.
-wd = r"C:\Users\lyu195\Documents\GitHub\tyssueHello"
-os.chdir(wd)
+# Get the directory of the current file
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Set the working directory
+os.chdir(current_dir)
 
 os.path.isfile('small_hexagonal.hf5')  #Check working directory set correctly.
 
@@ -57,7 +59,7 @@ sqrt_area = sheet.face_df['area'].mean()**0.5
 geom.scale(sheet, 1/sqrt_area, sheet.coords)
 
 fig, ax = sheet_view(sheet, ['z', 'x'], mode = 'quick')
-
+plt.show()
 '''
 (Non)-Dimensionalization:
 
