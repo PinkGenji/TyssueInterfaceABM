@@ -145,10 +145,12 @@ model = model_factory([
 model.specs
 
 # We can use sheet.update_spec to set the correct columns in the sheet object.
-# Once the column are set, it is possible to sets parameters for a subsets of edges
-# by indexing the edges with a boolean series:
+# Once the columns are set, it is possible to set parameters for a subsets of edges
+# Example: by indexing the edges with a boolean series:
 sheet.edge_df.loc[sheet.edge_df['sx']<0, 'line_tension'] = 0.5
 sheet.update_specs(model.specs, reset=True)
+print('To check actual paramters, look into the vert, edge or face dataframes, not model.specs \n')
+
 
 '''
 Compute energy:
@@ -194,7 +196,34 @@ The tyssue.draw defines a useful plot_forces function.
 '''
 
 fig, ax = plot_forces(sheet, geom, model, ['z', 'y'], scaling = 1)
-fig.set_size_inches(10, 12)
+plt.show()
+
+'''
+suppose we want to track which energy term is contributing the most to two cells: cell number 5 and cell number 12. 
+'''
+# We need to track Et which is the tension energy on each edge that are associated with cell number 5 and 12.
+# Also, if an edge has an 'opposite' edge, then the two half-edges have the same energy value.
+
+edge_by_face = sheet.edge_df.groupby('face').apply(lambda x: x.index.tolist())      # Dataframe with edges in each face.
+
+# Compute the energy terms.
+model_labels = model.labels
+print(f'Model labels are {model_labels}')
+# Based on the printed output, we know Et, Ec and Ea are:
+# line tension for each edge; contractility and area elasticity for each face.
+Et, Ec, Ea = model.compute_energy(sheet, full_output=True)
+# Record the Et for edges in face 5 and 12.
+tension_face5 = Et[5].sum() # Sum the total tension
+tension_face12 = Et[12].sum()
+# Record contractility and area elasticity for each face
+Contract_5 = Ec[5]
+Contract_12 = Ec[12]
+Area_ela5 = Ea[5]
+Area_ela12 = Ea[12]
+
+print(f'For cell 5, total edge tension energy: {tension_face5: .3f}; Contractility energy: {Contract_5: .3f}; Area elasticity: {Area_ela5: .3f} \n')
+print(f'For cell 12, total edge tension energy: {tension_face12: .3f}; Contractility energy: {Contract_12: .3f}; Area elasticity: {Area_ela12: .3f}')
+
 
 
 
