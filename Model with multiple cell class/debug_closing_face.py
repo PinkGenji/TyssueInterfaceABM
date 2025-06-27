@@ -26,7 +26,7 @@ for i in false_indices:
         unclosed_face.append(face)
 unclosed_face = list(set(sheet2.edge_df.loc[false_indices, 'face']))
 edge_num = len(sheet2.edge_df)
-print(f'Unclosed faces are: {unclosed_face}, there are {edge_num} edges in total')
+print(f'Initially, unclosed faces are: {unclosed_face}, there are {edge_num} edges in total')
 
 # Now, update the draw sepcs to highlight these faces.
 draw_specs = sheet_spec()
@@ -72,6 +72,23 @@ unclosed_face = list(set(sheet2.edge_df.loc[false_indices, 'face']))
 edge_num = len(sheet2.edge_df)
 print(f'Unclosed faces are: {unclosed_face}, there are {edge_num} edges in total')
 
+# See the effect of sanitize on the data frames,
+# sanitize is done via merge border edges into a single edge, so there is no vertex formed by two edges on border.
+sheet2.sanitize(trim_borders=True)
+geom.update_all(sheet2)
 
+# Recheck the invalid faces.
+validate_series = sheet2.get_valid()
+false_indices = validate_series[validate_series == False].index
+unclosed_face = []
+for i in false_indices:
+    face = sheet2.edge_df.loc[i,'face']
+    if face not in unclosed_face:
+        unclosed_face.append(face)
+unclosed_face = list(set(sheet2.edge_df.loc[false_indices, 'face']))
+edge_num = len(sheet2.edge_df)
+print(f'After sanitize without border trim, Unclosed faces are: {unclosed_face}, there are {edge_num} edges in total')
+fig, ax = sheet_view(sheet2)
+plt.show() 
 
 print('\n This is the end of this script. (＾• ω •＾) ')
