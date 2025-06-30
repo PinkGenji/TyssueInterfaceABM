@@ -6,7 +6,8 @@ The goal of this script is to investigate how we should remove an STB unit from 
 
 # Load all required modules.
 import numpy as np
-import  re
+import re
+import pandas as pd
 import matplotlib.pyplot as plt
 from tyssue import Sheet
 from tyssue.topology.sheet_topology import remove_face
@@ -278,6 +279,9 @@ t = 0
 t_end = 3
 deactivate_ends = 0
 
+tracked_faces = [28, 32, 33, 34, 35]
+energy_log = []  # This will be a list of dicts, one per time step
+
 
 while t < t_end:
     dt = 0.001
@@ -442,67 +446,102 @@ while t < t_end:
                 sheet.vert_df.loc[i, 'is_active'] = 0
 
     # Then reload the draw sepcs
-    draw_specs['face']['visible'] = True
-    for i in sheet.face_df.index:  # Assign face colour based on cell type.
-        if sheet.face_df.loc[i, 'cell_class'] == 'STB':
-            sheet.face_df.loc[i, 'color'] = 0.7
-        else:
-            sheet.face_df.loc[i, 'color'] = 0.1
-    draw_specs['face']['color'] = sheet.face_df['color']
-    draw_specs['face']['alpha'] = 0.2  # Set transparency.
-
-    draw_specs['edge']['visible'] = True
-    for i in sheet.edge_df.index:
-        if sheet.edge_df.loc[i, 'is_active'] == 0:
-            sheet.edge_df.loc[i, 'width'] = 2
-        else:
-            sheet.edge_df.loc[i, 'width'] = 0.5
-    draw_specs['edge']['width'] = sheet.edge_df['width']
-
+    # draw_specs['face']['visible'] = True
+    # for i in sheet.face_df.index:  # Assign face colour based on cell type.
+    #     if sheet.face_df.loc[i, 'cell_class'] == 'STB':
+    #         sheet.face_df.loc[i, 'color'] = 0.7
+    #     else:
+    #         sheet.face_df.loc[i, 'color'] = 0.1
+    # draw_specs['face']['color'] = sheet.face_df['color']
+    # draw_specs['face']['alpha'] = 0.2  # Set transparency.
+    #
+    # draw_specs['edge']['visible'] = True
+    # for i in sheet.edge_df.index:
+    #     if sheet.edge_df.loc[i, 'is_active'] == 0:
+    #         sheet.edge_df.loc[i, 'width'] = 2
+    #     else:
+    #         sheet.edge_df.loc[i, 'width'] = 0.5
+    # draw_specs['edge']['width'] = sheet.edge_df['width']
+    #
     print(f'Time at {t:.4f} computed.')
+    #
+    # # Generate the plot at this time step.
+    # fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
+    # ax.title.set_text(f'time = {round(t, 5)}')
+    # # Fix axis limits and aspect.
+    # ax.set_xlim(-5, 20)
+    # ax.set_ylim(-5, 7)
+    # ax.set_aspect('equal')
+    # # Save to file instead of showing.
+    # frame_path = f"frames/frame_{t:.5f}.png"
+    # plt.savefig(frame_path)
+    # plt.close(fig)  # Close figure to prevent memory leaks
 
-    # Generate the plot at this time step.
-    fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
-    ax.title.set_text(f'time = {round(t, 5)}')
-    # Fix axis limits and aspect.
-    ax.set_xlim(-5, 20)
-    ax.set_ylim(-5, 7)
-    ax.set_aspect('equal')
-    # Save to file instead of showing.
-    frame_path = f"frames/frame_{t:.5f}.png"
-    plt.savefig(frame_path)
-    plt.close(fig)  # Close figure to prevent memory leaks
+    # Record the energy terms for cell 28, 32, 33, 34 and 35 to get ready for plot over time.
+    energy_data = record_cell_energy_dynamic(sheet, model, tracked_faces)
+    energy_log.append(energy_data)
+
 
     # Update time_point
     t += dt
 
-# Write the final sheet to a hdf5 file.
-hdf5.save_datasets('STB_removal_uniform_dynamic.hdf5', sheet)
+# Convert to long-form DataFrame dynamically using model.labels
+long_data = []
 
-""" Generate the video based on the frames saved. """
-# Path to folder containing the frame images
-frame_folder = "frames"
+for t, snapshot in enumerate(energy_log):
+    for face_id, energies in snapshot.items():
+        row = {'time': t, 'face': face_id}
+        row.update(energies)  # energies keys are from model.labels
+        long_data.append(row)
 
-# Helper function to extract the numeric part from a filename
-# For example, from "frame_12.png", it extracts 12
-def extract_number(fname):
-    match = re.search(r'\d+', fname)
-    return int(match.group()) if match else -1  # If no number found, use -1
 
-# List and numerically sort all .png files in the frame folder
-frame_files = sorted([
-    os.path.join(frame_folder, fname)
-    for fname in os.listdir(frame_folder)
-    if fname.endswith('.png')  # Only include PNG files
-], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
+df = pd.DataFrame(long_data)
+for label in model.labels:
+    plt.figure()
+    for face_id in df['face'].unique():
+        sub_df = df[df['face'] == face_id]
+        plt.plot(sub_df['time'], sub_df[label], label=f'Face {face_id}')
+    plt.title(f'{label} over time')
+    plt.xlabel('Time step')
+    plt.ylabel(f'{label} energy')
+    plt.legend(title='Face ID')
+    plt.tight_layout()
+    plt.show()
 
-# Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('STB_removal_uniform_dynamic.mp4', fps=15, format='ffmpeg') as writer:
-    # Read and append each frame in sorted order
-    for filename in frame_files:
-        image = imageio.imread(filename)  # Load image from the folder
-        writer.append_data(image)        # Write image to video
+# Save energy_log into CSV for later analysis
+df.to_csv('energy_log_uniform_dynamic.csv', index=False)
 
+
+
+
+
+# # Write the final sheet to a hdf5 file.
+# hdf5.save_datasets('STB_removal_uniform_dynamic.hdf5', sheet)
+#
+# """ Generate the video based on the frames saved. """
+# # Path to folder containing the frame images
+# frame_folder = "frames"
+#
+# # Helper function to extract the numeric part from a filename
+# # For example, from "frame_12.png", it extracts 12
+# def extract_number(fname):
+#     match = re.search(r'\d+', fname)
+#     return int(match.group()) if match else -1  # If no number found, use -1
+#
+# # List and numerically sort all .png files in the frame folder
+# frame_files = sorted([
+#     os.path.join(frame_folder, fname)
+#     for fname in os.listdir(frame_folder)
+#     if fname.endswith('.png')  # Only include PNG files
+# ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
+#
+# # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
+# with imageio.get_writer('STB_removal_uniform_dynamic.mp4', fps=15, format='ffmpeg') as writer:
+#     # Read and append each frame in sorted order
+#     for filename in frame_files:
+#         image = imageio.imread(filename)  # Load image from the folder
+#         writer.append_data(image)        # Write image to video
+#
 
 
 print('\n This is the end of this script. (＾• ω •＾) ')
