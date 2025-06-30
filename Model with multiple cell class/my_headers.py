@@ -1153,6 +1153,37 @@ def extrude_face(sheet, face_index):
     return removable_verts
 
 
+def record_cell_energy_dynamic(sheet, model, face_ids):
+    """
+    Return energy contributions for a list of face_ids,
+    dynamically using model.labels for energy terms.
+    """
+    geom.update_all(sheet)
+
+    # Get per-element energy terms (as Series) from each effector
+    energy_terms = model.compute_energy(sheet, full_output=True)
+    label_to_term = dict(zip(model.labels, energy_terms))
+
+    records = {}
+    for fid in face_ids:
+        entry = {}
+        for label, term in label_to_term.items():
+            if isinstance(term, pd.Series):
+                if term.index.equals(sheet.edge_df.index):  # edge-based term
+                    edge_idxs = sheet.edge_df[sheet.edge_df['face'] == fid].index
+                    entry[label] = term.loc[edge_idxs].sum()
+                elif term.index.equals(sheet.face_df.index):  # face-based term
+                    entry[label] = term.loc[fid]
+                else:
+                    raise ValueError(f"Unrecognized term index for label {label}")
+            else:
+                raise TypeError(f"Unexpected type for energy term: {type(term)}")
+        records[fid] = entry
+
+    return records
+
+
+
 
 
 """ This is the end of the script. """
