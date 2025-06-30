@@ -118,14 +118,14 @@ geom.update_all(sheet)
 
 
 # Deactivate the edges between STB units, that is, becoming dummy edges.
-# for i in sheet.edge_df.index:
-#     if sheet.edge_df.loc[i,'opposite'] != -1:
-#         associated_cell = sheet.edge_df.loc[i,'face']
-#         opposite_edge = sheet.edge_df.loc[i,'opposite']
-#         opposite_cell = sheet.edge_df.loc[opposite_edge,'face']
-#         if sheet.face_df.loc[associated_cell,'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell,'cell_class'] == 'STB':
-#             sheet.edge_df.loc[i,'is_active'] = 0
-#             sheet.edge_df.loc[opposite_edge,'is_active'] = 0
+for i in sheet.edge_df.index:
+    if sheet.edge_df.loc[i,'opposite'] != -1:
+        associated_cell = sheet.edge_df.loc[i,'face']
+        opposite_edge = sheet.edge_df.loc[i,'opposite']
+        opposite_cell = sheet.edge_df.loc[opposite_edge,'face']
+        if sheet.face_df.loc[associated_cell,'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell,'cell_class'] == 'STB':
+            sheet.edge_df.loc[i,'is_active'] = 0
+            sheet.edge_df.loc[opposite_edge,'is_active'] = 0
 
 draw_specs = sheet_spec()
 # Enable face visibility.
@@ -215,19 +215,19 @@ plt.show()
 
 
 # Assign the dummy edges if they are the mutual edges between STB units.
-# for i in sheet.edge_df.index:
-#     if sheet.edge_df.loc[i,'opposite'] != -1:
-#         associated_cell = sheet.edge_df.loc[i,'face']
-#         opposite_edge = sheet.edge_df.loc[i,'opposite']
-#         opposite_cell = sheet.edge_df.loc[opposite_edge,'face']
-#         if sheet.face_df.loc[associated_cell,'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell,'cell_class'] == 'STB':
-#             sheet.edge_df.loc[i,'is_active'] = 0
-#             sheet.edge_df.loc[opposite_edge,'is_active'] = 0
-#         else:
-#             sheet.edge_df.loc[i,'is_active'] = 1
-#             sheet.edge_df.loc[opposite_edge,'is_active'] = 1
-#     else:
-#         sheet.edge_df.loc[i,'is_active'] = 1
+for i in sheet.edge_df.index:
+    if sheet.edge_df.loc[i,'opposite'] != -1:
+        associated_cell = sheet.edge_df.loc[i,'face']
+        opposite_edge = sheet.edge_df.loc[i,'opposite']
+        opposite_cell = sheet.edge_df.loc[opposite_edge,'face']
+        if sheet.face_df.loc[associated_cell,'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell,'cell_class'] == 'STB':
+            sheet.edge_df.loc[i,'is_active'] = 0
+            sheet.edge_df.loc[opposite_edge,'is_active'] = 0
+        else:
+            sheet.edge_df.loc[i,'is_active'] = 1
+            sheet.edge_df.loc[opposite_edge,'is_active'] = 1
+    else:
+        sheet.edge_df.loc[i,'is_active'] = 1
 
 # Update face draw specs
 draw_specs['face']['visible'] = True
@@ -394,22 +394,22 @@ while t < t_end:
     geom.update_all(sheet)
 
     # Before computation the force, we need to make sure we disable the correct dummy edges.
-    # sheet.get_extra_indices()  # make sure we have correct opposite edges computed.
-    # for i in sheet.edge_df.index:
-    #     # For a non-boundary edge, if both of itself and its opposite edge are STB class, disable it. Otherwise, make it active.
-    #     if sheet.edge_df.loc[i, 'opposite'] != -1:
-    #         associated_cell = sheet.edge_df.loc[i, 'face']
-    #         opposite_edge = sheet.edge_df.loc[i, 'opposite']
-    #         opposite_cell = sheet.edge_df.loc[opposite_edge, 'face']
-    #         if sheet.face_df.loc[associated_cell, 'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell, 'cell_class'] == 'STB':
-    #             sheet.edge_df.loc[i, 'is_active'] = 0
-    #             sheet.edge_df.loc[opposite_edge, 'is_active'] = 0
-    #         else:
-    #             sheet.edge_df.loc[i, 'is_active'] = 1
-    #             sheet.edge_df.loc[opposite_edge, 'is_active'] = 1
-    #     # Boundary edges are always active in this model.
-    #     else:
-    #         sheet.edge_df.loc[i, 'is_active'] = 1
+    sheet.get_extra_indices()  # make sure we have correct opposite edges computed.
+    for i in sheet.edge_df.index:
+        # For a non-boundary edge, if both of itself and its opposite edge are STB class, disable it. Otherwise, make it active.
+        if sheet.edge_df.loc[i, 'opposite'] != -1:
+            associated_cell = sheet.edge_df.loc[i, 'face']
+            opposite_edge = sheet.edge_df.loc[i, 'opposite']
+            opposite_cell = sheet.edge_df.loc[opposite_edge, 'face']
+            if sheet.face_df.loc[associated_cell, 'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell, 'cell_class'] == 'STB':
+                sheet.edge_df.loc[i, 'is_active'] = 0
+                sheet.edge_df.loc[opposite_edge, 'is_active'] = 0
+            else:
+                sheet.edge_df.loc[i, 'is_active'] = 1
+                sheet.edge_df.loc[opposite_edge, 'is_active'] = 1
+        # Boundary edges are always active in this model.
+        else:
+            sheet.edge_df.loc[i, 'is_active'] = 1
 
     # And update the drawing specs correctly according to active or not (dummy edge is bold).
     # Assign cell colour by cell type. Pale yellow for STB, light purple for CTs.
@@ -509,7 +509,7 @@ for label in model.labels:
     plt.show()
 
 # Save energy_log into CSV for later analysis
-df.to_csv('energy_log_uniform_dynamic.csv', index=False)
+df.to_csv('energy_log_different_dynamic.csv', index=False)
 
 
 
