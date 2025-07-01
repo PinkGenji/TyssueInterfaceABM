@@ -14,3 +14,7 @@
 
 # Ignore HDF5 files
 *.hdf5
+
+# Ignore csv files
+*.csv
+
