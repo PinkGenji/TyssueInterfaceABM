@@ -54,8 +54,6 @@ num_y = 5
 
 sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = num_x, ny = num_y, distx = 1, disty = 1)
 geom.update_all(sheet)
-#Updates the sheet geometry by updating: * the edge vector coordinates * the edge lengths * the face centroids
-# * the normals to each edge associated face * the face areas.
 
 # remove non-enclosed faces
 sheet.remove(sheet.get_invalid())
@@ -252,20 +250,16 @@ for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face, fontsize=10, color="r")
 plt.show()
 
-# Need to show all the vertices.
-# sheet.vert_df['rand'] = np.linspace(0.0, 1.0, num=sheet.vert_df.shape[0])
-#
-# cmap = plt.colormaps.get_cmap('viridis')
-# color_cmap = cmap(sheet.vert_df.rand)
-# draw_specs['vert']['visible'] = True
-#
-# draw_specs['vert']['color'] = color_cmap
-# draw_specs['vert']['alpha'] = 0.5
-# draw_specs['vert']['s'] = 50
-# coords = ['x', 'y']
-# fig, ax = sheet_view(sheet, coords, **draw_specs)
-# fig.set_size_inches((10, 10))
-# plt.show()
+# See if quasi-static solver would give us the steady state quickly.
+from tyssue.dynamics.planar_vertex_model import PlanarModel as smodel
+from tyssue.solvers import QSSolver
+# Find energy minimum
+solver = QSSolver()
+res = solver.find_energy_min(sheet, geom, smodel)
+
+print("Successfull gradient descent? ", res['success'])
+fig, ax = sheet_view(sheet)
+plt.show()
 
 # Next, let the system evolve and generate a video. Set the threshold values for mesh restructure.
 t1_threshold = sheet.edge_df['length'].mean()/10
@@ -277,7 +271,6 @@ max_movement = t1_threshold / 2
 # Start simulating.
 t = 0
 t_end = 3
-deactivate_ends = 0
 
 tracked_faces = [28, 32, 33, 34, 35]
 energy_log = []  # This will be a list of dicts, one per time step
@@ -315,37 +308,37 @@ while t < t_end:
     sheet.reset_index(order=True)
     geom.update_all(sheet)
 
-    # T3 transition.
-    while True:
-        T3_todo = None
-        # print('computing boundary indices.')
-        boundary_vert, boundary_edge = find_boundary(sheet)
-
-        for edge_e in boundary_edge:
-            # Extract source and target vertex IDs
-            srce_id, trgt_id = sheet.edge_df.loc[edge_e, ['srce', 'trgt']]
-            for vertex_v in boundary_vert:
-                if vertex_v == srce_id or vertex_v == trgt_id:
-                    continue
-
-                distance, nearest = dist_computer(sheet, edge_e, vertex_v, d_sep)
-                if distance < d_min:
-                    T3_todo = vertex_v
-                    # print(f'Found incoming vertex: {vertex_v} and colliding edge: {edge_e}')
-                    T3_swap(sheet, edge_e, vertex_v, nearest, d_sep)
-                    sheet.reset_index(order=False)
-                    geom.update_all(sheet)
-                    sheet.get_extra_indices()
-                    # fig, ax = sheet_view(sheet, edge={'head_width': 0.1})
-                    # for face, data in sheet.vert_df.iterrows():
-                    #     ax.text(data.x, data.y, face)
-                    break
-
-            if T3_todo is not None:
-                break  # Exit outer loop to restart with updated boundary
-
-        if T3_todo is None:
-            break
+    # # T3 transition.
+    # while True:
+    #     T3_todo = None
+    #     # print('computing boundary indices.')
+    #     boundary_vert, boundary_edge = find_boundary(sheet)
+    #
+    #     for edge_e in boundary_edge:
+    #         # Extract source and target vertex IDs
+    #         srce_id, trgt_id = sheet.edge_df.loc[edge_e, ['srce', 'trgt']]
+    #         for vertex_v in boundary_vert:
+    #             if vertex_v == srce_id or vertex_v == trgt_id:
+    #                 continue
+    #
+    #             distance, nearest = dist_computer(sheet, edge_e, vertex_v, d_sep)
+    #             if distance < d_min:
+    #                 T3_todo = vertex_v
+    #                 # print(f'Found incoming vertex: {vertex_v} and colliding edge: {edge_e}')
+    #                 T3_swap(sheet, edge_e, vertex_v, nearest, d_sep)
+    #                 sheet.reset_index(order=False)
+    #                 geom.update_all(sheet)
+    #                 sheet.get_extra_indices()
+    #                 # fig, ax = sheet_view(sheet, edge={'head_width': 0.1})
+    #                 # for face, data in sheet.vert_df.iterrows():
+    #                 #     ax.text(data.x, data.y, face)
+    #                 break
+    #
+    #         if T3_todo is not None:
+    #             break  # Exit outer loop to restart with updated boundary
+    #
+    #     if T3_todo is None:
+    #         break
 
     # Select all mature "S" cells.
     S_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist()
@@ -438,44 +431,37 @@ while t < t_end:
     sheet.vert_df.loc[valid_active_verts, sheet.coords] = new_pos
     geom.update_all(sheet)
 
-    # Deactivate the cells on the leftmost and rightmost sides after time elapsed by 1.
-    if deactivate_ends == 0 and t > 1:
-        for cell_id in [0, 13, 14, 27, 28, 40]:
-            sheet.face_df.loc[cell_id, 'is_alive'] = 0
-            for i in sheet.edge_df[sheet.edge_df['face'] == cell_id]['srce'].tolist():
-                sheet.vert_df.loc[i, 'is_active'] = 0
 
     # Then reload the draw sepcs
-    # draw_specs['face']['visible'] = True
-    # for i in sheet.face_df.index:  # Assign face colour based on cell type.
-    #     if sheet.face_df.loc[i, 'cell_class'] == 'STB':
-    #         sheet.face_df.loc[i, 'color'] = 0.7
-    #     else:
-    #         sheet.face_df.loc[i, 'color'] = 0.1
-    # draw_specs['face']['color'] = sheet.face_df['color']
-    # draw_specs['face']['alpha'] = 0.2  # Set transparency.
-    #
-    # draw_specs['edge']['visible'] = True
-    # for i in sheet.edge_df.index:
-    #     if sheet.edge_df.loc[i, 'is_active'] == 0:
-    #         sheet.edge_df.loc[i, 'width'] = 2
-    #     else:
-    #         sheet.edge_df.loc[i, 'width'] = 0.5
-    # draw_specs['edge']['width'] = sheet.edge_df['width']
-    #
+    draw_specs['face']['visible'] = True
+    for i in sheet.face_df.index:  # Assign face colour based on the cell type.
+        if sheet.face_df.loc[i, 'cell_class'] == 'STB':
+            sheet.face_df.loc[i, 'color'] = 0.7
+        else:
+            sheet.face_df.loc[i, 'color'] = 0.1
+    draw_specs['face']['color'] = sheet.face_df['color']
+    draw_specs['face']['alpha'] = 0.2  # Set transparency.
+
+    draw_specs['edge']['visible'] = True
+    for i in sheet.edge_df.index:
+        if sheet.edge_df.loc[i, 'is_active'] == 0:
+            sheet.edge_df.loc[i, 'width'] = 2
+        else:
+            sheet.edge_df.loc[i, 'width'] = 0.5
+    draw_specs['edge']['width'] = sheet.edge_df['width']
+
     print(f'Time at {t:.4f} computed.')
-    #
-    # # Generate the plot at this time step.
-    # fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
-    # ax.title.set_text(f'time = {round(t, 5)}')
-    # # Fix axis limits and aspect.
-    # ax.set_xlim(-5, 20)
-    # ax.set_ylim(-5, 7)
-    # ax.set_aspect('equal')
-    # # Save to file instead of showing.
-    # frame_path = f"frames/frame_{t:.5f}.png"
-    # plt.savefig(frame_path)
-    # plt.close(fig)  # Close figure to prevent memory leaks
+    # Generate the plot at this time step.
+    fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
+    ax.title.set_text(f'time = {round(t, 5)}')
+    # Fix axis limits and aspect.
+    ax.set_xlim(-5, 20)
+    ax.set_ylim(-5, 7)
+    ax.set_aspect('equal')
+    # Save to file instead of showing.
+    frame_path = f"frames/frame_{t:.5f}.png"
+    plt.savefig(frame_path)
+    plt.close(fig)  # Close figure to prevent memory leaks
 
     # Record the energy terms for cell 28, 32, 33, 34 and 35 to get ready for plot over time.
     energy_data = record_cell_energy_dynamic(sheet, model, tracked_faces)
@@ -509,39 +495,39 @@ for label in model.labels:
     plt.show()
 
 # Save energy_log into CSV for later analysis
-df.to_csv('energy_log_different_dynamic.csv', index=False)
+df.to_csv('STB_removal_different_without_T3.csv', index=False)
 
 
 
 
 
-# # Write the final sheet to a hdf5 file.
-# hdf5.save_datasets('STB_removal_uniform_dynamic.hdf5', sheet)
-#
-# """ Generate the video based on the frames saved. """
-# # Path to folder containing the frame images
-# frame_folder = "frames"
-#
-# # Helper function to extract the numeric part from a filename
-# # For example, from "frame_12.png", it extracts 12
-# def extract_number(fname):
-#     match = re.search(r'\d+', fname)
-#     return int(match.group()) if match else -1  # If no number found, use -1
-#
-# # List and numerically sort all .png files in the frame folder
-# frame_files = sorted([
-#     os.path.join(frame_folder, fname)
-#     for fname in os.listdir(frame_folder)
-#     if fname.endswith('.png')  # Only include PNG files
-# ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
-#
-# # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-# with imageio.get_writer('STB_removal_uniform_dynamic.mp4', fps=15, format='ffmpeg') as writer:
-#     # Read and append each frame in sorted order
-#     for filename in frame_files:
-#         image = imageio.imread(filename)  # Load image from the folder
-#         writer.append_data(image)        # Write image to video
-#
+# Write the final sheet to a hdf5 file.
+hdf5.save_datasets('STB_removal_different_without_T3.hdf5', sheet)
+
+""" Generate the video based on the frames saved. """
+# Path to folder containing the frame images
+frame_folder = "frames"
+
+# Helper function to extract the numeric part from a filename
+# For example, from "frame_12.png", it extracts 12
+def extract_number(fname):
+    match = re.search(r'\d+', fname)
+    return int(match.group()) if match else -1  # If no number found, use -1
+
+# List and numerically sort all .png files in the frame folder
+frame_files = sorted([
+    os.path.join(frame_folder, fname)
+    for fname in os.listdir(frame_folder)
+    if fname.endswith('.png')  # Only include PNG files
+], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
+
+# Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
+with imageio.get_writer('STB_removal_different_without_T3.mp4', fps=15, format='ffmpeg') as writer:
+    # Read and append each frame in sorted order
+    for filename in frame_files:
+        image = imageio.imread(filename)  # Load image from the folder
+        writer.append_data(image)        # Write image to video
+
 
 
 print('\n This is the end of this script. (＾• ω •＾) ')
