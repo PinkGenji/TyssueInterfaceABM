@@ -5,21 +5,28 @@ The system has a multi-class system. Two cellular behaviours are modelled: cell 
 
 # Load all required modules.
 import numpy as np
+import re
 import matplotlib.pyplot as plt
 from tyssue import Sheet
 from tyssue.topology.sheet_topology import remove_face
+from tyssue.topology.base_topology import close_face
 from tyssue import PlanarGeometry as geom #for simple 2d geometry
 from tyssue.dynamics import effectors, model_factory
+from tyssue.dynamics.planar_vertex_model import PlanarModel as smodel
+from tyssue.solvers import QSSolver
 
 # 2D plotting
 from tyssue.draw import sheet_view
+from tyssue.draw.plt_draw import plot_forces
 from tyssue.topology.sheet_topology import cell_division
+from tyssue.config.draw import sheet_spec
 
 # import my own functions
 from my_headers import *
 from T3_function import *
 
 import os
+from tyssue.io import hdf5 # For saving the datasets
 import imageio.v2 as imageio
 
 # Define the directory name
@@ -57,7 +64,7 @@ for i in sheet.face_df.index:
 
 sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
 geom.update_all(sheet)
-sheet.get_opposite()
+sheet.get_extra_indices()
 
 # Plot the figure to see the initial setup is what we want.
 fig, ax = sheet_view(sheet)
@@ -69,7 +76,7 @@ print('Initial geometry plot generated. \n')
 
 # Add a new attribute to the face_df, called "cell class"
 sheet.face_df['cell_class'] = 'default'
-sheet.face_df['timer'] = 'NA'
+sheet.face_df['timer'] = np.nan
 total_cell_num = len(sheet.face_df)
 
 print('New attributes: cell_class; timer created for all cells. \n ')
@@ -82,23 +89,7 @@ for i in range(0,num_x-2):  # These are the indices of the bottom layer.
 for i in range(num_x-2,len(sheet.face_df)):     # These are the indices of the top layer.
     sheet.face_df.loc[i,'cell_class'] = 'STB'
 
-print(f'There are {total_cell_num} total cells; equally split into "S" and "STB" classes. ')
-
-# Apply drawing specs, so STB and CT have different colours.
-from tyssue.config.draw import sheet_spec
-draw_specs = sheet_spec()
-# Enable face visibility.
-draw_specs['face']['visible'] = True
-for i in sheet.face_df.index:   # Assign face colour based on cell type.
-    if sheet.face_df.loc[i,'cell_class'] == 'STB': sheet.face_df.loc[i,'color'] = 0.7
-    else: sheet.face_df.loc[i,'color'] = 0.1
-draw_specs['face']['color'] = sheet.face_df['color']
-draw_specs['face']['alpha'] = 0.2   # Set transparency.
-
-
-fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
-ax.axis('off')  # Remove axis
-plt.show()
+print(f'There are {total_cell_num} total cells; equally split into "G1" and "STB" classes. ')
 
 
 # Add dynamics to the model.
@@ -148,8 +139,17 @@ for i in sheet.edge_df.index:
             sheet.edge_df.loc[opposite_edge,'is_active'] = 0
 
 
+# Create force plot
+fig, ax = plot_forces(sheet, geom, model, ['x', 'y'], scaling=0.01)
+plt.show()
+
+# Use QS solver to start with the steady state of the system.
+# solver = QSSolver()
+# res = solver.find_energy_min(sheet, geom, smodel)
+# print("Successfull gradient descent? ", res['success'])
+
+
 # Next, I need to colour STB and others differently and bold the dummy edges when plotting.
-from tyssue.config.draw import sheet_spec
 draw_specs = sheet_spec()
 # Enable face visibility.
 draw_specs['face']['visible'] = True
@@ -179,7 +179,7 @@ max_movement = t1_threshold / 2
 
 # Start simulating.
 t = 0
-t_end = 2
+t_end = 3
 
 while t <= t_end:
     dt = 0.001
@@ -189,23 +189,41 @@ while t <= t_end:
     while True:
         # Check for any edge below the threshold, starting from index 0 upwards
         edge_to_process = None
+        # Clean up the vertex mesh to make sure all polygons are valid.
+        invalid_edges = sheet.get_invalid()
+        unclosed_faces = list(set(sheet.edge_df.loc[invalid_edges, 'face']))
+        for face in unclosed_faces:
+            try:
+                close_face(sheet, face)
+            except ValueError:
+                pass
+        geom.update_all(sheet)
         for index in sheet.edge_df.index:
             if sheet.edge_df.loc[index, 'length'] < t1_threshold:
                 # Adding safeguard to skip malformed transitions
                 srce = sheet.edge_df.loc[index, 'srce']
                 trgt = sheet.edge_df.loc[index, 'trgt']
-                # Ensure both vertices are part of exactly 2 faces (simple topology)
-                if (
-                        (sheet.edge_df['srce'] == srce).sum() > 5 or
-                        (sheet.edge_df['trgt'] == trgt).sum() > 5
-                ):
-                    print(f"Skipping edge {index} due to weird topology.")
+                # Check for duplicate edges that would cause T1 to break topology
+                edge_face = sheet.edge_df.loc[index, 'face']
+                is_duplicate = (
+                                       (sheet.edge_df['face'] == edge_face) &
+                                       (sheet.edge_df['srce'] == srce) &
+                                       (sheet.edge_df['trgt'] == trgt)
+                               ).sum() > 1
+
+                if is_duplicate:
+                    print(f"Skipping edge {index} due to duplicate srce-trgt-face entry.")
                     continue
                 edge_to_process = index
                 edge_length = sheet.edge_df.loc[edge_to_process, 'length']
                 # print(f'Edge {edge_to_process} is too short: {edge_length}')
                 # Process the identified edge with T1 transition
-                type1_transition(sheet, edge_to_process, remove_tri_faces=False, multiplier=1.5)
+                type1_transition(sheet, edge_to_process, remove_tri_faces=False, multiplier=2)
+                # Post-processing the mesh after a T1 transition
+                sheet.reset_index(order=True)
+                geom.update_all(sheet)
+                sheet.remove(sheet.get_invalid()) # clean up bad faces/edges
+                sheet.get_extra_indices()
                 break
                 # Exit the loop if no edges are below the threshold
         if edge_to_process is None:
@@ -243,6 +261,7 @@ while t <= t_end:
                     T3_swap(sheet, edge_e, vertex_v, nearest, d_sep)
                     sheet.reset_index(order=False)
                     geom.update_all(sheet)
+                    sheet.remove(sheet.get_invalid())
                     sheet.get_extra_indices()
                     # fig, ax = sheet_view(sheet, edge={'head_width': 0.1})
                     # for face, data in sheet.vert_df.iterrows():
@@ -252,35 +271,49 @@ while t <= t_end:
                 break  # Exit outer loop to restart with updated boundary
         if T3_todo is None:
             break
+        sheet.reset_index(order=True)
+        geom.update_all(sheet)
+        sheet.remove(sheet.get_invalid())
+        sheet.get_extra_indices()
 
     # For all mature "S" cells, it is possible for them to proliferate; fuse or quiescent.
     S_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist()
     for cell in S_cells:
-        # The probability of an "S" cell entering "F" depends on the spatial contact with STB unit.
-        can_fuse = 0
-        neighbours = sheet.get_neighbors(cell)
-        for i in neighbours:
-            if sheet.face_df.loc[i, 'cell_class'] == 'STB':
-                can_fuse = 1
-                break
+        # Only proliferation during 0 < t < 1
+        if t < 1:
+            cell_fate_roulette = rng.random()
+            if cell_fate_roulette <= 0.3:  # Use probability of 0.5 for division.
+                sheet.face_df.loc[cell, 'cell_class'] = 'G2'
+                # Add a timer for each cell enters "G2".
+                sheet.face_df.loc[cell, 'timer'] = 0.4
             else:
                 continue
-        # Use rng to randomly generate a number between 1 and 10, this will determine the fate of the mature CT.
-        cell_fate_roulette = rng.random()
-        if can_fuse == 1 and cell_fate_roulette < 0.2:  # If CT is adjacent to STB, then it has 20% probability to fuse.
-            sheet.face_df.loc[cell, 'cell_class'] = 'F'
-            # Add a timer for each cell enters 'F'.
-            sheet.face_df.loc[cell, 'timer'] = 0.01
-        if can_fuse == 1 and 0.2< cell_fate_roulette <0.5: # If CT is adjacent to STB, it has 10% probability to divide.
-            sheet.face_df.loc[cell, 'cell_class'] = 'G2'
-            sheet.face_df.loc[cell, 'timer'] = 0.4
+        else: #Two pathways: fusion or proliferate after t = 1
+            # The probability of an "S" cell entering "F" depends on the spatial contact with STB unit.
+            can_fuse = 0
+            neighbours = sheet.get_neighbors(cell)
+            for i in neighbours:
+                if sheet.face_df.loc[i, 'cell_class'] == 'STB':
+                    can_fuse = 1
+                    break
+                else:
+                    continue
+            # Use rng to randomly generate a number between 1 and 10, this will determine the fate of the mature CT.
+            cell_fate_roulette = rng.random()
+            if can_fuse == 1 and cell_fate_roulette < 0.2:  # If CT is adjacent to STB, then it has 20% probability to fuse.
+                sheet.face_df.loc[cell, 'cell_class'] = 'F'
+                # Add a timer for each cell enters 'F'.
+                sheet.face_df.loc[cell, 'timer'] = 0.8
+            elif can_fuse == 1 and 0.2< cell_fate_roulette <0.3: # If CT is adjacent to STB, it has 10% probability to divide.
+                sheet.face_df.loc[cell, 'cell_class'] = 'G2'
+                sheet.face_df.loc[cell, 'timer'] = 0.4
 
-        if cell_fate_roulette <= 0.3:  # If CT is not adjacent to STB, then divide with probability 30%.
-            sheet.face_df.loc[cell, 'cell_class'] = 'G2'
-            # Add a timer for each cell enters "G2".
-            sheet.face_df.loc[cell, 'timer'] = 0.4
-        else:
-            continue
+            elif cell_fate_roulette <= 0.3:  # If CT is not adjacent to STB, then divide with probability 30%.
+                sheet.face_df.loc[cell, 'cell_class'] = 'G2'
+                # Add a timer for each cell enters "G2".
+                sheet.face_df.loc[cell, 'timer'] = 0.4
+            else:
+                continue
 
     geom.update_all(sheet)
 
@@ -378,20 +411,13 @@ while t <= t_end:
     sheet.vert_df.loc[valid_active_verts, sheet.coords] = new_pos
     geom.update_all(sheet)
 
-    # Add trackers for quantify.
-    cell_num_count = len(sheet.face_df)
-    S_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist())
-    M_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'M'].tolist())
-    G1_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'G1'].tolist())
-    G2_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'G2'].tolist())
-
-
-    print(f'At time {t:.4f}, there are {S_count} S cells; {G2_count} G2 cells; {M_count} M cells; {G1_count} G1 cells. \n')
+    # Print time in console.
+    print(f'At time {t:.5f} \n')
 
     # Generate the plot at this time step.
     # Enable face visibility.
     draw_specs['face']['visible'] = True
-    for i in sheet.face_df.index:  # Assign face colour based on cell type.
+    for i in sheet.face_df.index:  # Assign face colour based on the cell type.
         if sheet.face_df.loc[i, 'cell_class'] == 'STB':
             sheet.face_df.loc[i, 'color'] = 0.7
         else:
@@ -413,7 +439,8 @@ while t <= t_end:
     t += dt
 
 
-
+# Write the final sheet to a hdf5 file.
+hdf5.save_datasets('proliferation_and_fusion.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
@@ -433,7 +460,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('Combine_proliferation_fusion.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('proliferation_and_fusion.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
