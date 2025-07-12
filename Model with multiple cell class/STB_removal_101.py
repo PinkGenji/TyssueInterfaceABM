@@ -70,7 +70,7 @@ geom.update_all(sheet)
 sheet.get_opposite()
 # Add a new attribute to the face_df, called "cell class"
 sheet.face_df['cell_class'] = 'default'
-sheet.face_df['timer'] = 'NA'
+sheet.face_df['timer'] = np.nan
 
 for i in range(0,2*num_x-4):  # Looping over the bottom layer.
     sheet.face_df.loc[i,'cell_class'] = 'S'
@@ -116,14 +116,14 @@ geom.update_all(sheet)
 
 
 # Deactivate the edges between STB units, that is, becoming dummy edges.
-# for i in sheet.edge_df.index:
-#     if sheet.edge_df.loc[i,'opposite'] != -1:
-#         associated_cell = sheet.edge_df.loc[i,'face']
-#         opposite_edge = sheet.edge_df.loc[i,'opposite']
-#         opposite_cell = sheet.edge_df.loc[opposite_edge,'face']
-#         if sheet.face_df.loc[associated_cell,'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell,'cell_class'] == 'STB':
-#             sheet.edge_df.loc[i,'is_active'] = 0
-#             sheet.edge_df.loc[opposite_edge,'is_active'] = 0
+for i in sheet.edge_df.index:
+    if sheet.edge_df.loc[i,'opposite'] != -1:
+        associated_cell = sheet.edge_df.loc[i,'face']
+        opposite_edge = sheet.edge_df.loc[i,'opposite']
+        opposite_cell = sheet.edge_df.loc[opposite_edge,'face']
+        if sheet.face_df.loc[associated_cell,'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell,'cell_class'] == 'STB':
+            sheet.edge_df.loc[i,'is_active'] = 0
+            sheet.edge_df.loc[opposite_edge,'is_active'] = 0
 
 draw_specs = sheet_spec()
 # Enable face visibility.
@@ -213,19 +213,19 @@ plt.show()
 
 
 # Assign the dummy edges if they are the mutual edges between STB units.
-# for i in sheet.edge_df.index:
-#     if sheet.edge_df.loc[i,'opposite'] != -1:
-#         associated_cell = sheet.edge_df.loc[i,'face']
-#         opposite_edge = sheet.edge_df.loc[i,'opposite']
-#         opposite_cell = sheet.edge_df.loc[opposite_edge,'face']
-#         if sheet.face_df.loc[associated_cell,'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell,'cell_class'] == 'STB':
-#             sheet.edge_df.loc[i,'is_active'] = 0
-#             sheet.edge_df.loc[opposite_edge,'is_active'] = 0
-#         else:
-#             sheet.edge_df.loc[i,'is_active'] = 1
-#             sheet.edge_df.loc[opposite_edge,'is_active'] = 1
-#     else:
-#         sheet.edge_df.loc[i,'is_active'] = 1
+for i in sheet.edge_df.index:
+    if sheet.edge_df.loc[i,'opposite'] != -1:
+        associated_cell = sheet.edge_df.loc[i,'face']
+        opposite_edge = sheet.edge_df.loc[i,'opposite']
+        opposite_cell = sheet.edge_df.loc[opposite_edge,'face']
+        if sheet.face_df.loc[associated_cell,'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell,'cell_class'] == 'STB':
+            sheet.edge_df.loc[i,'is_active'] = 0
+            sheet.edge_df.loc[opposite_edge,'is_active'] = 0
+        else:
+            sheet.edge_df.loc[i,'is_active'] = 1
+            sheet.edge_df.loc[opposite_edge,'is_active'] = 1
+    else:
+        sheet.edge_df.loc[i,'is_active'] = 1
 
 # Update face draw specs
 draw_specs['face']['visible'] = True
@@ -250,20 +250,39 @@ for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face, fontsize=10, color="r")
 plt.show()
 
-# See if quasi-static solver would give us the steady state quickly.
+# Use QS solver to start with steady state
 from tyssue.dynamics.planar_vertex_model import PlanarModel as smodel
 from tyssue.solvers import QSSolver
-# Find energy minimum
+
 solver = QSSolver()
 res = solver.find_energy_min(sheet, geom, smodel)
-
 print("Successfull gradient descent? ", res['success'])
-fig, ax = sheet_view(sheet)
+
+# Update face draw specs
+draw_specs['face']['visible'] = True
+for i in sheet.face_df.index:   # Assign face colour based on cell type.
+    if sheet.face_df.loc[i,'cell_class'] == 'STB': sheet.face_df.loc[i,'color'] = 0.7
+    else: sheet.face_df.loc[i,'color'] = 0.1
+draw_specs['face']['color'] = sheet.face_df['color']
+draw_specs['face']['alpha'] = 0.2   # Set transparency.
+
+# update the edge specs
+draw_specs['edge']['visible'] = True
+for i in sheet.edge_df.index:
+    if sheet.edge_df.loc[i,'is_active'] == 0: sheet.edge_df.loc[i,'width'] = 2
+    else: sheet.edge_df.loc[i,'width'] = 0.5
+draw_specs['edge']['width'] = sheet.edge_df['width']
+
+fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
 plt.show()
+
+
+
 
 # Next, let the system evolve and generate a video. Set the threshold values for mesh restructure.
 t1_threshold = sheet.edge_df['length'].mean()/10
 t2_threshold = sheet.face_df['area'].mean()/10
+
 d_min = t1_threshold
 d_sep = d_min *1.5
 max_movement = t1_threshold / 2
@@ -274,6 +293,13 @@ t_end = 3
 
 tracked_faces = [28, 32, 33, 34, 35]
 energy_log = []  # This will be a list of dicts, one per time step
+
+time_array=[]
+area28= []
+area32=[]
+area33=[]
+area34=[]
+area35=[]
 
 
 while t < t_end:
@@ -286,10 +312,19 @@ while t < t_end:
         edge_to_process = None
         for index in sheet.edge_df.index:
             if sheet.edge_df.loc[index, 'length'] < t1_threshold:
+                # Adding safeguard to skip malformed transitions
+                srce = sheet.edge_df.loc[index, 'srce']
+                trgt = sheet.edge_df.loc[index, 'trgt']
+                # Ensure both vertices are part of exactly 2 faces (simple topology)
+                if (
+                        (sheet.edge_df['srce'] == srce).sum() > 5 or
+                        (sheet.edge_df['trgt'] == trgt).sum() > 5
+                ):
+                    print(f"Skipping edge {index} due to weird topology.")
+                    continue
                 edge_to_process = index
                 edge_length = sheet.edge_df.loc[edge_to_process, 'length']
-                # print(f'Edge {edge_to_process} is too short: {edge_length}')
-                # Process the identified edge with T1 transition
+                # Process identified edge with T1 transition
                 type1_transition(sheet, edge_to_process, remove_tri_faces=False, multiplier=1.5)
                 break
                 # Exit the loop if no edges are below the threshold
@@ -387,22 +422,22 @@ while t < t_end:
     geom.update_all(sheet)
 
     # Before computation the force, we need to make sure we disable the correct dummy edges.
-    # sheet.get_extra_indices()  # make sure we have correct opposite edges computed.
-    # for i in sheet.edge_df.index:
-    #     # For a non-boundary edge, if both of itself and its opposite edge are STB class, disable it. Otherwise, make it active.
-    #     if sheet.edge_df.loc[i, 'opposite'] != -1:
-    #         associated_cell = sheet.edge_df.loc[i, 'face']
-    #         opposite_edge = sheet.edge_df.loc[i, 'opposite']
-    #         opposite_cell = sheet.edge_df.loc[opposite_edge, 'face']
-    #         if sheet.face_df.loc[associated_cell, 'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell, 'cell_class'] == 'STB':
-    #             sheet.edge_df.loc[i, 'is_active'] = 0
-    #             sheet.edge_df.loc[opposite_edge, 'is_active'] = 0
-    #         else:
-    #             sheet.edge_df.loc[i, 'is_active'] = 1
-    #             sheet.edge_df.loc[opposite_edge, 'is_active'] = 1
-    #     # Boundary edges are always active in this model.
-    #     else:
-    #         sheet.edge_df.loc[i, 'is_active'] = 1
+    sheet.get_extra_indices()  # make sure we have correct opposite edges computed.
+    for i in sheet.edge_df.index:
+        # For a non-boundary edge, if both of itself and its opposite edge are STB class, disable it. Otherwise, make it active.
+        if sheet.edge_df.loc[i, 'opposite'] != -1:
+            associated_cell = sheet.edge_df.loc[i, 'face']
+            opposite_edge = sheet.edge_df.loc[i, 'opposite']
+            opposite_cell = sheet.edge_df.loc[opposite_edge, 'face']
+            if sheet.face_df.loc[associated_cell, 'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell, 'cell_class'] == 'STB':
+                sheet.edge_df.loc[i, 'is_active'] = 0
+                sheet.edge_df.loc[opposite_edge, 'is_active'] = 0
+            else:
+                sheet.edge_df.loc[i, 'is_active'] = 1
+                sheet.edge_df.loc[opposite_edge, 'is_active'] = 1
+        # Boundary edges are always active in this model.
+        else:
+            sheet.edge_df.loc[i, 'is_active'] = 1
 
     # And update the drawing specs correctly according to active or not (dummy edge is bold).
     # Assign cell colour by cell type. Pale yellow for STB, light purple for CTs.
@@ -466,8 +501,12 @@ while t < t_end:
     # Record the energy terms for cell 28, 32, 33, 34 and 35 to get ready for plot over time.
     energy_data = record_cell_energy_dynamic(sheet, model, tracked_faces)
     energy_log.append(energy_data)
-
-
+    area28.append(sheet.face_df.loc[28,'area'])
+    area32.append(sheet.face_df.loc[32, 'area'])
+    area33.append(sheet.face_df.loc[33, 'area'])
+    area34.append(sheet.face_df.loc[34, 'area'])
+    area35.append(sheet.face_df.loc[35, 'area'])
+    time_array.append(float(t))
     # Update time_point
     t += dt
 
@@ -494,15 +533,31 @@ for label in model.labels:
     plt.tight_layout()
     plt.show()
 
+# Produce a single plot that has 5 curves, one for each face.
+plt.figure(figsize=(8, 6))
+plt.plot(time_array, area28, label='Face 28')
+plt.plot(time_array, area32, label='Face 32')
+plt.plot(time_array, area33, label='Face 33')
+plt.plot(time_array, area34, label='Face 34')
+plt.plot(time_array, area35, label='Face 35')
+
+plt.title('Area of Faces Over Time')
+plt.xlabel('Time')
+plt.ylabel('Area')
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
 # Save energy_log into CSV for later analysis
-df.to_csv('STB_removal_uniform_without_T3.csv', index=False)
+df.to_csv('New_T1_test.csv', index=False)
 
 
 
 
 
 # Write the final sheet to a hdf5 file.
-hdf5.save_datasets('STB_removal_uniform_without_T3.hdf5', sheet)
+hdf5.save_datasets('New_T1_test.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
@@ -522,7 +577,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('STB_removal_uniform_without_T3.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('New_T1_test.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
