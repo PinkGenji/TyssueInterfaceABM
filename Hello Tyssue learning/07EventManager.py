@@ -45,19 +45,21 @@ np.random.seed(42) # Controls NumPy's RNG (e.g. vertex positions, topology)
 Generate a 2D mesh
 
 '''
+# Choose which solver to use
+use_qs_solver = True  # Set to True for QSSolver, False for EulerSolver
 
 
 sheet = Sheet.planar_sheet_2d(
     'basic2D', # a name or identifier for this sheet
-    nx=6, # approximate number of cells on the x axis
-    ny=7, # approximate number of cells along the y axis
+    nx=6, # approximate number of cells on the x-axis
+    ny=7, # approximate number of cells along the y-axis
     distx=1, # distance between 2 cells along x
     disty=1, # distance between 2 cells along y
     noise=0 # some position noise
 )
 sgeom.update_all(sheet)
 
-# Give the tissue a nice hear cut ;)
+# Give the tissue a nice haircut ;)
 sheet.sanitize(trim_borders=True, order_edges=True)
 sgeom.update_all(sheet)
 
@@ -68,6 +70,7 @@ plt.show()
 
 from tyssue.dynamics.planar_vertex_model import PlanarModel as smodel
 from tyssue.solvers import QSSolver
+from tyssue.solvers.viscous import EulerSolver
 from pprint import pprint
 
 specs = {
@@ -169,26 +172,38 @@ print(manager.current)
 print()
 print('manager.next :')
 print(manager.next)
-
 from tyssue import History
 
 t = 0
 stop = 40
 
-# The History object records all the time steps 
+# The History object records all the time steps
 history = History(sheet)
 
-while manager.current and t < stop:
-    # Execute the event in the current list
-    manager.execute(sheet)
-    t += 1
-    sheet.reset_index(order=True)
-    # Find energy min
-    res = solver.find_energy_min(sheet, sgeom, smodel)
-    history.record()
-    # Switch event list from the next list to the current list
-    manager.update()
-	
+sheet.vert_df["viscosity"] = 1.0  # Required for EulerSolver
+
+if use_qs_solver:
+    print("Using QSSolver...")
+    solver = QSSolver()
+    while manager.current and t < stop:
+        manager.execute(sheet)
+        t += 1
+        sheet.reset_index(order=True)
+        res = solver.find_energy_min(sheet, sgeom, smodel)
+        history.record()
+        manager.update()
+else:
+    print("Using EulerSolver...")
+    solver = EulerSolver(
+        sheet, sgeom, smodel,
+        history=history,
+        manager=manager,
+        bounds=(-sheet.edge_df.length.mean()/10, sheet.edge_df.length.mean()/10))
+    dt = 1.0
+    tf = 40
+    solver.solve(tf=tf, dt=dt)
+    history = solver.history
+
 
 
 draw_specs = {
@@ -201,9 +216,6 @@ draw_specs = {
         "color_range": (0, 2)
     }
 }
-
-# create_gif(history, "growth.gif", num_frames=30, margin=5, **draw_specs)
-# display.Image("growth.gif")
 
 # Visualisation of the tissue
 fig, ax = sheet_view(sheet, mode="2D")
