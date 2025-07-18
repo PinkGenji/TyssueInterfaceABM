@@ -35,6 +35,11 @@ from tyssue import Sheet
 from tyssue import PlanarGeometry as sgeom
 # Visualisation
 from tyssue.draw import (sheet_view, highlight_faces, create_gif, browse_history)
+import numpy as np
+import random
+random.seed(42)  # Controls Python's random module (e.g. event shuffling)
+np.random.seed(42) # Controls NumPy's RNG (e.g. vertex positions, topology)
+
 
 '''
 Generate a 2D mesh
@@ -59,6 +64,7 @@ sgeom.update_all(sheet)
 # Visualisation of the tissue
 fig, ax = sheet_view(sheet, mode="2D")
 fig.set_size_inches(8, 8)
+plt.show()
 
 from tyssue.dynamics.planar_vertex_model import PlanarModel as smodel
 from tyssue.solvers import QSSolver
@@ -95,7 +101,7 @@ solver = QSSolver()
 res = solver.find_energy_min(sheet, sgeom, smodel)
 # Visualisation of the tissue
 fig, ax = sheet_view(sheet, mode="2D")
-
+plt.show()
 
 '''
 Write a behaviour function:
@@ -113,23 +119,22 @@ from tyssue.topology.sheet_topology import cell_division
 
 # Write the behaviour function:
 
-def division(sheet, manager, cell_id, crit_area=2.0, growth_rate=0.1, dt=1.):
+def division(sheet, manager, cell_id=0, crit_area=2.0, growth_rate=0.1, dt=1.):
     """Defines a division behavior.
-    
+
     Parameters
     ----------
-    
+
     sheet: a :class:`Sheet` object
     cell_id: int
         the index of the dividing cell
     crit_area: float
-        the area at which 
+        the area at which
     growth_rate: float
-        increase in the area per unit time
+        increase in the prefered are per unit time
         A_0(t + dt) = A0(t) * (1 + growth_rate * dt)
     """
 
-    # if the cell area is larger than the crit_area, we let the cell divide.
     if sheet.face_df.loc[cell_id, "area"] > crit_area:
         # restore prefered_area
         sheet.face_df.loc[cell_id, "prefered_area"] = 1.0
@@ -140,11 +145,12 @@ def division(sheet, manager, cell_id, crit_area=2.0, growth_rate=0.1, dt=1.):
         # update geometry
         sgeom.update_all(sheet)
         print(f"cell n°{daughter} is born")
-	
-	# if the cell area is less than the threshold, update the area by growth.
+        # Schedule division for both daughter cells
+        manager.append(division, cell_id=cell_id)
+        manager.append(division, cell_id=daughter)
     else:
         #
-        sheet.face_df.loc[cell_id, "area"] *= (1 + dt * growth_rate)
+        sheet.face_df.loc[cell_id, "prefered_area"] *= (1 + dt * growth_rate)
         manager.append(division, cell_id=cell_id)
 
 from tyssue.behaviors import EventManager
@@ -153,7 +159,10 @@ from tyssue.behaviors import EventManager
 manager = EventManager("face")
 
 # Add action/event to the manager
-manager.append(division, cell_id=12)
+# Add division behavior for all live cells
+for cell_id in sheet.face_df.index:
+    manager.append(division, cell_id=cell_id)
+
 
 print('manager.current :')
 print(manager.current)
@@ -164,7 +173,7 @@ print(manager.next)
 from tyssue import History
 
 t = 0
-stop = 30
+stop = 40
 
 # The History object records all the time steps 
 history = History(sheet)
@@ -177,7 +186,6 @@ while manager.current and t < stop:
     # Find energy min
     res = solver.find_energy_min(sheet, sgeom, smodel)
     history.record()
-    fig, ax = sheet_view(sheet, mode = 'quick')
     # Switch event list from the next list to the current list
     manager.update()
 	
@@ -200,14 +208,7 @@ draw_specs = {
 # Visualisation of the tissue
 fig, ax = sheet_view(sheet, mode="2D")
 fig.set_size_inches(8, 8)
-
-
-
-
-
-
-
-
+plt.show()
 
 
 
