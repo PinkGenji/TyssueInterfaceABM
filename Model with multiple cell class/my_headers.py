@@ -544,6 +544,105 @@ def division_mt(sheet, rng, cent_data, cell_id):
             return new_face_index
 
 
+
+def division_mt_ver2(sheet, rng, cent_data, cell_id):
+    """
+    This division function invovles mitosis index.
+    The cells keep growing, when the area exceeds a critical area, then
+    the cell divides.
+
+    Parameters
+    ----------
+    sheet: a :class:`Sheet` object
+    cell_id: int
+        the index of the dividing cell
+    """
+    condition = sheet.edge_df.loc[:, 'face'] == cell_id
+    edge_in_cell = sheet.edge_df[condition]
+    # We need to randomly choose one of the edges in cell 2.
+    chosen_index = rng.choice(list(edge_in_cell.index))
+    # Extract and store the centroid coordinate.
+    c0x = float(cent_data.loc[cent_data['face'] == cell_id, ['fx']].values[0])
+    c0y = float(cent_data.loc[cent_data['face'] == cell_id, ['fy']].values[0])
+    c0 = [c0x, c0y]
+
+    # Add a vertex in the middle of the chosen edge.
+    new_mid_index = add_vert(sheet, edge=chosen_index)[0]
+    # Extract for source vertex coordinates of the newly added vertex.
+    p0x = sheet.vert_df.loc[new_mid_index, 'x']
+    p0y = sheet.vert_df.loc[new_mid_index, 'y']
+    p0 = [p0x, p0y]
+
+    # Compute the directional vector from new_mid_point to centroid.
+    rx = c0x - p0x
+    ry = c0y - p0y
+    r = [rx, ry]  # use the line in opposite direction.
+    # We need to use iterrows to iterate over rows in pandas df
+    # The iteration has the form of (index, series)
+    # The series can be sliced.
+    for index, row in edge_in_cell.iterrows():
+        s0x = row['sx']
+        s0y = row['sy']
+        t0x = row['tx']
+        t0y = row['ty']
+        v1 = [s0x - p0x, s0y - p0y]
+        v2 = [t0x - p0x, t0y - p0y]
+        # if the xprod_2d returns negative, then line intersects the line segment.
+        if xprod_2d(r, v1) * xprod_2d(r, v2) < 0 and index != chosen_index:
+            dx = row['dx']
+            dy = row['dy']
+            c1 = dx * ry - dy * rx
+            c2 = s0y * rx - p0y * rx - s0x * ry + p0x * ry
+            k = c2 / c1
+            intersection = [s0x + k * dx, s0y + k * dy]
+            oppo_index = put_vert(sheet, index, intersection)[0]
+            # Split the cell with a line.
+            new_face_index = face_division(sheet, mother=cell_id, vert_a=new_mid_index, vert_b=oppo_index)
+            # Put a vertex at the centroid, on the newly formed edge (last row in df).
+            cent_index = put_vert(sheet, edge=sheet.edge_df.index[-1], coord_put=c0)[0]
+            # Draw two random numbers from uniform distribution [10,15] for mitosis cycle duration.
+            # random_int_1 = rng.integers(10000, 15000) / 1000
+            # random_int_2 = rng.integers(10000, 15000) / 1000
+            # # Assign mitosis cycle duration to the two daughter cells.
+            # sheet.face_df.loc[cell_id,'T_cycle'] = Decimal(random_int_1)
+            # sheet.face_df.loc[new_face_index,'T_cycle'] = Decimal(random_int_2)
+
+            # Following lines are commented out: Instead of using a new variable, I will minus T_cycle after each dt step by dt.
+            # sheet.face_df.loc[cell_id, 'T_age'] = dt
+            # sheet.face_df.loc[new_face_index,'T_age'] = dt
+
+            print(f'cell {cell_id} is divided, dauther cell {new_face_index} is created.')
+            return new_face_index
+        # === Fallback strategy if no intersecting edge is found ===
+        # Sort edges by angle w.r.t. vector to centroid, pick the most orthogonal one
+    print(f"⚠️ No intersection found for cell {cell_id}, applying fallback division.")
+    vectors = []
+    for idx, row in edge_in_cell.iterrows():
+        sx, sy, tx, ty = row['sx'], row['sy'], row['tx'], row['ty']
+        mx, my = (sx + tx) / 2, (sy + ty) / 2
+        edge_vec = [tx - sx, ty - sy]
+        to_centroid = [c0x - mx, c0y - my]
+        norm = np.linalg.norm(edge_vec) * np.linalg.norm(to_centroid)
+        if norm == 0:
+            angle = 0
+        else:
+            dot = edge_vec[0] * to_centroid[0] + edge_vec[1] * to_centroid[1]
+            angle = np.abs(dot / norm)  # closer to 0 = more perpendicular
+        vectors.append((idx, angle))
+
+    # Pick the most orthogonal edge (minimum cosine)
+    fallback_edge_idx = sorted(vectors, key=lambda x: x[1])[0][0]
+    fallback_vert = add_vert(sheet, edge=fallback_edge_idx)[0]
+
+    fallback_coords = sheet.vert_df.loc[fallback_vert, ['x', 'y']].values.tolist()
+    midpoint = [(p0x + fallback_coords[0]) / 2, (p0y + fallback_coords[1]) / 2]
+    mid_vert = put_vert(sheet, edge=fallback_edge_idx, coord_put=midpoint)[0]
+
+    new_face_index = face_division(sheet, mother=cell_id, vert_a=new_mid_index, vert_b=mid_vert)
+    cent_index = put_vert(sheet, edge=sheet.edge_df.index[-1], coord_put=c0)[0]
+    print(f'Fallback division succeeded: cell {cell_id} split, daughter {new_face_index} created.')
+    return new_face_index
+
 def time_step_bot(sheet, dt, max_dist_allowed):
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
