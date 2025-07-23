@@ -46,7 +46,7 @@ Generate a 2D mesh
 
 '''
 # Choose which solver to use
-use_qs_solver = True  # Set to True for QSSolver, False for EulerSolver
+use_qs_solver = False  # Set to True for QSSolver, False for EulerSolver
 
 
 sheet = Sheet.planar_sheet_2d(
