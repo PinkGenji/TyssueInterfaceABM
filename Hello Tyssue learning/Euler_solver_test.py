@@ -1,16 +1,26 @@
 
 # Load all required modules.
+import os
+import sys
 import random
 import numpy as np
 import matplotlib.pyplot as plt
 from tyssue import Sheet, PlanarGeometry, History
 from tyssue.dynamics import effectors, model_factory
-from tyssue.topology.sheet_topology import cell_division
+from tyssue.topology.sheet_topology import cell_division, add_vert
 from tyssue.behaviors import EventManager
 from tyssue.solvers.viscous import EulerSolver
 
 # 2D plotting
 from tyssue.draw import sheet_view
+
+
+model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Model with multiple cell class'))
+sys.path.append(model_path)
+print("Model path:", model_path)
+print("Files in directory:", os.listdir(model_path))
+
+import my_headers as mh
 
 
 random.seed(42)  # Controls Python's random module (e.g. event shuffling)
@@ -100,7 +110,7 @@ for i in range(num_x-2,len(sheet.face_df)):     # These are the indices of the t
 
 print(f'There are {total_cell_num} total cells; equally split into "G1" and "STB" classes. ')
 
-def cell_cycle_transition(sheet, manager, cell_id=0, p_recruit=0.3, dt=0.1, G2_duration=0.4, G1_duration=0.11):
+def cell_cycle_transition(sheet, manager, cell_id=0, p_recruit=0.1, dt=0.1, G2_duration=0.4, G1_duration=0.11):
     """
     Controls cell class state transitions for cell cycle based on timers and probabilities.
 
@@ -143,8 +153,8 @@ def cell_cycle_transition(sheet, manager, cell_id=0, p_recruit=0.3, dt=0.1, G2_d
 
     # (3) For cells in M, perform division and set daughters to G1 with timer
     elif current_class == 'M':
-        #centre_data = sheet.edge_df.drop_duplicates(subset='face')[['face', 'fx', 'fy']]
-        daughter = cell_division(sheet, cell_id, geom)
+        centre_data = sheet.edge_df.drop_duplicates(subset='face')[['face', 'fx', 'fy']]
+        daughter = mh.division_mt_ver2(sheet,rng, centre_data, cell_id)
         # Set parent and daughter to G1 with G1 timer
         sheet.face_df.loc[cell_id, 'cell_class'] = 'G1'
         sheet.face_df.loc[daughter, 'cell_class'] = 'G1'
@@ -153,7 +163,6 @@ def cell_cycle_transition(sheet, manager, cell_id=0, p_recruit=0.3, dt=0.1, G2_d
         # append to next deque
         manager.append(cell_cycle_transition, cell_id=cell_id)
         manager.append(cell_cycle_transition, cell_id = daughter)
-
 
     # (4) Decrement timers for G1 cells; when timer ends, move to S
     elif current_class == 'G1':
