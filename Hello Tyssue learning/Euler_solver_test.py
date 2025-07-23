@@ -123,7 +123,7 @@ def cell_cycle_transition(sheet, manager, cell_id=0, p_recruit=0.3, dt=0.1, G2_d
     """
 
     # Record the current cell class
-    print(f'checking cell {cell_id}...')
+    print(f'Cell {cell_id} is being checked by cell cycle ')
     current_class = sheet.face_df.loc[cell_id,'cell_class']
     # (1) Recruit mature 'S' cells into G2 with probability p_recruit
     if current_class == 'S':
@@ -143,20 +143,17 @@ def cell_cycle_transition(sheet, manager, cell_id=0, p_recruit=0.3, dt=0.1, G2_d
 
     # (3) For cells in M, perform division and set daughters to G1 with timer
     elif current_class == 'M':
-        centre_data = sheet.edge_df.drop_duplicates(subset='face')[['face', 'fx', 'fy']]
-        #daughter = division_mt_ver2(sheet, rng=np.random.default_rng(), cent_data=centre_data, cell_id=cell_id)
+        #centre_data = sheet.edge_df.drop_duplicates(subset='face')[['face', 'fx', 'fy']]
+        daughter = cell_division(sheet, cell_id, geom)
         # Set parent and daughter to G1 with G1 timer
         sheet.face_df.loc[cell_id, 'cell_class'] = 'G1'
-        #sheet.face_df.loc[daughter, 'cell_class'] = 'G1'
+        sheet.face_df.loc[daughter, 'cell_class'] = 'G1'
         sheet.face_df.loc[cell_id, 'timer'] = G1_duration
-        #sheet.face_df.loc[daughter, 'timer'] = G1_duration
-        # update topology
-        #sheet.reset_index(order = False)
-        # update geometry
-        #geom.update_all(sheet)
+        sheet.face_df.loc[daughter, 'timer'] = G1_duration
         # append to next deque
-        #manager.append(cell_cycle_transition, cell_id = daughter)
-        manager.append(cell_cycle_transition, cell_id = cell_id)
+        manager.append(cell_cycle_transition, cell_id=cell_id)
+        manager.append(cell_cycle_transition, cell_id = daughter)
+
 
     # (4) Decrement timers for G1 cells; when timer ends, move to S
     elif current_class == 'G1':
@@ -172,19 +169,20 @@ manager = EventManager('face')
 # Add cell transition behavior function for all live cells
 for cell_id in sheet.face_df.index:
     manager.append(cell_cycle_transition, cell_id=cell_id)
-
 # The History object records all the time steps
 history = History(sheet)
 
+manager.update()
 solver = EulerSolver(
         sheet, geom, model,
         history=history,
         manager=manager,
         bounds=(-sheet.edge_df.length.mean()/10, sheet.edge_df.length.mean()/10))
 
-solver.solve(tf=1, dt=0.1)
+solver.solve(tf=5, dt=0.1)
 history = solver.history
 
+geom.update_all(sheet)
 fig, ax = sheet_view(sheet)
 plt.show()
 
