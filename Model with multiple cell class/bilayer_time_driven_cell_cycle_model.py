@@ -209,30 +209,6 @@ def cell_cycle_transition(sheet, manager, dt, cell_id=0, p_recruit=0.1, G2_durat
         manager.append(cell_cycle_transition, dt = dt, cell_id=cell_id)
 
 
-# Initialise the Event Manager
-manager = EventManager('face')
-dt = 0.001
-
-# Add cell transition behavior function for all live cells
-for cell_id in sheet.face_df.index:
-    manager.append(cell_cycle_transition, dt = dt, cell_id=cell_id)
-# The History object records all the time steps
-history = History(sheet)
-
-manager.update()
-solver = EulerSolver(
-        sheet, geom, model,
-        history=history,
-        manager=manager,
-        bounds=(-sheet.edge_df.length.mean()/10, sheet.edge_df.length.mean()/10))
-
-solver.solve(tf=5, dt=0.1)
-history = solver.history
-
-geom.update_all(sheet)
-fig, ax = sheet_view(sheet)
-plt.show()
-
 
 
 # Set the value of constants for mesh restructure, which are parts of my own solver in loop.
