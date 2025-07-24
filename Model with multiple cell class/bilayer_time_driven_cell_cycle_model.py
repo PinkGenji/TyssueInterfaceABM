@@ -169,7 +169,6 @@ def cell_cycle_transition(sheet, manager, dt, cell_id=0, p_recruit=0.1, G2_durat
     """
 
     # Record the current cell class
-    print(f'Cell {cell_id} is being checked by cell cycle ')
     current_class = sheet.face_df.loc[cell_id,'cell_class']
     # (1) Recruit mature 'S' cells into G2 with probability p_recruit
     if current_class == 'S':
@@ -436,6 +435,7 @@ if Tyssue_Euler_solver == False:
 
 elif Tyssue_Euler_solver:
     my_dt = 0.001
+    t_end = 1
     # Initialise the Event Manager
     manager = EventManager('face')
     # Add cell transition behavior function for all live cells
