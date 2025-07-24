@@ -46,7 +46,7 @@ random.seed(42)  # Controls Python's random module (e.g. event shuffling)
 np.random.seed(42) # Controls NumPy's RNG (e.g. vertex positions, topology)
 rng = np.random.default_rng(70)    # Seed the random number generator for my own division function.
 
-Tyssue_Euler_solver = False # control which solver to use.
+Tyssue_Euler_solver = True # control which solver to use.
 
 # Generate the initial cell sheet for bilayer.
 geom = PlanarGeometry
@@ -146,7 +146,7 @@ for i in range(num_x-2,len(sheet.face_df)):     # These are the indices of the t
 
 print(f'There are {total_cell_num} total cells; equally split into "G1" and "STB" classes. ')
 
-def cell_cycle_transition(sheet, manager, cell_id=0, p_recruit=0.1, dt=0.1, G2_duration=0.4, G1_duration=0.11):
+def cell_cycle_transition(sheet, manager, dt, cell_id=0, p_recruit=0.1, G2_duration=0.4, G1_duration=0.11):
     """
     Controls cell class state transitions for cell cycle based on timers and probabilities.
 
@@ -177,7 +177,7 @@ def cell_cycle_transition(sheet, manager, cell_id=0, p_recruit=0.1, dt=0.1, G2_d
             sheet.face_df.loc[cell_id, 'cell_class'] = 'G2'
             sheet.face_df.loc[cell_id, 'timer'] = G2_duration
         # append to next deque
-        manager.append(cell_cycle_transition, cell_id=cell_id)
+        manager.append(cell_cycle_transition, dt = dt, cell_id=cell_id)
 
     # (2) Decrement timers for cells in G2; when timer ends, move to M
     elif current_class == 'G2':
@@ -185,7 +185,7 @@ def cell_cycle_transition(sheet, manager, cell_id=0, p_recruit=0.1, dt=0.1, G2_d
         if sheet.face_df.loc[cell_id, 'timer'] <= 0:
             sheet.face_df.loc[cell_id, 'cell_class'] = 'M'
         # append to next deque
-        manager.append(cell_cycle_transition, cell_id=cell_id)
+        manager.append(cell_cycle_transition, dt = dt, cell_id=cell_id)
 
     # (3) For cells in M, perform division and set daughters to G1 with timer
     elif current_class == 'M':
@@ -197,8 +197,8 @@ def cell_cycle_transition(sheet, manager, cell_id=0, p_recruit=0.1, dt=0.1, G2_d
         sheet.face_df.loc[cell_id, 'timer'] = G1_duration
         sheet.face_df.loc[daughter, 'timer'] = G1_duration
         # append to next deque
-        manager.append(cell_cycle_transition, cell_id=cell_id)
-        manager.append(cell_cycle_transition, cell_id = daughter)
+        manager.append(cell_cycle_transition, dt = dt, cell_id=cell_id)
+        manager.append(cell_cycle_transition, dt = dt, cell_id = daughter)
 
     # (4) Decrement timers for G1 cells; when timer ends, move to S
     elif current_class == 'G1':
@@ -206,14 +206,16 @@ def cell_cycle_transition(sheet, manager, cell_id=0, p_recruit=0.1, dt=0.1, G2_d
         if sheet.face_df.loc[cell_id, 'timer'] <= 0:
             sheet.face_df.loc[cell_id, 'cell_class'] = 'S'
         # append to next deque
-        manager.append(cell_cycle_transition, cell_id=cell_id)
+        manager.append(cell_cycle_transition, dt = dt, cell_id=cell_id)
 
 
 # Initialise the Event Manager
 manager = EventManager('face')
+dt = 0.001
+
 # Add cell transition behavior function for all live cells
 for cell_id in sheet.face_df.index:
-    manager.append(cell_cycle_transition, cell_id=cell_id)
+    manager.append(cell_cycle_transition, dt = dt, cell_id=cell_id)
 # The History object records all the time steps
 history = History(sheet)
 
@@ -233,44 +235,24 @@ plt.show()
 
 
 
-
-# """test if cell_transition_cycle works alone in event manger."""
-# t=0
-# stop = 20
-# while manager.current and t < stop:
-#     manager.execute(sheet)
-#     t += 1
-#     sheet.reset_index(order=True)
-#     S_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist())
-#     M_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'M'].tolist())
-#     G1_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'G1'].tolist())
-#     G2_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'G2'].tolist())
-#
-#     print(f'At time {t:.4f}, there are {S_count} S cells; {G2_count} G2 cells; {M_count} M cells; {G1_count} G1 cells. \n')
-#     manager.update()
-#
-# fig, ax = sheet_view(sheet, mode='2D')
-# plt.show()
-#
-
+# Set the value of constants for mesh restructure, which are parts of my own solver in loop.
+t1_threshold = sheet.edge_df['length'].mean()/10
+t2_threshold = sheet.face_df['area'].mean()/10
+d_min = t1_threshold
+d_sep = d_min *1.5
+max_movement = t1_threshold / 2
 
 # Apply drawing specs, so STB and CT have different colours.
 from tyssue.config.draw import sheet_spec
 draw_specs = sheet_spec()
 # Enable face visibility.
 draw_specs['face']['visible'] = True
-for i in sheet.face_df.index:   # Assign face colour based on cell type.
+for i in sheet.face_df.index:   # Assign face colour based on the cell class.
     if sheet.face_df.loc[i,'cell_class'] == 'STB': sheet.face_df.loc[i,'color'] = 0.7
     else: sheet.face_df.loc[i,'color'] = 0.1
 draw_specs['face']['color'] = sheet.face_df['color']
 draw_specs['face']['alpha'] = 0.2   # Set transparency.
 
-# Set the threshold values for mesh restructure.
-t1_threshold = sheet.edge_df['length'].mean()/10
-t2_threshold = sheet.face_df['area'].mean()/10
-d_min = t1_threshold
-d_sep = d_min *1.5
-max_movement = t1_threshold / 2
 # Start simulating using my own solver.
 t = 0
 t_end = 1
@@ -416,7 +398,7 @@ if Tyssue_Euler_solver == False:
         sheet.vert_df.loc[valid_active_verts, sheet.coords] = new_pos
         geom.update_all(sheet)
 
-        # Add trackers for quantify.
+        # Add cell population trackers.
         cell_num_count = len(sheet.face_df)
         S_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist())
         M_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'M'].tolist())
@@ -477,31 +459,28 @@ if Tyssue_Euler_solver == False:
 
 
 elif Tyssue_Euler_solver:
-    manager = EventManager("face", )
+    my_dt = 0.001
+    # Initialise the Event Manager
+    manager = EventManager('face')
+    # Add cell transition behavior function for all live cells
+    for cell_id in sheet.face_df.index:
+        manager.append(cell_cycle_transition, dt = my_dt, cell_id=cell_id)
+    # The History object records all the time steps
+    history = History(sheet)
 
-    # Implicit Euler solver
-
-    solver = EulerSolver(
-        sheet,
-        geom,
-        model,
-        manager=manager,
-        bounds=(
-            -sheet.edge_df.length.median() / 10,
-            sheet.edge_df.length.median() / 10
-        )
-    )
     manager.update()
+    solver = EulerSolver(
+        sheet, geom, model,
+        history=history,
+        manager=manager,
+        bounds=(-sheet.edge_df.length.mean() / 10, sheet.edge_df.length.mean() / 10))
 
-    solver.solve(tf=120.0, dt=0.1)
+    solver.solve(tf=t_end, dt=my_dt)
+    history = solver.history
 
-    fig, ax = sheet_view(
-        sheet,
-        mode="2D",
-        face={"visible": True},
-        edge={"head_width": 0.0, "color": sheet.edge_df["line_tension"]},
-        vert={"visible": False}
-    )
+    geom.update_all(sheet)
+    fig, ax = sheet_view(sheet)
+    plt.show()
 
 
 
