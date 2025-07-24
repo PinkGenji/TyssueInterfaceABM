@@ -11,13 +11,15 @@ Following are the aims:
 
 
 # Load all required modules.
+import random
 import numpy as np
+import re
 import matplotlib.pyplot as plt
-from tyssue import Sheet
+from tyssue import Sheet, History, PlanarGeometry
 from tyssue.topology.sheet_topology import remove_face
-from tyssue import PlanarGeometry as geom #for simple 2d geometry
 from tyssue.dynamics import effectors, model_factory
 from tyssue.behaviors import EventManager
+from tyssue.behaviors.sheet import basic_events
 from tyssue.solvers.viscous import EulerSolver
 
 # 2D plotting
@@ -40,15 +42,14 @@ if not os.path.exists(frames_dir):
 else:
     print(f"Directory '{frames_dir}' already exists. Using existing folder.")
 
-import numpy as np
-import random
 random.seed(42)  # Controls Python's random module (e.g. event shuffling)
 np.random.seed(42) # Controls NumPy's RNG (e.g. vertex positions, topology)
 rng = np.random.default_rng(70)    # Seed the random number generator for my own division function.
 
-solver_option = 2
+Tyssue_Euler_solver = False # control which solver to use.
 
 # Generate the initial cell sheet for bilayer.
+geom = PlanarGeometry
 print('\n Now we change the initial geometry to bilayer.')
 num_x = 16
 num_y = 4
@@ -61,14 +62,19 @@ geom.update_all(sheet)
 # remove non-enclosed faces
 sheet.remove(sheet.get_invalid())
 
-# Delete the irregular polygons.
-for i in sheet.face_df.index:
-    if sheet.face_df.loc[i,'num_sides'] != 6:
-        delete_face(sheet,i)
-    else:
-        continue
+def drop_face(sheet, face, **kwargs):
+    """
+    Removes the face indexed by "face" and all associated edges
+    """
+    edge = sheet.edge_df.loc[(sheet.edge_df['face'] == face)].index
+    print(f"Removing face '{face}'")
+    sheet.remove(edge, **kwargs)
 
-sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
+# Repeatedly remove all non-hexagonal faces until none remain
+while np.any(sheet.face_df['num_sides'].values != 6):
+    bad_face = sheet.face_df[sheet.face_df['num_sides'] != 6].index[0]
+    drop_face(sheet, bad_face)
+
 geom.update_all(sheet)
 sheet.get_opposite()
 
@@ -81,39 +87,11 @@ ax.set_title("Initial Bilayer Setup")  # Adding title
 
 print('Initial geometry plot generated. \n')
 
-
-# Add a new attribute to the face_df, called "cell class"
-sheet.face_df['cell_class'] = 'default'
-sheet.face_df['timer'] = 'NA'
-total_cell_num = len(sheet.face_df)
-
-print('New attributes: cell_class; timer created for all cells. \n ')
-for i in range(0,num_x-2):  # These are the indices of bottom layer.
-    sheet.face_df.loc[i,'cell_class'] = 'G1'
-    # Add a timer for each cell enters "G1".
-    sheet.face_df.loc[i, 'timer'] = 0.11
-
-for i in range(num_x-2,len(sheet.face_df)):     # These are the indices of top layer.
-    sheet.face_df.loc[i,'cell_class'] = 'STB'
-
-print(f'There are {total_cell_num} total cells; equally split into "S" and "STB" classes. ')
-
-# Apply drawing specs, so STB and CT have different colours.
-from tyssue.config.draw import sheet_spec
-draw_specs = sheet_spec()
-# Enable face visibility.
-draw_specs['face']['visible'] = True
-for i in sheet.face_df.index:   # Assign face colour based on cell type.
-    if sheet.face_df.loc[i,'cell_class'] == 'STB': sheet.face_df.loc[i,'color'] = 0.7
-    else: sheet.face_df.loc[i,'color'] = 0.1
-draw_specs['face']['color'] = sheet.face_df['color']
-draw_specs['face']['alpha'] = 0.2   # Set transparency.
-
-
-fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
-ax.axis('off')  # Remove axis
-plt.show()
-
+model = model_factory([
+    effectors.LineTension,
+    effectors.FaceContractility,
+    effectors.FaceAreaElasticity
+])
 
 # Add dynamics to the model.
 specs = {
@@ -140,6 +118,7 @@ specs = {
 sheet.vert_df['viscosity'] = 1.0
 # Update the specs (adds / changes the values in the dataframes' columns)
 sheet.update_specs(specs, reset=True)
+sheet.get_opposite()
 geom.update_all(sheet)
 
 # Adjust for cell-boundary adhesion force.
@@ -150,14 +129,24 @@ for i in sheet.edge_df.index:
         continue
 geom.update_all(sheet)
 
-# Set the threshold values for mesh restructure.
-t1_threshold = sheet.edge_df['length'].mean()/10
-t2_threshold = sheet.face_df['area'].mean()/10
-d_min = t1_threshold
-d_sep = d_min *1.5
-max_movement = t1_threshold / 2
 
-def cell_cycle_transition(sheet, manager, cell_id=0, p_recruit=0.3, dt=0.1, G2_duration=0.4, G1_duration=0.11):
+# Add a new attribute to the face_df, called "cell class"
+sheet.face_df['cell_class'] = 'default'
+sheet.face_df['timer'] = 'NA'
+total_cell_num = len(sheet.face_df)
+print('New attributes: cell_class; timer created for all cells. \n ')
+
+for i in range(0,num_x-2):  # These are the indices of the bottom layer.
+    sheet.face_df.loc[i,'cell_class'] = 'G1'
+    # Add a timer for each cell enters "G1".
+    sheet.face_df.loc[i, 'timer'] = 0.11
+
+for i in range(num_x-2,len(sheet.face_df)):     # These are the indices of the top layer.
+    sheet.face_df.loc[i,'cell_class'] = 'STB'
+
+print(f'There are {total_cell_num} total cells; equally split into "G1" and "STB" classes. ')
+
+def cell_cycle_transition(sheet, manager, cell_id=0, p_recruit=0.1, dt=0.1, G2_duration=0.4, G1_duration=0.11):
     """
     Controls cell class state transitions for cell cycle based on timers and probabilities.
 
@@ -180,64 +169,64 @@ def cell_cycle_transition(sheet, manager, cell_id=0, p_recruit=0.3, dt=0.1, G2_d
     """
 
     # Record the current cell class
+    print(f'Cell {cell_id} is being checked by cell cycle ')
     current_class = sheet.face_df.loc[cell_id,'cell_class']
     # (1) Recruit mature 'S' cells into G2 with probability p_recruit
     if current_class == 'S':
         if np.random.rand() < p_recruit:
             sheet.face_df.loc[cell_id, 'cell_class'] = 'G2'
             sheet.face_df.loc[cell_id, 'timer'] = G2_duration
+        # append to next deque
+        manager.append(cell_cycle_transition, cell_id=cell_id)
 
     # (2) Decrement timers for cells in G2; when timer ends, move to M
     elif current_class == 'G2':
         sheet.face_df.loc[cell_id, 'timer'] -= dt
         if sheet.face_df.loc[cell_id, 'timer'] <= 0:
             sheet.face_df.loc[cell_id, 'cell_class'] = 'M'
+        # append to next deque
+        manager.append(cell_cycle_transition, cell_id=cell_id)
 
     # (3) For cells in M, perform division and set daughters to G1 with timer
     elif current_class == 'M':
-        # Prepare center data for division function if needed
-        geom.update_all(sheet)
         centre_data = sheet.edge_df.drop_duplicates(subset='face')[['face', 'fx', 'fy']]
-        daughter = division_mt_ver2(sheet, rng=np.random.default_rng(), cent_data=centre_data, cell_id=cell_id)
+        daughter = division_mt(sheet,rng, centre_data, cell_id)
         # Set parent and daughter to G1 with G1 timer
         sheet.face_df.loc[cell_id, 'cell_class'] = 'G1'
         sheet.face_df.loc[daughter, 'cell_class'] = 'G1'
         sheet.face_df.loc[cell_id, 'timer'] = G1_duration
         sheet.face_df.loc[daughter, 'timer'] = G1_duration
-        # Update the topology
-        sheet.reset_index(order= True)
-        # Update the geometry
-        geom.update_all(sheet)
+        # append to next deque
+        manager.append(cell_cycle_transition, cell_id=cell_id)
         manager.append(cell_cycle_transition, cell_id = daughter)
-
 
     # (4) Decrement timers for G1 cells; when timer ends, move to S
     elif current_class == 'G1':
         sheet.face_df.loc[cell_id, 'timer'] -= dt
         if sheet.face_df.loc[cell_id, 'timer'] <= 0:
             sheet.face_df.loc[cell_id, 'cell_class'] = 'S'
+        # append to next deque
+        manager.append(cell_cycle_transition, cell_id=cell_id)
 
-    # Schedule this behavior again for next timestep
-    manager.append(cell_cycle_transition, cell_id = cell_id)
 
+# Initialise the Event Manager
 manager = EventManager('face')
-for i in sheet.face_df.index:
-    manager.append(cell_cycle_transition, cell_id = i)
-t=0
-stop = 20
-while manager.current and t < stop:
-    manager.execute(sheet)
-    t += 1
-    sheet.reset_index(order=True)
-    S_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist())
-    M_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'M'].tolist())
-    G1_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'G1'].tolist())
-    G2_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'G2'].tolist())
+# Add cell transition behavior function for all live cells
+for cell_id in sheet.face_df.index:
+    manager.append(cell_cycle_transition, cell_id=cell_id)
+# The History object records all the time steps
+history = History(sheet)
 
-    print(f'At time {t:.4f}, there are {S_count} S cells; {G2_count} G2 cells; {M_count} M cells; {G1_count} G1 cells. \n')
-    manager.update()
+manager.update()
+solver = EulerSolver(
+        sheet, geom, model,
+        history=history,
+        manager=manager,
+        bounds=(-sheet.edge_df.length.mean()/10, sheet.edge_df.length.mean()/10))
 
-sheet.reset_index(order=True)
+solver.solve(tf=5, dt=0.1)
+history = solver.history
+
 geom.update_all(sheet)
 fig, ax = sheet_view(sheet)
 plt.show()
@@ -245,11 +234,48 @@ plt.show()
 
 
 
+# """test if cell_transition_cycle works alone in event manger."""
+# t=0
+# stop = 20
+# while manager.current and t < stop:
+#     manager.execute(sheet)
+#     t += 1
+#     sheet.reset_index(order=True)
+#     S_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist())
+#     M_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'M'].tolist())
+#     G1_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'G1'].tolist())
+#     G2_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'G2'].tolist())
+#
+#     print(f'At time {t:.4f}, there are {S_count} S cells; {G2_count} G2 cells; {M_count} M cells; {G1_count} G1 cells. \n')
+#     manager.update()
+#
+# fig, ax = sheet_view(sheet, mode='2D')
+# plt.show()
+#
+
+
+# Apply drawing specs, so STB and CT have different colours.
+from tyssue.config.draw import sheet_spec
+draw_specs = sheet_spec()
+# Enable face visibility.
+draw_specs['face']['visible'] = True
+for i in sheet.face_df.index:   # Assign face colour based on cell type.
+    if sheet.face_df.loc[i,'cell_class'] == 'STB': sheet.face_df.loc[i,'color'] = 0.7
+    else: sheet.face_df.loc[i,'color'] = 0.1
+draw_specs['face']['color'] = sheet.face_df['color']
+draw_specs['face']['alpha'] = 0.2   # Set transparency.
+
+# Set the threshold values for mesh restructure.
+t1_threshold = sheet.edge_df['length'].mean()/10
+t2_threshold = sheet.face_df['area'].mean()/10
+d_min = t1_threshold
+d_sep = d_min *1.5
+max_movement = t1_threshold / 2
 # Start simulating using my own solver.
 t = 0
 t_end = 1
 
-if solver_option == 1:
+if Tyssue_Euler_solver == False:
     while t <= t_end:
         dt = 0.001
 
@@ -450,7 +476,7 @@ if solver_option == 1:
 
 
 
-elif solver_option == 2:
+elif Tyssue_Euler_solver:
     manager = EventManager("face", )
 
     # Implicit Euler solver
