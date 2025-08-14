@@ -33,6 +33,82 @@ from T3_function import *
 import os
 import imageio.v2 as imageio
 
+#Moving function definitions to the top of the file
+def drop_face(sheet, face, **kwargs):
+    """
+    Removes the face indexed by "face" and all associated edges
+    """
+    edge = sheet.edge_df.loc[(sheet.edge_df['face'] == face)].index
+    print(f"Removing face '{face}'")
+    sheet.remove(edge, **kwargs)
+    
+def cell_cycle_transition(sheet, manager, dt, cell_id=0, p_recruit=0.1, G2_duration=0.4, G1_duration=0.11):
+    """
+    Controls cell class state transitions for cell cycle based on timers and probabilities.
+
+    Parameters
+    ----------
+    sheet: tyssue.Sheet
+        The tissue sheet.
+    manager: EventManager
+        The event manager scheduling the behaviour.
+    cell_id: Integer
+        ID of the cell being controlled.
+    p_recruit: float
+        Probability for an 'S' cell to be recruited to 'G2'.
+    dt: float
+        Time step increment.
+    G2_duration: float
+        Fixed duration cells stay in G2 phase.
+    G1_duration: float
+        Fixed duration cells stay in G1 phase.
+    """
+
+    # Record the current cell class
+    current_class = sheet.face_df.loc[cell_id,'cell_class']
+    # (1) Recruit mature 'S' cells into G2 with probability p_recruit
+    if current_class == 'S':
+        if np.random.rand() < p_recruit:
+            sheet.face_df.loc[cell_id, 'cell_class'] = 'G2'
+            sheet.face_df.loc[cell_id, 'timer'] = G2_duration
+        # append to next deque
+        manager.append(cell_cycle_transition, dt = dt, cell_id=cell_id)
+
+    # (2) Decrement timers for cells in G2; when timer ends, move to M
+    elif current_class == 'G2':
+        sheet.face_df.loc[cell_id, 'timer'] -= dt
+        if sheet.face_df.loc[cell_id, 'timer'] <= 0:
+            sheet.face_df.loc[cell_id, 'cell_class'] = 'M'
+        # append to next deque
+        manager.append(cell_cycle_transition, dt = dt, cell_id=cell_id)
+
+    # (3) For cells in M, perform division and set daughters to G1 with timer
+    elif current_class == 'M':
+        centre_data = sheet.edge_df.drop_duplicates(subset='face')[['face', 'fx', 'fy']]
+        daughter = division_mt(sheet,rng, centre_data, cell_id)
+        # Set parent and daughter to G1 with G1 timer
+        sheet.face_df.loc[cell_id, 'cell_class'] = 'G1'
+        sheet.face_df.loc[daughter, 'cell_class'] = 'G1'
+        sheet.face_df.loc[cell_id, 'timer'] = G1_duration
+        sheet.face_df.loc[daughter, 'timer'] = G1_duration
+        # append to next deque
+        manager.append(cell_cycle_transition, dt = dt, cell_id=cell_id)
+        manager.append(cell_cycle_transition, dt = dt, cell_id = daughter)
+
+    # (4) Decrement timers for G1 cells; when timer ends, move to S
+    elif current_class == 'G1':
+        sheet.face_df.loc[cell_id, 'timer'] -= dt
+        if sheet.face_df.loc[cell_id, 'timer'] <= 0:
+            sheet.face_df.loc[cell_id, 'cell_class'] = 'S'
+        # append to next deque
+        manager.append(cell_cycle_transition, dt = dt, cell_id=cell_id)
+    # Helper function to extract the numeric part from a filename
+    # For example, from "frame_12.png", it extracts 12
+    def extract_number(fname):
+        match = re.search(r'\d+', fname)
+        return int(match.group()) if match else -1  # If no number found, use -1
+
+
 # Define the directory name
 frames_dir = "frames"
 # Create directory for frames
@@ -44,6 +120,7 @@ else:
 
 random.seed(42)  # Controls Python's random module (e.g. event shuffling)
 np.random.seed(42) # Controls NumPy's RNG (e.g. vertex positions, topology)
+
 rng = np.random.default_rng(70)    # Seed the random number generator for my own division function.
 
 Tyssue_Euler_solver = True # control which solver to use.
@@ -52,7 +129,7 @@ Tyssue_Euler_solver = True # control which solver to use.
 geom = PlanarGeometry
 print('\n Now we change the initial geometry to bilayer.')
 num_x = 16
-num_y = 4
+num_y = 2
 
 sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = num_x, ny = num_y, distx = 1, disty = 1)
 geom.update_all(sheet)
@@ -61,14 +138,6 @@ geom.update_all(sheet)
 
 # remove non-enclosed faces
 sheet.remove(sheet.get_invalid())
-
-def drop_face(sheet, face, **kwargs):
-    """
-    Removes the face indexed by "face" and all associated edges
-    """
-    edge = sheet.edge_df.loc[(sheet.edge_df['face'] == face)].index
-    print(f"Removing face '{face}'")
-    sheet.remove(edge, **kwargs)
 
 # Repeatedly remove all non-hexagonal faces until none remain
 while np.any(sheet.face_df['num_sides'].values != 6):
@@ -145,67 +214,6 @@ for i in range(num_x-2,len(sheet.face_df)):     # These are the indices of the t
     sheet.face_df.loc[i,'cell_class'] = 'STB'
 
 print(f'There are {total_cell_num} total cells; equally split into "G1" and "STB" classes. ')
-
-def cell_cycle_transition(sheet, manager, dt, cell_id=0, p_recruit=0.1, G2_duration=0.4, G1_duration=0.11):
-    """
-    Controls cell class state transitions for cell cycle based on timers and probabilities.
-
-    Parameters
-    ----------
-    sheet: tyssue.Sheet
-        The tissue sheet.
-    manager: EventManager
-        The event manager scheduling the behaviour.
-    cell_id: Integer
-        ID of the cell being controlled.
-    p_recruit: float
-        Probability for an 'S' cell to be recruited to 'G2'.
-    dt: float
-        Time step increment.
-    G2_duration: float
-        Fixed duration cells stay in G2 phase.
-    G1_duration: float
-        Fixed duration cells stay in G1 phase.
-    """
-
-    # Record the current cell class
-    current_class = sheet.face_df.loc[cell_id,'cell_class']
-    # (1) Recruit mature 'S' cells into G2 with probability p_recruit
-    if current_class == 'S':
-        if np.random.rand() < p_recruit:
-            sheet.face_df.loc[cell_id, 'cell_class'] = 'G2'
-            sheet.face_df.loc[cell_id, 'timer'] = G2_duration
-        # append to next deque
-        manager.append(cell_cycle_transition, dt = dt, cell_id=cell_id)
-
-    # (2) Decrement timers for cells in G2; when timer ends, move to M
-    elif current_class == 'G2':
-        sheet.face_df.loc[cell_id, 'timer'] -= dt
-        if sheet.face_df.loc[cell_id, 'timer'] <= 0:
-            sheet.face_df.loc[cell_id, 'cell_class'] = 'M'
-        # append to next deque
-        manager.append(cell_cycle_transition, dt = dt, cell_id=cell_id)
-
-    # (3) For cells in M, perform division and set daughters to G1 with timer
-    elif current_class == 'M':
-        centre_data = sheet.edge_df.drop_duplicates(subset='face')[['face', 'fx', 'fy']]
-        daughter = division_mt(sheet,rng, centre_data, cell_id)
-        # Set parent and daughter to G1 with G1 timer
-        sheet.face_df.loc[cell_id, 'cell_class'] = 'G1'
-        sheet.face_df.loc[daughter, 'cell_class'] = 'G1'
-        sheet.face_df.loc[cell_id, 'timer'] = G1_duration
-        sheet.face_df.loc[daughter, 'timer'] = G1_duration
-        # append to next deque
-        manager.append(cell_cycle_transition, dt = dt, cell_id=cell_id)
-        manager.append(cell_cycle_transition, dt = dt, cell_id = daughter)
-
-    # (4) Decrement timers for G1 cells; when timer ends, move to S
-    elif current_class == 'G1':
-        sheet.face_df.loc[cell_id, 'timer'] -= dt
-        if sheet.face_df.loc[cell_id, 'timer'] <= 0:
-            sheet.face_df.loc[cell_id, 'cell_class'] = 'S'
-        # append to next deque
-        manager.append(cell_cycle_transition, dt = dt, cell_id=cell_id)
 
 
 
@@ -411,11 +419,6 @@ if Tyssue_Euler_solver == False:
     # Path to folder containing the frame images
     frame_folder = "frames"
 
-    # Helper function to extract the numeric part from a filename
-    # For example, from "frame_12.png", it extracts 12
-    def extract_number(fname):
-        match = re.search(r'\d+', fname)
-        return int(match.group()) if match else -1  # If no number found, use -1
 
     # List and numerically sort all .png files in the frame folder
     frame_files = sorted([
