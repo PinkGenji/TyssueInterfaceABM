@@ -24,6 +24,8 @@ from tyssue.solvers.viscous import EulerSolver
 
 # 2D plotting
 from tyssue.draw import sheet_view
+from tyssue.draw.plt_draw import create_gif
+from IPython.display import Image, display
 from tyssue.topology.sheet_topology import cell_division
 
 # import my own functions
@@ -102,12 +104,12 @@ def cell_cycle_transition(sheet, manager, dt, cell_id=0, p_recruit=0.1, G2_durat
             sheet.face_df.loc[cell_id, 'cell_class'] = 'S'
         # append to next deque
         manager.append(cell_cycle_transition, dt = dt, cell_id=cell_id)
-    # Helper function to extract the numeric part from a filename
-    # For example, from "frame_12.png", it extracts 12
-    def extract_number(fname):
-        match = re.search(r'\d+', fname)
-        return int(match.group()) if match else -1  # If no number found, use -1
 
+# Helper function to extract the numeric part from a filename for later use.
+# For example, from "frame_12.png", it extracts 12
+def extract_number(fname):
+    match = re.search(r'\d+', fname)
+    return int(match.group()) if match else -1  # If no number found, use -1
 
 # Define the directory name
 frames_dir = "frames"
@@ -129,7 +131,7 @@ Tyssue_Euler_solver = True # control which solver to use.
 geom = PlanarGeometry
 print('\n Now we change the initial geometry to bilayer.')
 num_x = 16
-num_y = 2
+num_y = 4
 
 sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = num_x, ny = num_y, distx = 1, disty = 1)
 geom.update_all(sheet)
@@ -461,6 +463,18 @@ elif Tyssue_Euler_solver:
     fig, ax = sheet_view(sheet)
     plt.show()
 
+# Save history into PNGs.
+for i, state in enumerate(solver.history):
+    plt.figure()
+    # Your plotting function goes here:
+    # For example: plot_sheet(sheet, state)
+    plt.title(f"Step {i}")
+    plt.savefig(f"frames/frame_{i:03d}.png")
+    plt.close()
 
+# Create GIF from PNGs
+png_files = sorted([f"frames/{f}" for f in os.listdir("frames") if f.endswith(".png")])
+images = [imageio.imread(png) for png in png_files]
+imageio.mimsave("bilayer.gif", images, duration=0.1)  # duration in seconds per frame
 
 print('\n This is the end of this script. (＾• ω •＾) ')
