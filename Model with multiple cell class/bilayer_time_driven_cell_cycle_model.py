@@ -447,12 +447,10 @@ elif Tyssue_Euler_solver:
     for cell_id in sheet.face_df.index:
         manager.append(cell_cycle_transition, dt = my_dt, cell_id=cell_id)
     # The History object records all the time steps
-    history = History(sheet)
 
     manager.update()
     solver = EulerSolver(
         sheet, geom, model,
-        history=history,
         manager=manager,
         bounds=(-sheet.edge_df.length.mean() / 10, sheet.edge_df.length.mean() / 10))
 
@@ -473,6 +471,7 @@ for i, state in enumerate(solver.history):
     plt.close()
 
 # Create GIF from PNGs
+print('Creating GIF from saved history, might take a while...')
 png_files = sorted([f"frames/{f}" for f in os.listdir("frames") if f.endswith(".png")])
 images = [imageio.imread(png) for png in png_files]
 imageio.mimsave("bilayer.gif", images, duration=0.1)  # duration in seconds per frame
