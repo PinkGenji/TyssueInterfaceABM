@@ -221,7 +221,7 @@ print(f'There are {total_cell_num} total cells; equally split into "G1" and "STB
 
 
 # Set the value of constants for mesh restructure, which are parts of my own solver in loop.
-t1_threshold = sheet.edge_df['length'].mean()/10
+t1_threshold = sheet.edge_df.length.mean() / 10
 t2_threshold = sheet.face_df['area'].mean()/10
 d_min = t1_threshold
 d_sep = d_min *1.5
@@ -238,140 +238,143 @@ for i in sheet.face_df.index:   # Assign face colour based on the cell class.
 draw_specs['face']['color'] = sheet.face_df['color']
 draw_specs['face']['alpha'] = 0.2   # Set transparency.
 
-# Start simulating using my own solver.
+# Start simulating.
+# Initialise the Event Manager for Tyssue's Built-in Euler Solver.
+manager = EventManager('face')
 t = 0
 t_end = 1
 
-if Tyssue_Euler_solver == False:
-    while t <= t_end:
-        dt = 0.001
 
-        # Mesh restructure check
-        # T1 transition, edge rearrangment check
-        while True:
-            # Check for any edge below the threshold, starting from index 0 upwards
-            edge_to_process = None
-            for index in sheet.edge_df.index:
-                if sheet.edge_df.loc[index, 'length'] < t1_threshold:
-                    # Adding safeguard to skip malformed transitions
-                    srce = sheet.edge_df.loc[index, 'srce']
-                    trgt = sheet.edge_df.loc[index, 'trgt']
-                    # Ensure both vertices are part of exactly 2 faces (simple topology)
-                    if (
-                            (sheet.edge_df['srce'] == srce).sum() > 5 or
-                            (sheet.edge_df['trgt'] == trgt).sum() > 5
-                    ):
-                        print(f"Skipping edge {index} due to weird topology.")
-                        continue
-                    edge_to_process = index
-                    edge_length = sheet.edge_df.loc[edge_to_process, 'length']
-                    # print(f'Edge {edge_to_process} is too short: {edge_length}')
-                    # Process the identified edge with T1 transition
-                    type1_transition(sheet, edge_to_process, remove_tri_faces=False, multiplier=1.5)
-                    break
-                    # Exit the loop if no edges are below the threshold
-            if edge_to_process is None:
+while t <= t_end:
+    dt = 0.001
+
+    # Mesh restructure check
+    # T1 transition, edge rearrangment check
+    while True:
+        # Check for any edge below the threshold, starting from index 0 upwards
+        edge_to_process = None
+        for index in sheet.edge_df.index:
+            if sheet.edge_df.loc[index, 'length'] < t1_threshold:
+                # Adding safeguard to skip malformed transitions
+                srce = sheet.edge_df.loc[index, 'srce']
+                trgt = sheet.edge_df.loc[index, 'trgt']
+                # Ensure both vertices are part of exactly 2 faces (simple topology)
+                if (
+                        (sheet.edge_df['srce'] == srce).sum() > 5 or
+                        (sheet.edge_df['trgt'] == trgt).sum() > 5
+                ):
+                    print(f"Skipping edge {index} due to weird topology.")
+                    continue
+                edge_to_process = index
+                edge_length = sheet.edge_df.loc[edge_to_process, 'length']
+                # print(f'Edge {edge_to_process} is too short: {edge_length}')
+                # Process the identified edge with T1 transition
+                type1_transition(sheet, edge_to_process, remove_tri_faces=False, multiplier=1.5)
                 break
-        geom.update_all(sheet)
+                # Exit the loop if no edges are below the threshold
+        if edge_to_process is None:
+            break
+    geom.update_all(sheet)
 
-        # T2 transition check.
+    # T2 transition check.
+    tri_faces = sheet.face_df[(sheet.face_df["num_sides"] < 4) &
+                              (sheet.face_df["area"] < t2_threshold)].index
+    while len(tri_faces):
+        remove_face(sheet, tri_faces[0])
+        # Recompute the list of triangular faces below the area threshold after each removal
         tri_faces = sheet.face_df[(sheet.face_df["num_sides"] < 4) &
                                   (sheet.face_df["area"] < t2_threshold)].index
-        while len(tri_faces):
-            remove_face(sheet, tri_faces[0])
-            # Recompute the list of triangular faces below the area threshold after each removal
-            tri_faces = sheet.face_df[(sheet.face_df["num_sides"] < 4) &
-                                      (sheet.face_df["area"] < t2_threshold)].index
-        sheet.reset_index(order=True)
-        geom.update_all(sheet)
+    sheet.reset_index(order=True)
+    geom.update_all(sheet)
 
-        # T3 transition.
-        while True:
-            T3_todo = None
-            # print('computing boundary indices.')
-            boundary_vert, boundary_edge = find_boundary(sheet)
+    # T3 transition.
+    while True:
+        T3_todo = None
+        # print('computing boundary indices.')
+        boundary_vert, boundary_edge = find_boundary(sheet)
 
-            for edge_e in boundary_edge:
-                # Extract source and target vertex IDs
-                srce_id, trgt_id = sheet.edge_df.loc[edge_e, ['srce', 'trgt']]
-                for vertex_v in boundary_vert:
-                    if vertex_v == srce_id or vertex_v == trgt_id:
-                        continue
+        for edge_e in boundary_edge:
+            # Extract source and target vertex IDs
+            srce_id, trgt_id = sheet.edge_df.loc[edge_e, ['srce', 'trgt']]
+            for vertex_v in boundary_vert:
+                if vertex_v == srce_id or vertex_v == trgt_id:
+                    continue
 
-                    distance, nearest = dist_computer(sheet, edge_e, vertex_v, d_sep)
-                    if distance < d_min:
-                        T3_todo = vertex_v
-                        # print(f'Found incoming vertex: {vertex_v} and colliding edge: {edge_e}')
-                        T3_swap(sheet, edge_e, vertex_v, nearest, d_sep)
-                        sheet.reset_index(order=False)
-                        geom.update_all(sheet)
-                        sheet.get_extra_indices()
-                        # fig, ax = sheet_view(sheet, edge={'head_width': 0.1})
-                        # for face, data in sheet.vert_df.iterrows():
-                        #     ax.text(data.x, data.y, face)
-                        break
+                distance, nearest = dist_computer(sheet, edge_e, vertex_v, d_sep)
+                if distance < d_min:
+                    T3_todo = vertex_v
+                    # print(f'Found incoming vertex: {vertex_v} and colliding edge: {edge_e}')
+                    T3_swap(sheet, edge_e, vertex_v, nearest, d_sep)
+                    sheet.reset_index(order=False)
+                    geom.update_all(sheet)
+                    sheet.get_extra_indices()
+                    # fig, ax = sheet_view(sheet, edge={'head_width': 0.1})
+                    # for face, data in sheet.vert_df.iterrows():
+                    #     ax.text(data.x, data.y, face)
+                    break
 
-                if T3_todo is not None:
-                    break  # Exit outer loop to restart with updated boundary
+            if T3_todo is not None:
+                break  # Exit outer loop to restart with updated boundary
 
-            if T3_todo is None:
-                break
+        if T3_todo is None:
+            break
 
-        # Select all mature "S" cells.
-        S_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist()
+    # Select all mature "S" cells.
+    S_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist()
 
-        for cell in S_cells:
-            # Use rng to randomly generate a number between 1 and 10, this will determine the fate of the mature CT.
-            cell_fate_roulette = rng.random()
-            if cell_fate_roulette <= 0.3: # Use probability of 0.5 for division.
-                sheet.face_df.loc[cell, 'cell_class'] = 'G2'
-                # Add a timer for each cell enters "G2".
-                sheet.face_df.loc[cell, 'timer'] = 0.4
-            else:
-                continue
+    for cell in S_cells:
+        # Use rng to randomly generate a number between 1 and 10, this will determine the fate of the mature CT.
+        cell_fate_roulette = rng.random()
+        if cell_fate_roulette <= 0.3: # Use probability of 0.5 for division.
+            sheet.face_df.loc[cell, 'cell_class'] = 'G2'
+            # Add a timer for each cell enters "G2".
+            sheet.face_df.loc[cell, 'timer'] = 0.4
+        else:
+            continue
 
-        geom.update_all(sheet)
+    geom.update_all(sheet)
 
-        # At the end of the timer, "G2" becomes "M".
-        G2_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'G2'].tolist()
-        for cell in G2_cells:
-            if sheet.face_df.loc[cell, 'timer'] < 0:
-                sheet.face_df.loc[cell, 'cell_class'] = 'M'
-            else:
-                sheet.face_df.loc[cell, 'timer'] -= dt
+    # At the end of the timer, "G2" becomes "M".
+    G2_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'G2'].tolist()
+    for cell in G2_cells:
+        if sheet.face_df.loc[cell, 'timer'] < 0:
+            sheet.face_df.loc[cell, 'cell_class'] = 'M'
+        else:
+            sheet.face_df.loc[cell, 'timer'] -= dt
 
-        geom.update_all(sheet)
+    geom.update_all(sheet)
 
-        # Cell division.
-        # For all cells in "M", divide the cell. Then cells becomes "G1".
-        # Store the centroid before iteration of cells.
-        unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
-        centre_data = unique_edges_df.loc[:, ['face', 'fx', 'fy']]
-        # Cells in "M" class can be divided.
-        cells_can_divide = sheet.face_df.index[sheet.face_df['cell_class'] == 'M'].tolist()
-        for index in cells_can_divide:
-            daughter_index = division_mt(sheet, rng=rng, cent_data=centre_data, cell_id=index)
-            sheet.face_df.loc[index, 'cell_class'] = 'G1'
-            sheet.face_df.loc[daughter_index, 'cell_class'] = 'G1'
-            # Add a timer for each cell enters "G1".
-            sheet.face_df.loc[index, 'timer'] = 0.11
-            sheet.face_df.loc[daughter_index, 'timer'] = 0.11
+    # Cell division.
+    # For all cells in "M", divide the cell. Then cells becomes "G1".
+    # Store the centroid before iteration of cells.
+    unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
+    centre_data = unique_edges_df.loc[:, ['face', 'fx', 'fy']]
+    # Cells in "M" class can be divided.
+    cells_can_divide = sheet.face_df.index[sheet.face_df['cell_class'] == 'M'].tolist()
+    for index in cells_can_divide:
+        daughter_index = division_mt(sheet, rng=rng, cent_data=centre_data, cell_id=index)
+        sheet.face_df.loc[index, 'cell_class'] = 'G1'
+        sheet.face_df.loc[daughter_index, 'cell_class'] = 'G1'
+        # Add a timer for each cell enters "G1".
+        sheet.face_df.loc[index, 'timer'] = 0.11
+        sheet.face_df.loc[daughter_index, 'timer'] = 0.11
 
-        geom.update_all(sheet)
+    geom.update_all(sheet)
 
-        # At the end of the timer, "G1" class becomes "S".
-        G1_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'G1'].tolist()
-        for cell in G1_cells:
-            if sheet.face_df.loc[cell, 'timer'] < 0:
-                sheet.face_df.loc[cell, 'cell_class'] = 'S'
-                if cell == 1:
-                    print(f'Cell 1 enter "S" at time {t}. ')
-            else:
-                sheet.face_df.loc[cell, 'timer'] -= dt
+    # At the end of the timer, "G1" class becomes "S".
+    G1_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'G1'].tolist()
+    for cell in G1_cells:
+        if sheet.face_df.loc[cell, 'timer'] < 0:
+            sheet.face_df.loc[cell, 'cell_class'] = 'S'
+            if cell == 1:
+                print(f'Cell 1 enter "S" at time {t}. ')
+        else:
+            sheet.face_df.loc[cell, 'timer'] -= dt
 
-        sheet.reset_index(order=True)
-        geom.update_all(sheet)
+    sheet.reset_index(order=True)
+    geom.update_all(sheet)
 
+    if Tyssue_Euler_solver == False:
         # Force computing and updating positions.
         valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
         pos = sheet.vert_df.loc[valid_active_verts, sheet.coords].values
@@ -383,44 +386,49 @@ if Tyssue_Euler_solver == False:
         sheet.vert_df.loc[valid_active_verts, sheet.coords] = new_pos
         geom.update_all(sheet)
 
-        # Add cell population trackers.
-        cell_num_count = len(sheet.face_df)
-        S_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist())
-        M_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'M'].tolist())
-        G1_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'G1'].tolist())
-        G2_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'G2'].tolist())
+    elif Tyssue_Euler_solver:
+        solver = EulerSolver(sheet, geom, model, manager=manager, bounds=(-t1_threshold, t1_threshold))
+        solver.solve(tf=t+dt, dt=dt)
+        geom.update_all(sheet)
 
 
-        print(f'At time {t:.4f}, there are {S_count} S cells; {G2_count} G2 cells; {M_count} M cells; {G1_count} G1 cells. \n')
+    # Add cell population trackers.
+    cell_num_count = len(sheet.face_df)
+    S_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist())
+    M_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'M'].tolist())
+    G1_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'G1'].tolist())
+    G2_count = len(sheet.face_df.index[sheet.face_df['cell_class'] == 'G2'].tolist())
 
-        # Generate the plot at this time step.
-        # Enable face visibility.
-        draw_specs['face']['visible'] = True
-        for i in sheet.face_df.index:  # Assign face colour based on cell type.
-            if sheet.face_df.loc[i, 'cell_class'] == 'STB':
-                sheet.face_df.loc[i, 'color'] = 0.7
-            else:
-                sheet.face_df.loc[i, 'color'] = 0.1
-        draw_specs['face']['color'] = sheet.face_df['color']
-        draw_specs['face']['alpha'] = 0.2  # Set transparency.
-        fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
-        ax.title.set_text(f'time = {round(t, 5)}')
-        # Fix axis limits and aspect.
-        ax.set_xlim(-5, 20)
-        ax.set_ylim(-5, 7)
-        ax.set_aspect('equal')
-        # Save to file instead of showing.
-        frame_path = f"frames/frame_{t:.5f}.png"
-        plt.savefig(frame_path)
-        plt.close(fig)  # Close figure to prevent memory leaks
 
-        # Update time_point
-        t += dt
+    print(f'At time {t:.4f}, there are {S_count} S cells; {G2_count} G2 cells; {M_count} M cells; {G1_count} G1 cells. \n')
+
+    # Generate the plot at this time step.
+    # Enable face visibility.
+    draw_specs['face']['visible'] = True
+    for i in sheet.face_df.index:  # Assign face colour based on cell type.
+        if sheet.face_df.loc[i, 'cell_class'] == 'STB':
+            sheet.face_df.loc[i, 'color'] = 0.7
+        else:
+            sheet.face_df.loc[i, 'color'] = 0.1
+    draw_specs['face']['color'] = sheet.face_df['color']
+    draw_specs['face']['alpha'] = 0.2  # Set transparency.
+    fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
+    ax.title.set_text(f'time = {round(t, 5)}')
+    # Fix axis limits and aspect.
+    ax.set_xlim(-5, 20)
+    ax.set_ylim(-5, 7)
+    ax.set_aspect('equal')
+    # Save to file instead of showing.
+    frame_path = f"frames/frame_{t:.5f}.png"
+    plt.savefig(frame_path)
+    plt.close(fig)  # Close figure to prevent memory leaks
+
+    # Update time_point
+    t += dt
 
     """ Generate the video based on the frames saved. """
     # Path to folder containing the frame images
     frame_folder = "frames"
-
 
     # List and numerically sort all .png files in the frame folder
     frame_files = sorted([
@@ -430,50 +438,11 @@ if Tyssue_Euler_solver == False:
     ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
     # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-    with imageio.get_writer('bilayer_starts_with_G1.mp4', fps=15, format='ffmpeg') as writer:
+    with imageio.get_writer('ES_test.mp4', fps=15, format='ffmpeg') as writer:
         # Read and append each frame in sorted order
         for filename in frame_files:
             image = imageio.imread(filename)  # Load image from the folder
             writer.append_data(image)        # Write image to video
 
-
-
-elif Tyssue_Euler_solver:
-    my_dt = 0.001
-    t_end = 1
-    # Initialise the Event Manager
-    manager = EventManager('face')
-    # Add cell transition behavior function for all live cells
-    for cell_id in sheet.face_df.index:
-        manager.append(cell_cycle_transition, dt = my_dt, cell_id=cell_id)
-    # The History object records all the time steps
-
-    manager.update()
-    solver = EulerSolver(
-        sheet, geom, model,
-        manager=manager,
-        bounds=(-sheet.edge_df.length.mean() / 10, sheet.edge_df.length.mean() / 10))
-
-    solver.solve(tf=t_end, dt=my_dt)
-    history = solver.history
-
-    geom.update_all(sheet)
-    fig, ax = sheet_view(sheet)
-    plt.show()
-
-# Save history into PNGs.
-for i, state in enumerate(solver.history):
-    plt.figure()
-    # Your plotting function goes here:
-    # For example: plot_sheet(sheet, state)
-    plt.title(f"Step {i}")
-    plt.savefig(f"frames/frame_{i:03d}.png")
-    plt.close()
-
-# Create GIF from PNGs
-print('Creating GIF from saved history, might take a while...')
-png_files = sorted([f"frames/{f}" for f in os.listdir("frames") if f.endswith(".png")])
-images = [imageio.imread(png) for png in png_files]
-imageio.mimsave("bilayer.gif", images, duration=0.1)  # duration in seconds per frame
 
 print('\n This is the end of this script. (＾• ω •＾) ')
