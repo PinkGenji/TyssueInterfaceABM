@@ -388,7 +388,7 @@ while t <= t_end:
 
     elif Tyssue_Euler_solver:
         solver = EulerSolver(sheet, geom, model, manager=manager, bounds=(-t1_threshold, t1_threshold))
-        solver.solve(tf=t+dt, dt=dt)
+        solver.solve(tf=dt, dt=dt)
         geom.update_all(sheet)
 
 
@@ -426,23 +426,23 @@ while t <= t_end:
     # Update time_point
     t += dt
 
-    """ Generate the video based on the frames saved. """
-    # Path to folder containing the frame images
-    frame_folder = "frames"
+""" Generate the video based on the frames saved. """
+# Path to folder containing the frame images
+frame_folder = "frames"
 
-    # List and numerically sort all .png files in the frame folder
-    frame_files = sorted([
-        os.path.join(frame_folder, fname)
-        for fname in os.listdir(frame_folder)
-        if fname.endswith('.png')  # Only include PNG files
-    ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
+# List and numerically sort all .png files in the frame folder
+frame_files = sorted([
+    os.path.join(frame_folder, fname)
+    for fname in os.listdir(frame_folder)
+    if fname.endswith('.png')  # Only include PNG files
+], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
-    # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-    with imageio.get_writer('ES_test.mp4', fps=15, format='ffmpeg') as writer:
-        # Read and append each frame in sorted order
-        for filename in frame_files:
-            image = imageio.imread(filename)  # Load image from the folder
-            writer.append_data(image)        # Write image to video
-
+# Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
+with imageio.get_writer('ES_test_dt_as_end.mp4', fps=15, format='ffmpeg') as writer:
+    # Read and append each frame in sorted order
+    for filename in frame_files:
+        image = imageio.imread(filename)  # Load image from the folder
+        writer.append_data(image)        # Write image to video
+    
 
 print('\n This is the end of this script. (＾• ω •＾) ')
