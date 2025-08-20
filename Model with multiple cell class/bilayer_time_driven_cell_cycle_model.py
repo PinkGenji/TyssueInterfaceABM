@@ -125,7 +125,7 @@ np.random.seed(42) # Controls NumPy's RNG (e.g. vertex positions, topology)
 
 rng = np.random.default_rng(70)    # Seed the random number generator for my own division function.
 
-Tyssue_Euler_solver = True # control which solver to use.
+Tyssue_Euler_solver = False # control which solver to use.
 
 # Generate the initial cell sheet for bilayer.
 geom = PlanarGeometry
@@ -438,11 +438,11 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('ES_test_dt_as_end.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('ES_test_my_own_solver.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
         writer.append_data(image)        # Write image to video
-    
+
 
 print('\n This is the end of this script. (＾• ω •＾) ')
