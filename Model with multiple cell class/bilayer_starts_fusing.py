@@ -4,19 +4,23 @@ This script creates a bilayer geometry, then implement a multi-class cell system
 The cell must be an S cell, and must be neighbouring an STB.
 We don’t know why cells fuse, so we must recruit these cells to fuse (class "F") with some probability pf.
 
-A cell fusion is modelled as converting the mutual edges between F cells and STB cells into a dummy edge.
+A cell fusion is modelled as converting the mutual edges between F cells and STB cells into an in-active edge.
 """
 
 
 # Load all required modules.
+import random
 import numpy as np
-import  re
+import re
 import matplotlib.pyplot as plt
-from tyssue import Sheet
+from tyssue import Sheet, PlanarGeometry
 from tyssue.topology.sheet_topology import remove_face
 from tyssue import PlanarGeometry as geom #for simple 2d geometry
 from tyssue.dynamics import effectors, model_factory
 from tyssue.io import hdf5 # For saving the datasets
+from tyssue.solvers.viscous import EulerSolver
+from tyssue.behaviors import EventManager
+
 
 # 2D plotting
 from tyssue.draw import sheet_view
@@ -29,6 +33,14 @@ from T3_function import *
 import os
 import imageio.v2 as imageio
 
+def drop_face(sheet, face, **kwargs):
+    """
+    Removes the face indexed by "face" and all associated edges
+    """
+    edge = sheet.edge_df.loc[(sheet.edge_df['face'] == face)].index
+    print(f"Removing face '{face}'")
+    sheet.remove(edge, **kwargs)
+
 # Define the directory name
 frames_dir = "frames"
 # Create directory for frames
@@ -39,9 +51,12 @@ else:
     print(f"Directory '{frames_dir}' already exists. Using existing folder.")
 
 
+random.seed(42)  # Controls Python's random module (e.g. event shuffling)
+np.random.seed(42) # Controls NumPy's RNG (e.g. vertex positions, topology)
 rng = np.random.default_rng(70)    # Seed the random number generator.
 
 # Generate the initial cell sheet for tri-layer.
+geom = PlanarGeometry
 num_x = 16
 num_y = 5
 
@@ -53,14 +68,11 @@ geom.update_all(sheet)
 # remove non-enclosed faces
 sheet.remove(sheet.get_invalid())
 
-# Delete the irregular polygons.
-for i in sheet.face_df.index:
-    if sheet.face_df.loc[i,'num_sides'] != 6:
-        delete_face(sheet,i)
-    else:
-        continue
+# Repeatedly remove all non-hexagonal faces until none remain
+while np.any(sheet.face_df['num_sides'].values != 6):
+    bad_face = sheet.face_df[sheet.face_df['num_sides'] != 6].index[0]
+    drop_face(sheet, bad_face)
 
-sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
 geom.update_all(sheet)
 sheet.get_opposite()
 
@@ -89,6 +101,11 @@ for i in range(2*num_x-4,len(sheet.face_df)):     # These are the indices of top
 print(f'There are {total_cell_num} total cells; top layer is assigned to be "STB"; bottom two layers are assigned to be "S". \n" ')
 
 # Add dynamics to the model.
+model = model_factory([
+    effectors.LineTension,
+    effectors.FaceContractility,
+    effectors.FaceAreaElasticity
+])
 specs = {
     'edge': {
         'is_active': 1,
@@ -164,21 +181,22 @@ plt.show()
 
 
 # Set the threshold values for mesh restructure.
-t1_threshold = sheet.edge_df['length'].mean()/10
-t2_threshold = sheet.face_df['area'].mean()/10
+t1_threshold = sheet.edge_df.length.mean()/10
+t2_threshold = sheet.face_df.area.mean()/10
 d_min = t1_threshold
 d_sep = d_min *1.5
-max_movement = t1_threshold / 2
-
+print(f'T1 threshold: {t1_threshold}, t2 threshold: {t2_threshold}')
 
 # Start simulating.
+manager = EventManager('face')
 t = 0
-t_end = 2
+t_end = 5
 switch = 1 # controller variable for fusion of cell 24
 t1_done = 0
 time_list = []
 STB_area = []
-while t < t_end:
+
+while t <= t_end:
     dt = 0.001
 
     # Mesh restructure check
@@ -361,19 +379,6 @@ while t < t_end:
             sheet.edge_df.loc[i, 'width'] = 0.5
     draw_specs['edge']['width'] = sheet.edge_df['width']
 
-
-
-    # Force computing and updating positions.
-    valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
-    pos = sheet.vert_df.loc[valid_active_verts, sheet.coords].values
-    # get the movement of position based on dynamical dt.
-    dt, movement = time_step_bot(sheet, dt, max_dist_allowed=max_movement)
-    new_pos = pos + movement
-    dt = Decimal(dt)
-    # Save the new positions back to `vert_df`
-    sheet.vert_df.loc[valid_active_verts, sheet.coords] = new_pos
-    geom.update_all(sheet)
-
     if t1_done == 0 and t > 1:
 
         # find the edge number by checking the mutual edge between cell 34 and 35.
@@ -392,6 +397,11 @@ while t < t_end:
         geom.update_all(sheet)
         sheet.reset_index(order=True)
         t1_done = 1
+
+    # Force computing and updating positions.
+    solver = EulerSolver(sheet, geom, model, manager=manager, bounds=(-t1_threshold, t1_threshold))
+    solver.solve(tf=dt, dt=dt)
+    geom.update_all(sheet)
 
     # Tracking STB Area.
     total_STB = sheet.face_df.loc[sheet.face_df['cell_class'] == 'STB', 'area'].sum()
@@ -436,7 +446,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('longer_fusion_unfixed_ends.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('longer_fusion_unfixed_ES.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
