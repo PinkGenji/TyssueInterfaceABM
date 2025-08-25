@@ -393,7 +393,7 @@ while t <= t_end:
                 continue
 
         # Do a T1 transition on the edge we want, find the edge number first.
-        type1_transition(sheet, edge_to_process, remove_tri_faces=False, multiplier=5)
+        type1_transition(sheet, edge_to_process, remove_tri_faces=False, multiplier=10)
         geom.update_all(sheet)
         sheet.reset_index(order=True)
         t1_done = 1
@@ -426,7 +426,7 @@ while t <= t_end:
     t += dt
 
 # Write the final sheet to a hdf5 file.
-hdf5.save_datasets('longer_fusion_unfixed_data.hdf5', sheet)
+hdf5.save_datasets('fusion_with_Tyssue_ES.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
@@ -446,7 +446,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('longer_fusion_unfixed_ES.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('fusion_with_Tyssue_ES.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
