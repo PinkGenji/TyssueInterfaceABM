@@ -358,9 +358,8 @@ def T1_check(eptm, threshold, scale):
 
 
 def my_ode(eptm):
-    valid_verts = eptm.active_verts[eptm.active_verts.isin(eptm.vert_df.index)]
-    grad_U = model.compute_gradient(eptm).loc[valid_verts]
-    dr_dt = -grad_U.values / eptm.vert_df.loc[valid_verts, 'viscosity'].values[:, None]
+    grad_U =model.compute_gradient(eptm).loc[eptm.active_verts]
+    dr_dt = -grad_U.values / eptm.vert_df.loc[eptm.active_verts, "viscosity"].values[:, None]
     return dr_dt
 
 
