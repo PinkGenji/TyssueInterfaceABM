@@ -657,7 +657,7 @@ def time_step_bot(sheet, dt, max_dist_allowed):
         dt /= 2
         movement = dot_r * dt
         current_movement = np.linalg.norm(movement, axis=1)
-    return dt, movement
+    return dt, movement.ravel()
 
 
 def boundary_nodes(sheet):
