@@ -357,7 +357,7 @@ while i < 1:
     # Initialise the Tyssue's Euler solver.
     solver = EulerSolver(sheet, geom, model, manager=manager, bounds=(-t1_threshold, t1_threshold))
     # Grab the movement and dot_r computed from Tyssue's Euler solver.
-    movement2, dot_r2 = solver.single_step_movement(tf=dt, dt=dt)
+    movement2, dot_r2 = solver.single_step_movement(dt=dt)
     # Now, compare movement and movement2
     tolerance = 1e-4
     all_close_enough = np.all(np.abs(movement - movement2) <= tolerance)
