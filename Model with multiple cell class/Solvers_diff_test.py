@@ -8,6 +8,7 @@ import numpy as np
 import os
 import re
 import matplotlib.pyplot as plt
+from scipy.cluster.hierarchy import correspond
 from tyssue import Sheet, History, PlanarGeometry
 from tyssue.topology.sheet_topology import remove_face
 from tyssue.dynamics import effectors, model_factory
@@ -202,7 +203,6 @@ t1_threshold = sheet.edge_df.length.mean() / 10
 t2_threshold = sheet.face_df['area'].mean() / 10
 d_min = t1_threshold
 d_sep = d_min * 1.5
-max_movement = t1_threshold *(2**0.5)
 
 # Start simulating.
 # Initialise the Event Manager for Tyssue's Built-in Euler Solver.
@@ -331,42 +331,33 @@ while i < 1:
     # Force computing and updating positions using my own solver.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
     pos = sheet.vert_df.loc[valid_active_verts, sheet.coords].values.ravel()
-    # Switch for different threshold of different solvers.
-    different_threshold = True
-    if different_threshold:
-        max_dist = t1_threshold * (2**0.5) * dt
-    else:
-        max_dist = t1_threshold
-    dt, movement = time_step_bot(sheet, dt, max_dist_allowed=max_dist )
-    new_pos = pos + movement
-    # Save the new positions back to `vert_df`
-    sheet.vert_df.loc[valid_active_verts, sheet.coords] = new_pos.reshape((-1, sheet.dim))
-    geom.update_all(sheet)
-    history.record()
-    fig, ax = sheet_view(sheet, **draw_specs)
-    ax.set_title('After a single step with MyOwnSolver')
-    plt.show()
+    dt, movement = time_step_bot(sheet, dt, max_dist_allowed= t1_threshold /2 )
 
-    # Revert the geometry to the initial state, then use Tyssue's built-in Euler Solver.
-    sheet = history.retrieve(0)
-    history.record()
-    # See if the revert was successful, pay attention to the size of polygons.
-    fig, ax = sheet_view(sheet, **draw_specs)
-    ax.set_title('Retrieved initial geometry')
+    # Now, keep shrinking dt in Tyssue's Euler solver and compare the movement difference
+    dt_range = np.linspace(dt, dt/100, 100)
+    gaps = []
+    for dt in dt_range:
+        # Revert the geometry to the initial state, then use Tyssue's built-in Euler Solver.
+        sheet = history.retrieve(0)
+        # Initialise the Tyssue's Euler solver.
+        solver = EulerSolver(sheet, geom, model, manager=manager)
+        # Grab the movement and dot_r computed from Tyssue's Euler solver.
+        movement2, dot_r2 = solver.single_step_movement(dt=dt)
+        # Now, compare movement and movement2
+        # max_diff = np.max(np.abs(movement - movement2))
+        diff = np.mean(movement-movement2)
+        gaps.append(diff)
+
+    # create a fig with one subplot, which is a gaps vs t_range plot.
+    fig,ax = plt.subplots(1)
+    ax.plot(dt_range, gaps)
+    ax.set_title("Plot of movement difference against dt values")
+    ax.set_xlabel("Time step (dt)")
+    ax.set_ylabel("Movement difference")
     plt.show()
-    # Initialise the Tyssue's Euler solver.
-    solver = EulerSolver(sheet, geom, model, manager=manager, bounds=(-t1_threshold, t1_threshold))
-    # Grab the movement and dot_r computed from Tyssue's Euler solver.
-    movement2, dot_r2 = solver.single_step_movement(dt=dt)
-    # Now, compare movement and movement2
-    tolerance = 1e-4
-    all_close_enough = np.all(np.abs(movement - movement2) <= tolerance)
-    # Print related values to the console.
-    print(f'After all the adjustment, dt is now: {dt}')
-    print(f'Comparing values between two groups...\n Is it true all values only differ within the tolerance level ({tolerance})? \n'
-          f' {all_close_enough}')
-    biggest_gap = max((abs(movement-movement2)))
-    print(f'The biggest gap between values from movement and movement2 is {biggest_gap}')
+    smallest_gap = np.min(gaps)
+    corresponding_dt = dt_range[gaps.index(smallest_gap)]
+    print(f'The smallest gap is: {smallest_gap}, when dt is: {corresponding_dt}')
 
     i += 1  # Finish the iteration
 
