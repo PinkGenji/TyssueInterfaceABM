@@ -122,10 +122,9 @@ else:
 
 random.seed(42)  # Controls Python's random module (e.g. event shuffling)
 np.random.seed(42) # Controls NumPy's RNG (e.g. vertex positions, topology)
-
 rng = np.random.default_rng(70)    # Seed the random number generator for my own division function.
 
-Tyssue_Euler_solver = False # control which solver to use.
+Tyssue_Euler_solver = True # control which solver to use.
 
 # Generate the initial cell sheet for bilayer.
 geom = PlanarGeometry
@@ -246,7 +245,7 @@ t_end = 1
 
 
 while t <= t_end:
-    dt = 0.001
+    dt = 0.0005
 
     # Mesh restructure check
     # T1 transition, edge rearrangment check
@@ -387,7 +386,7 @@ while t <= t_end:
         geom.update_all(sheet)
 
     elif Tyssue_Euler_solver:
-        solver = EulerSolver(sheet, geom, model, manager=manager, bounds=(-t1_threshold, t1_threshold))
+        solver = EulerSolver(sheet, geom, model, manager=manager)
         solver.solve(tf=dt, dt=dt)
         geom.update_all(sheet)
 
@@ -414,10 +413,6 @@ while t <= t_end:
     draw_specs['face']['alpha'] = 0.2  # Set transparency.
     fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
     ax.title.set_text(f'time = {round(t, 5)}')
-    # Fix axis limits and aspect.
-    ax.set_xlim(-5, 20)
-    ax.set_ylim(-5, 7)
-    ax.set_aspect('equal')
     # Save to file instead of showing.
     frame_path = f"frames/frame_{t:.5f}.png"
     plt.savefig(frame_path)
@@ -438,7 +433,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('ES_test_my_own_solver.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('unbounded_movement.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
