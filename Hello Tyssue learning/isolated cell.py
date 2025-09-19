@@ -13,7 +13,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 import numpy as np
 import pandas as pd
-
+import sys
 import os
 import json
 import matplotlib as matplot
@@ -38,24 +38,38 @@ from tyssue.dynamics import model_factory, effectors
 from tyssue.topology.sheet_topology import remove_face, cell_division, face_division
 
 # 2D plotting
-from tyssue.draw import sheet_view, highlight_cells
+from tyssue.draw import sheet_view
 from tyssue.draw.plt_draw import plot_forces
 from tyssue.config.draw import sheet_spec
-# import my own functions
+
+# Set relative path, then import my own functions.
+model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Model with multiple cell class'))
+sys.path.append(model_path)
+print("Model path:", model_path)
+print("Files in directory:", os.listdir(model_path))
 from my_headers import *
 
 rng = np.random.default_rng(70)
 
+def drop_face(sheet, face, **kwargs):
+    """
+    Removes the face indexed by "face" and all associated edges
+    """
+    edge = sheet.edge_df.loc[(sheet.edge_df['face'] == face)].index
+    print(f"Dropping face '{face}'")
+    sheet.remove(edge, **kwargs)
+
 # Generate the cell sheet as three cells.
-num_x = 1
-num_y = 1
+num_x = 3
+num_y = 3
 sheet = Sheet.planar_sheet_2d('face', nx = num_x, ny=num_y, distx=0.5, disty=0.5)
 geom.update_all(sheet)
 # remove non-enclosed faces
-sheet.remove(sheet.get_invalid())  
-delete_face(sheet, 1)
+sheet.remove(sheet.get_invalid())
+drop_face(sheet, 1)
 sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
-sheet_view(sheet)
+fig, ax = sheet_view(sheet)
+plt.show()
 sheet.get_extra_indices()
 # We need to creata a new colum to store the cell cycle time, default a 0, then minus.
 sheet.face_df['T_cycle'] = 0
@@ -63,22 +77,47 @@ sheet.face_df['T_cycle'] = 0
 CA_initial = sheet.face_df.loc[0,'area']
 print(f'Initial Cell Area is: {CA_initial}')
 fig, ax = sheet_view(sheet,  mode = '2D')
+plt.show()
 
 
 # Setup the solver.
 solver = QSSolver()
-nondim_specs = config.dynamics.quasistatic_plane_spec()
-dim_model_specs = model.dimensionalize(nondim_specs)
-sheet.update_specs(dim_model_specs, reset=True)
 
-res = solver.find_energy_min(sheet, geom, model)
+# Specify the specs, just want to expand the cell to size of 1.
+specs = {
+    'edge': {
+        'is_active': 1,
+        'line_tension': 0,
+        'ux': 0.0,
+        'uy': 0.0,
+        'uz': 0.0
+    },
+   'face': {
+       'area_elasticity': 1.0,
+       'contractility': 0,
+       'is_alive': 1,
+       'prefered_area': 1.0},
+   'settings': {
+       'grad_norm_factor': 1.0,
+       'nrj_norm_factor': 1.0
+   },
+   'vert': {
+       'is_active': 1
+   }
+}
 
+
+# Update the specs (adds / changes the values in the dataframes' columns)
+sheet.update_specs(specs)
+
+
+res = solver.find_energy_min(sheet, geom, smodel)
+geom.update_all(sheet)
 print(sheet.face_df.loc[0,'area'])
 
 fig, ax = sheet_view(sheet)
-for face, data in sheet.face_df.iterrows():
-    ax.text(data.x, data.y, face)
-
+ax.set_title('After energy minimisation')
+plt.show()
 
 for i in sheet.face_df.index:
     sheet.face_df.loc[i,'prefered_area'] =1
