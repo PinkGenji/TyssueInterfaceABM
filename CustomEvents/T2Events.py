@@ -28,9 +28,7 @@ print("Files in directory:", os.listdir(model_path))
 import my_headers as mh
 import T3_function as T3
 
-
 # Functions used in this script.
-
 def extract_PNGnumber(fname):
     """
     Helper function to extract the numeric part from a filename for later use.
@@ -46,6 +44,16 @@ def drop_face(sheet, face, **kwargs):
     edge = sheet.edge_df.loc[(sheet.edge_df['face'] == face)].index
     print(f"Dropping face '{face}'")
     sheet.remove(edge, **kwargs)
+
+# A behaviour function of the T2 transition that should be added to the manager during simulation.
+def T2Swap(sheet, manager, cell_id, crit_area):
+    if sheet.face_df.loc[cell_id, 'area'] < crit_area:
+        drop_face(sheet, cell_id)
+        print(f'Removed face {cell_id}')
+    else:
+        # Use the stable `id` column instead of relying on positional index
+        stable_id = sheet.face_df.loc[cell_id, 'id']
+        manager.append(T2Swap, cell_id=stable_id, crit_area=crit_area)
 
 random.seed(42)  # Controls Python's random module (e.g. event shuffling)
 np.random.seed(42)  # Controls NumPy's RNG (e.g. vertex positions, topology)
@@ -93,23 +101,23 @@ sheet.vert_df['viscosity'] = 1.0
 specs = {
     'edge': {
         'is_active': 1,
-        'line_tension': 10,
+        'line_tension': 0,
         'ux': 0.0,
         'uy': 0.0,
         'uz': 0.0
     },
-    'face': {
-        'area_elasticity': 200,
-        'contractility': 5,
-        'is_alive': 1,
-        'prefered_area': 0.8},
-    'settings': {
-        'grad_norm_factor': 1.0,
-        'nrj_norm_factor': 1.0
-    },
-    'vert': {
-            'is_active': 1
-    }
+   'face': {
+       'area_elasticity': 1.0,
+       'contractility': 0,
+       'is_alive': 1,
+       'prefered_area': 0.5},
+   'settings': {
+       'grad_norm_factor': 1.0,
+       'nrj_norm_factor': 1.0
+   },
+   'vert': {
+       'is_active': 1
+   }
 }
 # Update the specs (adds / changes the values in the dataframes' columns)
 sheet.update_specs(specs, reset=True)
@@ -117,23 +125,26 @@ sheet.get_opposite()
 geom.update_all(sheet)
 
 # Adjust coefficient for cell-boundary adhesion force.
-sheet.edge_df.loc[sheet.edge_df["opposite"] == -1, "line_tension"] *= 2
-geom.update_all(sheet)
+# sheet.edge_df.loc[sheet.edge_df["opposite"] == -1, "line_tension"] *= 2
+# geom.update_all(sheet)
 print('The parameters used for force calculation is added to the model. \n')
 
 # Set the value of constants for mesh restructure, which are parts of my own solver in loop.
-t2_threshold = sheet.face_df['area'].mean()/10
+t2_threshold = 0.512
 manager = EventManager('face')
 
-
-# Run the Euler solver
+# Append the T2swap for all cells to the event manager.
+for i in sheet.face_df.index:
+    stable_id = sheet.face_df.loc[i, 'id']
+    manager.append(T2Swap, cell_id = stable_id, crit_area=t2_threshold)
+manager.update()
 solver = EulerSolver(sheet, geom, model, manager=manager)
 solver.solve(tf=5, dt=0.001)
 geom.update_all(sheet)
 fig, ax = sheet_view(sheet)
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face, fontsize=10, color="r")
 plt.show()
-
-
 
 
 
