@@ -90,7 +90,6 @@ for face, data in sheet.face_df.iterrows():
 plt.show()
 print('Initial geometry plot generated. \n')
 
-
 # Load the effectors, then explicitly define what parameters are using in the simulation.
 model = model_factory([
     effectors.LineTension,
@@ -124,13 +123,28 @@ sheet.update_specs(specs, reset=True)
 sheet.get_opposite()
 geom.update_all(sheet)
 
-# Adjust coefficient for cell-boundary adhesion force.
-# sheet.edge_df.loc[sheet.edge_df["opposite"] == -1, "line_tension"] *= 2
-# geom.update_all(sheet)
-print('The parameters used for force calculation is added to the model. \n')
+history = History(sheet)
+print('The parameters for energy function is loaded, and history object is created. \n')
+manager = EventManager('face')
+solver = EulerSolver(sheet, geom, model, manager=manager)
+print('Solver starts, please wait ...')
+solver.solve(tf=5, dt=0.001)
+geom.update_all(sheet)
+fig, ax = sheet_view(sheet)
+for face, data in sheet.face_df.iterrows():
+    ax.text(data.x, data.y, face, fontsize=10, color="r")
+plt.show()
+min_area = sheet.face_df['area'].min()
+max_area = sheet.face_df['area'].max()
+mean_area = sheet.face_df['area'].mean()
+print('Solver completed, from t=0 to t=5 with dt = 0.001: \n')
+print(f'Minimum area is {min_area}; maximum area is {max_area}; mean area is {mean_area} \n')
 
-# Set the value of constants for mesh restructure, which are parts of my own solver in loop.
-t2_threshold = 0.512
+# Now, re-initialise the sheet
+sheet = history.retrieve(0)
+print('System reinitialized.')
+print('Setting the T2 threshold arbitraily to be 0.001 larger than minimum area evaluated before. \n')
+t2_threshold = min_area+ 0.001
 manager = EventManager('face')
 
 # Append the T2swap for all cells to the event manager.
@@ -139,13 +153,15 @@ for i in sheet.face_df.index:
     manager.append(T2Swap, cell_id = stable_id, crit_area=t2_threshold)
 manager.update()
 solver = EulerSolver(sheet, geom, model, manager=manager)
+print('Solver starts, please wait ...')
 solver.solve(tf=5, dt=0.001)
 geom.update_all(sheet)
 fig, ax = sheet_view(sheet)
+ax.set_title('After solver with T2Swap')
 for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face, fontsize=10, color="r")
 plt.show()
-
+print('Solver completed, plot of what the current system looks like is generated.')
 
 
 print('\n This is the end of this script. (＾• ω •＾) ')
