@@ -47,7 +47,7 @@ def drop_face(sheet, face, **kwargs):
 
 # A behaviour function of the T2 transition that should be added to the manager during simulation.
 def T2Swap(sheet, manager, cell_id, crit_area):
-    if sheet.face_df.loc[cell_id, 'area'] < crit_area:
+    if (sheet.face_df.loc[cell_id,'num_sides']) < 4 and sheet.face_df.loc[cell_id, 'area'] < crit_area:
         drop_face(sheet, cell_id)
         print(f'Removed face {cell_id}')
     else:
