@@ -10,70 +10,25 @@ import sys
 import re
 import matplotlib.pyplot as plt
 from tyssue import Sheet, History, PlanarGeometry
-from tyssue.topology.sheet_topology import remove_face, type1_transition
+from tyssue.topology.base_topology import drop_face
 from tyssue.dynamics import effectors, model_factory
 from tyssue.behaviors import EventManager
 from tyssue.solvers.viscous import EulerSolver
+from tyssue.behaviors.sheet.basic_events import T2Swap
 
 # Plotting related
 from tyssue.draw import sheet_view
-from tyssue.config.draw import sheet_spec
-import imageio.v2 as imageio
 
-# Set relative path, then import my own functions.
-model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Model with multiple cell class'))
-sys.path.append(model_path)
-print("Model path:", model_path)
-print("Files in directory:", os.listdir(model_path))
-import my_headers as mh
-import T3_function as T3
-
-# Functions used in this script.
-def extract_PNGnumber(fname):
-    """
-    Helper function to extract the numeric part from a filename for later use.
-    For example, from "frame_12.png", it extracts 12
-    """
-    match = re.search(r'\d+', fname)
-    return int(match.group()) if match else -1  # If no number found, use -1
-
-def drop_face(sheet, face, **kwargs):
-    """
-    Removes the face indexed by "face" and all associated edges
-    """
-    edge = sheet.edge_df.loc[(sheet.edge_df['face'] == face)].index
-    print(f"Dropping face '{face}'")
-    sheet.remove(edge, **kwargs)
-
-# A behaviour function of the T2 transition that should be added to the manager during simulation.
-def T2Swap(sheet, manager, cell_id, crit_area):
-    if (sheet.face_df.loc[cell_id,'num_sides']) < 4 and sheet.face_df.loc[cell_id, 'area'] < crit_area:
-        drop_face(sheet, cell_id)
-        print(f'Removed face {cell_id}')
-    else:
-        # Use the stable `id` column instead of relying on positional index
-        stable_id = sheet.face_df.loc[cell_id, 'id']
-        manager.append(T2Swap, cell_id=stable_id, crit_area=crit_area)
-
-random.seed(42)  # Controls Python's random module (e.g. event shuffling)
-np.random.seed(42)  # Controls NumPy's RNG (e.g. vertex positions, topology)
-
-rng = np.random.default_rng(70)  # Seed the random number generator for my own division function.
 
 # Generate the initial cell sheet for bilayer.
 geom = PlanarGeometry
 print('\n Now we change the initial geometry to bilayer.')
 num_x = 16
 num_y = 4
-
 sheet = Sheet.planar_sheet_2d(identifier='bilayer', nx=num_x, ny=num_y, distx=1, disty=1)
 geom.update_all(sheet)
-# Updates the sheet geometry by updating: * the edge vector coordinates * the edge lengths * the face centroids
-# * the normals to each edge associated face * the face areas.
-
 # remove non-enclosed faces
 sheet.remove(sheet.get_invalid())
-
 # Repeatedly remove all non-hexagonal faces until none remain
 while np.any(sheet.face_df['num_sides'].values != 6):
     bad_face = sheet.face_df[sheet.face_df['num_sides'] != 6].index[0]
@@ -150,7 +105,7 @@ manager = EventManager('face')
 # Append the T2swap for all cells to the event manager.
 for i in sheet.face_df.index:
     stable_id = sheet.face_df.loc[i, 'id']
-    manager.append(T2Swap, cell_id = stable_id, crit_area=t2_threshold)
+    manager.append(T2Swap, face_id = stable_id, crit_area=t2_threshold)
 manager.update()
 solver = EulerSolver(sheet, geom, model, manager=manager)
 print('Solver starts, please wait ...')
