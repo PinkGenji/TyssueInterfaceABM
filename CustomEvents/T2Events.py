@@ -1,5 +1,5 @@
 """
-This script shows the behaviour function of T2 and how it runs with Euler solver
+This script imports the T2Swap behaviour function from Tyssue, and runs with Euler solver
 """
 
 # Load all required modules.
