@@ -105,8 +105,8 @@ sheet.update_specs(specs, reset=True)
 time_step = 0.001
 manager = EventManager('face')
 for i in sheet.face_df.index:
-    stable_id = sheet.face_df.loc[i, 'id']
-    manager.append(cell_cycle_transition, dt = time_step, face_id=i)
+    unique_id = sheet.face_df.loc[i, 'unique_id']
+    manager.append(cell_cycle_transition, dt = time_step, face_id= unique_id)
 solver = EulerSolver(sheet, geom, model, manager=manager)
 print('solver is set up. \n')
 print('solver starts ...')
