@@ -104,7 +104,7 @@ manager = EventManager('face')
 
 # Append the T2swap for all cells to the event manager.
 for i in sheet.face_df.index:
-    stable_id = sheet.face_df.loc[i, 'id']
+    stable_id = sheet.face_df.loc[i, 'unique_id']
     manager.append(T2Swap, face_id = stable_id, crit_area=t2_threshold)
 manager.update()
 solver = EulerSolver(sheet, geom, model, manager=manager)
