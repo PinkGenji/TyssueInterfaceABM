@@ -10,7 +10,7 @@ import sys
 import re
 import matplotlib.pyplot as plt
 from tyssue import Sheet, History, PlanarGeometry
-from tyssue.topology.base_topology import drop_face
+from tyssue.topology.base_topology import drop_face, collapse_edge
 from tyssue.dynamics import effectors, model_factory
 from tyssue.behaviors import EventManager
 from tyssue.solvers.viscous import EulerSolver
@@ -34,8 +34,25 @@ while np.any(sheet.face_df['num_sides'].values != 6):
     bad_face = sheet.face_df[sheet.face_df['num_sides'] != 6].index[0]
     drop_face(sheet, bad_face)
 # Update the geometry and computes the grabs all pairs of half-edges.
+sheet.reset_index()
+sheet.reset_topo()
 geom.update_all(sheet)
 sheet.get_opposite()
+sheet.reset_index(order = True)     #Ensure the edge df is ordered in a consistent orientation.
+# We pick face 7 and 17 to be a triangular face.
+edges_from_7 = sheet.edge_df.loc[sheet.edge_df['face'] == 7,['srce','trgt']][0:3].index.tolist()
+edges_from_17 = sheet.edge_df.loc[sheet.edge_df['face'] == 17,['srce','trgt']][0:3].index.tolist()
+# Now, we are going to collapse these edges.
+for i in edges_from_7:
+    collapse_edge(sheet, i, reindex=False, allow_two_sided=True)
+print('Finished edges from 7')
+for i in edges_from_17:
+    collapse_edge(sheet, i, reindex=False, allow_two_sided=True)
+print('Finished edges from 17')
+sheet.reset_index(order = True)
+sheet.reset_topo()
+geom.update_all(sheet)
+sheet.get_opposite_faces()
 
 # Plot the figure to see the initial setup is what we want.
 fig, ax = sheet_view(sheet)
@@ -64,7 +81,7 @@ specs = {
        'area_elasticity': 1.0,
        'contractility': 0,
        'is_alive': 1,
-       'prefered_area': 0.5},
+       'prefered_area': 0.8},
    'settings': {
        'grad_norm_factor': 1.0,
        'nrj_norm_factor': 1.0
@@ -83,33 +100,29 @@ print('The parameters for energy function is loaded, and history object is creat
 manager = EventManager('face')
 solver = EulerSolver(sheet, geom, model, manager=manager)
 print('Solver starts, please wait ...')
-solver.solve(tf=5, dt=0.001)
+solver.solve(tf=1, dt=0.001)
 geom.update_all(sheet)
 fig, ax = sheet_view(sheet)
 for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face, fontsize=10, color="r")
 plt.show()
-min_area = sheet.face_df['area'].min()
-max_area = sheet.face_df['area'].max()
-mean_area = sheet.face_df['area'].mean()
+area_7 = sheet.face_df.loc[7,'area']
+area_17 = sheet.face_df.loc[17,'area']
 print('Solver completed, from t=0 to t=5 with dt = 0.001: \n')
-print(f'Minimum area is {min_area}; maximum area is {max_area}; mean area is {mean_area} \n')
 
 # Now, re-initialise the sheet
 sheet = history.retrieve(0)
 print('System reinitialized.')
-print('Setting the T2 threshold arbitraily to be 0.001 larger than minimum area evaluated before. \n')
-t2_threshold = min_area+ 0.001
+print('Setting the T2 threshold arbitraily to be 110% of the larger area among face 7 and 17 \n')
+t2_threshold = max(area_7, area_17)*1.1
 manager = EventManager('face')
 
 # Append the T2swap for all cells to the event manager.
-for i in sheet.face_df.index:
-    stable_id = sheet.face_df.loc[i, 'unique_id']
-    manager.append(T2Swap, face_id = stable_id, crit_area=t2_threshold)
+manager.append(T2Swap, crit_area = t2_threshold)
 manager.update()
 solver = EulerSolver(sheet, geom, model, manager=manager)
 print('Solver starts, please wait ...')
-solver.solve(tf=5, dt=0.001)
+solver.solve(tf=1, dt=0.001)
 geom.update_all(sheet)
 fig, ax = sheet_view(sheet)
 ax.set_title('After solver with T2Swap')
