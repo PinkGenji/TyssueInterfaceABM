@@ -67,6 +67,8 @@ for i in range(0,num_x-2):  # These are the indices of the bottom layer.
 
 for i in range(num_x-2,len(sheet.face_df)):     # These are the indices of the top layer.
     sheet.face_df.loc[i,'cell_class'] = 'STB'
+    # Add a timer for each cell enters "G1".
+    sheet.face_df.loc[i, 'timer'] = np.nan
 
 print(f'There are {total_cell_num} total cells; equally split into "G1" and "STB" classes. ')
 
@@ -104,9 +106,7 @@ sheet.update_specs(specs, reset=True)
 # Initialise the event manager
 time_step = 0.001
 manager = EventManager('face')
-for i in sheet.face_df.index:
-    unique_id = sheet.face_df.loc[i, 'unique_id']
-    manager.append(cell_cycle_transition, dt = time_step, face_id= unique_id)
+manager.append(cell_cycle_transition, dt = time_step)   # using the default duration values
 solver = EulerSolver(sheet, geom, model, manager=manager)
 print('solver is set up. \n')
 print('solver starts ...')
