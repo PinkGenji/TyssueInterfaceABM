@@ -849,9 +849,9 @@ def find_boundary(sheet):
     boundary_edge = set()
     for i in sheet.edge_df.index:
         if sheet.edge_df.loc[i, 'opposite'] == -1:
-            boundary_vert.add(sheet.edge_df.loc[i, 'srce'])
-            boundary_vert.add(sheet.edge_df.loc[i, 'trgt'])
-            boundary_edge.add(i)
+            boundary_vert.add(sheet.vert_df.loc[sheet.edge_df.loc[i, 'srce'],'unique_id'])
+            boundary_vert.add(sheet.vert_df.loc[sheet.edge_df.loc[i, 'trgt'],'unique_id'])
+            boundary_edge.add(sheet.edge_df.loc[i, 'unique_id'])
     return boundary_vert, boundary_edge
 
 
