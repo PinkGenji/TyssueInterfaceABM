@@ -1,4 +1,4 @@
-"""This script demonstrates how the event/behaviour function that govens cell class transition works"""
+"""This script demonstrates how the event/behaviour function that controls cell class transition works"""
 
 # Load all required modules.
 import random
