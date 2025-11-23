@@ -114,7 +114,7 @@ print('System reinitialized.')
 manager = EventManager('face')
 
 # Append the T1swap for all cells to the event manager.
-manager.append(T1Swap, t1_threshold = my_t1, multiplier = 1.5)
+manager.append(T1Swap, geom= geom, t1_threshold = my_t1, multiplier = 1.5)
 manager.update()
 solver = EulerSolver(sheet, geom, model, manager=manager)
 print('Solver starts, please wait ...')
