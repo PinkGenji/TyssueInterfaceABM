@@ -127,6 +127,10 @@ for i in sheet.edge_df.index:
         continue
 geom.update_all(sheet)
 
+# Use QS solver to start with the steady state of the system.
+# solver = QSSolver()
+# res = solver.find_energy_min(sheet, geom, smodel)
+# print("Successfull gradient descent? ", res['success'])
 
 # Deactivate the edges between STB units.
 for i in sheet.edge_df.index:
@@ -138,16 +142,9 @@ for i in sheet.edge_df.index:
             sheet.edge_df.loc[i,'is_active'] = 0
             sheet.edge_df.loc[opposite_edge,'is_active'] = 0
 
-
 # Create force plot
 fig, ax = plot_forces(sheet, geom, model, ['x', 'y'], scaling=0.01)
 plt.show()
-
-# Use QS solver to start with the steady state of the system.
-# solver = QSSolver()
-# res = solver.find_energy_min(sheet, geom, smodel)
-# print("Successfull gradient descent? ", res['success'])
-
 
 # Next, I need to colour STB and others differently and bold the dummy edges when plotting.
 draw_specs = sheet_spec()
@@ -179,7 +176,7 @@ max_movement = t1_threshold / 2
 
 # Start simulating.
 t = 0
-t_end = 3
+t_end = 1
 
 while t <= t_end:
     dt = 0.001
@@ -426,10 +423,6 @@ while t <= t_end:
     draw_specs['face']['alpha'] = 0.2  # Set transparency.
     fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
     ax.title.set_text(f'time = {round(t, 5)}')
-    # Fix axis limits and aspect.
-    ax.set_xlim(-5, 20)
-    ax.set_ylim(-5, 7)
-    ax.set_aspect('equal')
     # Save to file instead of showing.
     frame_path = f"frames/frame_{t:.5f}.png"
     plt.savefig(frame_path)
