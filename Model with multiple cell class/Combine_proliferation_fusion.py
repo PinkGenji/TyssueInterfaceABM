@@ -9,7 +9,7 @@ import re
 import matplotlib.pyplot as plt
 from tyssue import Sheet
 from tyssue.topology.sheet_topology import remove_face
-from tyssue.topology.base_topology import close_face
+from tyssue.topology.base_topology import close_face, drop_face
 from tyssue import PlanarGeometry as geom #for simple 2d geometry
 from tyssue.dynamics import effectors, model_factory
 from tyssue.dynamics.planar_vertex_model import PlanarModel as smodel
@@ -55,12 +55,10 @@ geom.update_all(sheet)
 # remove non-enclosed faces
 sheet.remove(sheet.get_invalid())
 
-# Delete the irregular polygons.
-for i in sheet.face_df.index:
-    if sheet.face_df.loc[i,'num_sides'] != 6:
-        delete_face(sheet,i)
-    else:
-        continue
+# Repeatedly remove all non-hexagonal faces until none remain
+while np.any(sheet.face_df['num_sides'].values != 6):
+    bad_face = sheet.face_df[sheet.face_df['num_sides'] != 6].index[0]
+    drop_face(sheet, bad_face)
 
 sheet.reset_index(order=True)   #continuous indices in all df, vertices clockwise
 geom.update_all(sheet)
@@ -84,13 +82,12 @@ print('New attributes: cell_class; timer created for all cells. \n ')
 for i in range(0,num_x-2):  # These are the indices of the bottom layer.
     sheet.face_df.loc[i,'cell_class'] = 'G1'
     # Add a timer for each cell enters "G1".
-    sheet.face_df.loc[i, 'timer'] = 0.11
+    sheet.face_df.loc[i, 'timer'] = 0.15
 
 for i in range(num_x-2,len(sheet.face_df)):     # These are the indices of the top layer.
     sheet.face_df.loc[i,'cell_class'] = 'STB'
 
 print(f'There are {total_cell_num} total cells; equally split into "G1" and "STB" classes. ')
-
 
 # Add dynamics to the model.
 specs = {
@@ -276,41 +273,29 @@ while t <= t_end:
     # For all mature "S" cells, it is possible for them to proliferate; fuse or quiescent.
     S_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist()
     for cell in S_cells:
-        # Only proliferation during 0 < t < 1
-        if t < 1:
-            cell_fate_roulette = rng.random()
-            if cell_fate_roulette <= 0.3:  # Use probability of 0.5 for division.
-                sheet.face_df.loc[cell, 'cell_class'] = 'G2'
-                # Add a timer for each cell enters "G2".
-                sheet.face_df.loc[cell, 'timer'] = 0.4
+        can_fuse = 0
+        neighbours = sheet.get_neighbors(cell)
+        for i in neighbours:
+            if sheet.face_df.loc[i, 'cell_class'] == 'STB':
+                can_fuse = 1
             else:
                 continue
-        else: #Two pathways: fusion or proliferate after t = 1
-            # The probability of an "S" cell entering "F" depends on the spatial contact with STB unit.
-            can_fuse = 0
-            neighbours = sheet.get_neighbors(cell)
-            for i in neighbours:
-                if sheet.face_df.loc[i, 'cell_class'] == 'STB':
-                    can_fuse = 1
-                    break
-                else:
-                    continue
-            # Use rng to randomly generate a number between 1 and 10, this will determine the fate of the mature CT.
-            cell_fate_roulette = rng.random()
-            if can_fuse == 1 and cell_fate_roulette < 0.2:  # If CT is adjacent to STB, then it has 20% probability to fuse.
-                sheet.face_df.loc[cell, 'cell_class'] = 'F'
-                # Add a timer for each cell enters 'F'.
-                sheet.face_df.loc[cell, 'timer'] = 0.8
-            elif can_fuse == 1 and 0.2< cell_fate_roulette <0.3: # If CT is adjacent to STB, it has 10% probability to divide.
-                sheet.face_df.loc[cell, 'cell_class'] = 'G2'
-                sheet.face_df.loc[cell, 'timer'] = 0.4
+        # Use rng to randomly generate a number between 1 and 10, this will determine the fate of the mature CT.
+        cell_fate_roulette = rng.random()
+        if can_fuse == 1 and cell_fate_roulette < 0.2:  # If CT is adjacent to STB, then it has 20% probability to fuse.
+            sheet.face_df.loc[cell, 'cell_class'] = 'F'
+            # Add a timer for each cell enters 'F'.
+            sheet.face_df.loc[cell, 'timer'] = 0.15
+        elif can_fuse == 1 and 0.2< cell_fate_roulette <0.3: # If CT is adjacent to STB, it has 10% probability to divide.
+            sheet.face_df.loc[cell, 'cell_class'] = 'G2'
+            sheet.face_df.loc[cell, 'timer'] = 0.15
 
-            elif cell_fate_roulette <= 0.3:  # If CT is not adjacent to STB, then divide with probability 30%.
-                sheet.face_df.loc[cell, 'cell_class'] = 'G2'
-                # Add a timer for each cell enters "G2".
-                sheet.face_df.loc[cell, 'timer'] = 0.4
-            else:
-                continue
+        elif cell_fate_roulette <= 0.3:  # If CT is not adjacent to STB, then divide with probability 30%.
+            sheet.face_df.loc[cell, 'cell_class'] = 'G2'
+            # Add a timer for each cell enters "G2".
+            sheet.face_df.loc[cell, 'timer'] = 0.15
+        else:
+            continue
 
     geom.update_all(sheet)
 
@@ -336,8 +321,8 @@ while t <= t_end:
         sheet.face_df.loc[index, 'cell_class'] = 'G1'
         sheet.face_df.loc[daughter_index, 'cell_class'] = 'G1'
         # Add a timer for each cell enters "G1".
-        sheet.face_df.loc[index, 'timer'] = 0.11
-        sheet.face_df.loc[daughter_index, 'timer'] = 0.11
+        sheet.face_df.loc[index, 'timer'] = 0.15
+        sheet.face_df.loc[daughter_index, 'timer'] = 0.15
 
     geom.update_all(sheet)
 
@@ -433,7 +418,7 @@ while t <= t_end:
 
 
 # Write the final sheet to a hdf5 file.
-hdf5.save_datasets('proliferation_and_fusion.hdf5', sheet)
+hdf5.save_datasets('p_and_f.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
@@ -453,7 +438,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('proliferation_and_fusion.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('point15_for_delay_time.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
