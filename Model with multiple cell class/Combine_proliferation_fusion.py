@@ -51,7 +51,6 @@ sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = num_x, ny = num_y, distx
 geom.update_all(sheet)
 #Updates the sheet geometry by updating: * the edge vector coordinates * the edge lengths * the face centroids
 # * the normals to each edge associated face * the face areas.
-
 # remove non-enclosed faces
 sheet.remove(sheet.get_invalid())
 
@@ -76,6 +75,15 @@ print('Initial geometry plot generated. \n')
 sheet.face_df['cell_class'] = 'default'
 sheet.face_df['timer'] = np.nan
 total_cell_num = len(sheet.face_df)
+# Min and Max values for different phase time.
+tau_G1_min = 0.05
+tau_G1_max = 0.11
+tau_S_min = 0.07
+tau_S_max = 0.08
+tau_G2_min = 0.03
+tau_G2_max = 0.04
+tau_M_min = 0.005
+tau_M_max = 0.01
 
 print('New attributes: cell_class; timer created for all cells. \n ')
 
@@ -85,16 +93,16 @@ for i in range(0,num_x-2):  # These are the indices of the bottom layer.
     random_num = rng.random()
     if random_num < 11/24:
         sheet.face_df.loc[i,'cell_class'] = 'G1'
-        sheet.face_df.loc[i, 'timer'] = 0.15
+        sheet.face_df.loc[i, 'timer'] = round(rng.uniform(tau_G1_min, tau_G1_max), 3)
     elif 11/24 <= random_num < 19/24:
         sheet.face_df.loc[i,'cell_class'] = 'S'
-        sheet.face_df.loc[i, 'timer'] = 0.15
+        sheet.face_df.loc[i, 'timer'] = round(rng.uniform(tau_S_min, tau_S_max), 3)
     elif 19/24 <= random_num < 20/24:
         sheet.face_df.loc[i,'cell_class'] = 'M'
-        sheet.face_df.loc[i, 'timer'] = 0.15
+        sheet.face_df.loc[i, 'timer'] = round(rng.uniform(tau_M_min, tau_M_max), 3)
     else:
         sheet.face_df.loc[i,'cell_class'] = 'G2'
-        sheet.face_df.loc[i, 'timer'] = 0.15
+        sheet.face_df.loc[i, 'timer'] = round(rng.uniform(tau_G2_min, tau_G2_max), 3)
 
 for i in range(num_x-2,len(sheet.face_df)):     # These are the indices of the top layer.
     sheet.face_df.loc[i,'cell_class'] = 'STB'
@@ -300,12 +308,12 @@ while t <= t_end:
             sheet.face_df.loc[cell, 'timer'] = 0.15
         elif can_fuse == 1 and 0.2< cell_fate_roulette <0.3: # If CT is adjacent to STB, it has 10% probability to divide.
             sheet.face_df.loc[cell, 'cell_class'] = 'G2'
-            sheet.face_df.loc[cell, 'timer'] = 0.15
+            sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_G2_min, tau_G2_max), 3)
 
         elif cell_fate_roulette <= 0.3:  # If CT is not adjacent to STB, then divide with probability 30%.
             sheet.face_df.loc[cell, 'cell_class'] = 'G2'
             # Add a timer for each cell enters "G2".
-            sheet.face_df.loc[cell, 'timer'] = 0.15
+            sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_G2_min, tau_G2_max), 3)
         else:
             continue
 
@@ -316,7 +324,7 @@ while t <= t_end:
     for cell in G2_cells:
         if sheet.face_df.loc[cell, 'timer'] < 0:
             sheet.face_df.loc[cell, 'cell_class'] = 'M'
-            sheet.face_df.loc[cell, 'timer'] = 0.15
+            sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_M_min, tau_M_max), 3)
         else:
             sheet.face_df.loc[cell, 'timer'] -= dt
 
@@ -334,8 +342,8 @@ while t <= t_end:
         sheet.face_df.loc[index, 'cell_class'] = 'G1'
         sheet.face_df.loc[daughter_index, 'cell_class'] = 'G1'
         # Add a timer for each cell enters "G1".
-        sheet.face_df.loc[index, 'timer'] = 0.15
-        sheet.face_df.loc[daughter_index, 'timer'] = 0.15
+        sheet.face_df.loc[index, 'timer'] = round(rng.uniform(tau_G1_min, tau_G1_max), 3)
+        sheet.face_df.loc[daughter_index, 'timer'] = round(rng.uniform(tau_G1_min, tau_G1_max), 3)
 
     geom.update_all(sheet)
 
@@ -344,7 +352,7 @@ while t <= t_end:
     for cell in G1_cells:
         if sheet.face_df.loc[cell, 'timer'] < 0:
             sheet.face_df.loc[cell, 'cell_class'] = 'S'
-            sheet.face_df.loc[cell, 'timer'] = 0.15
+            sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_S_min, tau_S_max), 3)
         else:
             sheet.face_df.loc[cell, 'timer'] -= dt
 
@@ -430,7 +438,7 @@ while t <= t_end:
 
 
 # Write the final sheet to a hdf5 file.
-hdf5.save_datasets('p_and_f.hdf5', sheet)
+hdf5.save_datasets('stochastic_delay_time.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
@@ -450,7 +458,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('stochastic_initial.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('stochastic_delay_time.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
