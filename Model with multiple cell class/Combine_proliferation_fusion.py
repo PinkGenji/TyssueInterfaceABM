@@ -80,9 +80,21 @@ total_cell_num = len(sheet.face_df)
 print('New attributes: cell_class; timer created for all cells. \n ')
 
 for i in range(0,num_x-2):  # These are the indices of the bottom layer.
-    sheet.face_df.loc[i,'cell_class'] = 'G1'
-    # Add a timer for each cell enters "G1".
-    sheet.face_df.loc[i, 'timer'] = 0.15
+    # All CTs assigned with class ‘G1’, ‘S’, ‘M’, or ‘G2’ based on probabilities that reflect typical times in each stage of the cell cycle
+    # Draw a random number between 0 and 1, it's G1 if  < 11/24, S if < 19/24, M if < 20/24, else, G2.
+    random_num = rng.random()
+    if random_num < 11/24:
+        sheet.face_df.loc[i,'cell_class'] = 'G1'
+        sheet.face_df.loc[i, 'timer'] = 0.15
+    elif 11/24 <= random_num < 19/24:
+        sheet.face_df.loc[i,'cell_class'] = 'S'
+        sheet.face_df.loc[i, 'timer'] = 0.15
+    elif 19/24 <= random_num < 20/24:
+        sheet.face_df.loc[i,'cell_class'] = 'M'
+        sheet.face_df.loc[i, 'timer'] = 0.15
+    else:
+        sheet.face_df.loc[i,'cell_class'] = 'G2'
+        sheet.face_df.loc[i, 'timer'] = 0.15
 
 for i in range(num_x-2,len(sheet.face_df)):     # These are the indices of the top layer.
     sheet.face_df.loc[i,'cell_class'] = 'STB'
@@ -125,9 +137,9 @@ for i in sheet.edge_df.index:
 geom.update_all(sheet)
 
 # Use QS solver to start with the steady state of the system.
-# solver = QSSolver()
-# res = solver.find_energy_min(sheet, geom, smodel)
-# print("Successfull gradient descent? ", res['success'])
+solver = QSSolver()
+res = solver.find_energy_min(sheet, geom, smodel)
+print("Successfull gradient descent? ", res['success'])
 
 # Deactivate the edges between STB units.
 for i in sheet.edge_df.index:
@@ -304,6 +316,7 @@ while t <= t_end:
     for cell in G2_cells:
         if sheet.face_df.loc[cell, 'timer'] < 0:
             sheet.face_df.loc[cell, 'cell_class'] = 'M'
+            sheet.face_df.loc[cell, 'timer'] = 0.15
         else:
             sheet.face_df.loc[cell, 'timer'] -= dt
 
@@ -331,8 +344,7 @@ while t <= t_end:
     for cell in G1_cells:
         if sheet.face_df.loc[cell, 'timer'] < 0:
             sheet.face_df.loc[cell, 'cell_class'] = 'S'
-            if cell == 1:
-                print(f'Cell 1 enter "S" at time {t}. ')
+            sheet.face_df.loc[cell, 'timer'] = 0.15
         else:
             sheet.face_df.loc[cell, 'timer'] -= dt
 
@@ -438,7 +450,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('point15_for_delay_time.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('stochastic_initial.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
