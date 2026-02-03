@@ -76,14 +76,17 @@ sheet.face_df['cell_class'] = 'default'
 sheet.face_df['timer'] = np.nan
 total_cell_num = len(sheet.face_df)
 # Min and Max values for different phase time.
-tau_G1_min = 0.05
-tau_G1_max = 0.11
-tau_S_min = 0.07
-tau_S_max = 0.08
-tau_G2_min = 0.03
-tau_G2_max = 0.04
-tau_M_min = 0.005
-tau_M_max = 0.01
+# I am using 1 hour = 0.01 time unit in the simulation, thus 1 full time unit is 100 hours, about 4.17 days.
+tau_G1_min = 0.05   # Min G1 phase time is 5 hours
+tau_G1_max = 0.11   # Max G1 phase time is 11 hours
+tau_S_min = 0.07    # Min S phase time is 7 hours
+tau_S_max = 0.08    # Max S phase time is 8 hours
+tau_G2_min = 0.03   # Min G2 phase time is 3 hours
+tau_G2_max = 0.04   # Max G2 phase time is 4 hours
+tau_M_min = 0.005   # Min M phase time is 0.5 hours
+tau_M_max = 0.01    # Max M phase time is 1 hour
+tau_F_min = 0.24    # Min F phase time is 24 hours
+tau_F_max = 0.3     # Max F phase time is 30 hours
 
 print('New attributes: cell_class; timer created for all cells. \n ')
 
@@ -196,7 +199,7 @@ t = 0
 t_end = 1
 
 while t <= t_end:
-    dt = 0.001
+    dt = 0.001 # since 1h = 0.01 time unit, so dt = 0.001 is about 6 minutes in real life.
 
     # Mesh restructure check
     # T1 transition, edge rearrangment check
@@ -305,7 +308,7 @@ while t <= t_end:
         if can_fuse == 1 and cell_fate_roulette < 0.2:  # If CT is adjacent to STB, then it has 20% probability to fuse.
             sheet.face_df.loc[cell, 'cell_class'] = 'F'
             # Add a timer for each cell enters 'F'.
-            sheet.face_df.loc[cell, 'timer'] = 0.15
+            sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_F_min, tau_F_max), 3)
         elif can_fuse == 1 and 0.2< cell_fate_roulette <0.3: # If CT is adjacent to STB, it has 10% probability to divide.
             sheet.face_df.loc[cell, 'cell_class'] = 'G2'
             sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_G2_min, tau_G2_max), 3)
@@ -458,7 +461,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('stochastic_delay_time.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('all_stochastic_time_delay.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
