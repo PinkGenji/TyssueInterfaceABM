@@ -29,6 +29,173 @@ import os
 from tyssue.io import hdf5 # For saving the datasets
 import imageio.v2 as imageio
 
+"""
+A cell fusion behaviour function is used when a CT is fusing into the STB layer. The cell class of the selection cell 
+should become "STB" at the end of the function.
+First, the shared STB edges that share a vertex on the F cells identified.
+
+Secondly, split STB shared vertices that on the outer surface and create separated edges.
+
+Thirdly, split vertex shared by STBs and CT, creating a new CT edge.
+
+Fourthly, F class cell transition to STB class.
+
+Lastly, new dynamic parameters need to be updated to ensure consistent physics rule.
+"""
+def face_vertices(sheet, face_id):
+    """
+    Given a face_id, return the list of vertex indices that are part of that face.
+    """
+    edges = sheet.edge_df[sheet.edge_df['face'] == face_id]
+    verts = list(edges['srce']) + list(edges['trgt'])
+    return list(set(verts))
+def find_local_stb_stb_edge(sheet, F_cell):
+    """
+    Find the ONE STB–STB mutual edge such that:
+    1. Both faces are STB neighbours of F_cell.
+    2. At least one endpoint of the edge is a vertex of F_cell.
+    Only loops over sheet.sgle_edges.
+    Returns a single integer edge index, or None.
+    """
+
+    sheet.get_extra_indices()
+
+    # Vertices of the F cell (force into Python ints)
+    F_vertices = list(map(int, face_vertices(sheet, F_cell)))
+
+    # STB neighbours of F_cell
+    neighbours = sheet.get_neighbors(F_cell)
+    stb_neigh = [int(n) for n in neighbours
+                 if sheet.face_df.loc[n, 'cell_class'] == 'STB']
+
+    # Loop ONLY over unique edges
+    for e in sheet.sgle_edges:
+
+        e = int(e)  # ensure scalar int
+
+        f1 = int(sheet.edge_df.loc[e, 'face'])
+        opp = int(sheet.edge_df.loc[e, 'opposite'])
+
+        if opp == -1:
+            continue
+
+        f2 = int(sheet.edge_df.loc[opp, 'face'])
+
+        # Condition 1: both faces are STB neighbours of F_cell
+        if f1 not in stb_neigh or f2 not in stb_neigh:
+            continue
+
+        # Condition 2: edge touches the F cell
+        v1 = int(sheet.edge_df.loc[e, 'srce'])
+        v2 = int(sheet.edge_df.loc[e, 'trgt'])
+
+        if v1 in F_vertices or v2 in F_vertices:
+            return e  # return immediately
+
+    return None
+
+
+def identify_edge_endpoints(sheet, F_cell, indirect_edge):
+    """
+    For each edge in local_edges, determine:
+    - which endpoint belongs to the F cell
+    - which endpoint belongs to the STB neighbour
+    Returns a list: [STB_vertex, F_vertex]
+    """
+
+    F_vertices = face_vertices(sheet, F_cell)
+    v1 = sheet.edge_df.loc[indirect_edge, 'srce']
+    v2 = sheet.edge_df.loc[indirect_edge, 'trgt']
+
+    # Determine which vertex belongs to the F cell
+    if v1 in F_vertices and v2 not in F_vertices:
+        return [v2, v1]
+
+    elif v2 in F_vertices and v1 not in F_vertices:
+        return [v1, v2]
+
+    # Return None if neither vertex belongs to the F cell (should not happen if preconditions are met)
+    return None
+
+from tyssue.topology.base_topology import split_vert as base_split
+from tyssue.topology.sheet_topology import split_vert as sheet_split
+from tyssue.topology.sheet_topology import type1_transition
+def fuse_single_cell(sheet, F_cell):
+    sse = find_local_stb_stb_edge(sheet, F_cell)
+    stb_face = sheet.edge_df.loc[sse, 'face']
+    stbv, fv = identify_edge_endpoints(sheet, F_cell, sse)
+    base_split(sheet, stbv, stb_face, sheet.edge_df[sheet.edge_df['face'] == stb_face], epsilon=1, recenter=True)
+    new_edge = sheet_split(sheet, fv, F_cell)[0]
+    new_edge = type1_transition(sheet, new_edge, do_reindex=True, remove_tri_faces=False, multiplier=5)
+    sheet.face_df.loc[F_cell, 'cell_class'] = 'STB'
+    geom.update_all(sheet)
+    return new_edge
+
+def auto_dummy_edges(sheet):
+    sheet.get_extra_indices()
+
+    for i in sheet.edge_df.index:
+
+        opp = sheet.edge_df.loc[i, 'opposite']
+
+        # Boundary edge → always active
+        if opp == -1 or opp not in sheet.edge_df.index:
+            sheet.edge_df.loc[i, 'is_active'] = 1
+            continue
+
+        # Get faces safely
+        f1 = sheet.edge_df.loc[i, 'face']
+        f2 = sheet.edge_df.loc[opp, 'face']
+
+        # If faces are missing (during topology changes), keep edges active
+        if f1 not in sheet.face_df.index or f2 not in sheet.face_df.index:
+            sheet.edge_df.loc[i, 'is_active'] = 1
+            if opp in sheet.edge_df.index:
+                sheet.edge_df.loc[opp, 'is_active'] = 1
+            continue
+
+        # STB–STB → disable
+        if (sheet.face_df.loc[f1, 'cell_class'] == 'STB' and
+            sheet.face_df.loc[f2, 'cell_class'] == 'STB'):
+
+            sheet.edge_df.loc[i, 'is_active'] = 0
+            if opp in sheet.edge_df.index:
+                sheet.edge_df.loc[opp, 'is_active'] = 0
+
+        else:
+            sheet.edge_df.loc[i, 'is_active'] = 1
+            if opp in sheet.edge_df.index:
+                sheet.edge_df.loc[opp, 'is_active'] = 1
+    print('Dummy edges updated based on current cell classes.')
+
+def update_draw_specs(sheet, draw_specs):
+    """
+    Update drawing specifications for faces and edges based on:
+    - cell_class (STB vs CT)
+    - is_active (dummy edges vs real edges)
+    """
+
+    # --- FACE COLORS ---
+    # STB = pale yellow (0.7), CT = light purple (0.1)
+    sheet.face_df['color'] = sheet.face_df['cell_class'].map(
+        lambda c: 0.7 if c == 'STB' else 0.1
+    )
+
+    draw_specs['face']['color'] = sheet.face_df['color']
+    draw_specs['face']['visible'] = True
+    draw_specs['face']['alpha'] = 0.2   # transparency
+
+    # --- EDGE WIDTHS ---
+    # inactive (dummy) edges = thick, active edges = thin
+    sheet.edge_df['width'] = sheet.edge_df['is_active'].map(
+        lambda a: 2 if a == 0 else 0.5
+    )
+
+    draw_specs['edge']['width'] = sheet.edge_df['width']
+
+    print('Drawing specifications updated based on current cell classes and edge activity.')
+
+
 # Define the directory name
 frames_dir = "frames"
 # Create directory for frames
@@ -77,16 +244,16 @@ sheet.face_df['timer'] = np.nan
 total_cell_num = len(sheet.face_df)
 # Min and Max values for different phase time.
 # I am using 1 hour = 0.01 time unit in the simulation, thus 1 full time unit is 100 hours, about 4.17 days.
-tau_G1_min = 0.05   # Min G1 phase time is 5 hours
-tau_G1_max = 0.11   # Max G1 phase time is 11 hours
-tau_S_min = 0.07    # Min S phase time is 7 hours
-tau_S_max = 0.08    # Max S phase time is 8 hours
-tau_G2_min = 0.03   # Min G2 phase time is 3 hours
-tau_G2_max = 0.04   # Max G2 phase time is 4 hours
-tau_M_min = 0.005   # Min M phase time is 0.5 hours
-tau_M_max = 0.01    # Max M phase time is 1 hour
-tau_F_min = 0.24    # Min F phase time is 24 hours
-tau_F_max = 0.3     # Max F phase time is 30 hours
+tau_G1_min = 5   # Min G1 phase time is 5 hours
+tau_G1_max = 11   # Max G1 phase time is 11 hours
+tau_S_min = 7    # Min S phase time is 7 hours
+tau_S_max = 8    # Max S phase time is 8 hours
+tau_G2_min = 3   # Min G2 phase time is 3 hours
+tau_G2_max = 4   # Max G2 phase time is 4 hours
+tau_M_min = 0.5   # Min M phase time is 0.5 hours
+tau_M_max = 1    # Max M phase time is 1 hour
+tau_F_min = 24    # Min F phase time is 24 hours
+tau_F_max = 30     # Max F phase time is 30 hours
 
 print('New attributes: cell_class; timer created for all cells. \n ')
 
@@ -96,16 +263,16 @@ for i in range(0,num_x-2):  # These are the indices of the bottom layer.
     random_num = rng.random()
     if random_num < 11/24:
         sheet.face_df.loc[i,'cell_class'] = 'G1'
-        sheet.face_df.loc[i, 'timer'] = round(rng.uniform(tau_G1_min, tau_G1_max), 3)
+        sheet.face_df.loc[i, 'timer'] = round(rng.uniform(tau_G1_min, tau_G1_max), 4)
     elif 11/24 <= random_num < 19/24:
         sheet.face_df.loc[i,'cell_class'] = 'S'
-        sheet.face_df.loc[i, 'timer'] = round(rng.uniform(tau_S_min, tau_S_max), 3)
+        sheet.face_df.loc[i, 'timer'] = round(rng.uniform(tau_S_min, tau_S_max), 4)
     elif 19/24 <= random_num < 20/24:
         sheet.face_df.loc[i,'cell_class'] = 'M'
-        sheet.face_df.loc[i, 'timer'] = round(rng.uniform(tau_M_min, tau_M_max), 3)
+        sheet.face_df.loc[i, 'timer'] = round(rng.uniform(tau_M_min, tau_M_max), 4)
     else:
         sheet.face_df.loc[i,'cell_class'] = 'G2'
-        sheet.face_df.loc[i, 'timer'] = round(rng.uniform(tau_G2_min, tau_G2_max), 3)
+        sheet.face_df.loc[i, 'timer'] = round(rng.uniform(tau_G2_min, tau_G2_max), 4)
 
 for i in range(num_x-2,len(sheet.face_df)):     # These are the indices of the top layer.
     sheet.face_df.loc[i,'cell_class'] = 'STB'
@@ -193,13 +360,16 @@ t2_threshold = sheet.face_df['area'].mean()/10
 d_min = t1_threshold
 d_sep = d_min *1.5
 max_movement = t1_threshold / 2
-
+# Before the simulation loop:
+fusion_events = []      # number of fusion events at each time step
+time_list = []
+STB_area = []
 # Start simulating.
 t = 0
 t_end = 1
 
 while t <= t_end:
-    dt = 0.001 # since 1h = 0.01 time unit, so dt = 0.001 is about 6 minutes in real life.
+    dt = 0.001  # initial time step, will be updated dynamically later.
 
     # Mesh restructure check
     # T1 transition, edge rearrangment check
@@ -295,6 +465,7 @@ while t <= t_end:
 
     # For all mature "S" cells, it is possible for them to proliferate; fuse or quiescent.
     S_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist()
+    fusion_count = 0
     for cell in S_cells:
         can_fuse = 0
         neighbours = sheet.get_neighbors(cell)
@@ -308,18 +479,18 @@ while t <= t_end:
         if can_fuse == 1 and cell_fate_roulette < 0.2:  # If CT is adjacent to STB, then it has 20% probability to fuse.
             sheet.face_df.loc[cell, 'cell_class'] = 'F'
             # Add a timer for each cell enters 'F'.
-            sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_F_min, tau_F_max), 3)
+            sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_F_min, tau_F_max), 4)
+            fusion_count += 1
         elif can_fuse == 1 and 0.2< cell_fate_roulette <0.3: # If CT is adjacent to STB, it has 10% probability to divide.
             sheet.face_df.loc[cell, 'cell_class'] = 'G2'
-            sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_G2_min, tau_G2_max), 3)
+            sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_G2_min, tau_G2_max), 4)
 
         elif cell_fate_roulette <= 0.3:  # If CT is not adjacent to STB, then divide with probability 30%.
             sheet.face_df.loc[cell, 'cell_class'] = 'G2'
             # Add a timer for each cell enters "G2".
-            sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_G2_min, tau_G2_max), 3)
+            sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_G2_min, tau_G2_max), 4)
         else:
             continue
-
     geom.update_all(sheet)
 
     # At the end of the timer, "G2" becomes "M".
@@ -327,7 +498,7 @@ while t <= t_end:
     for cell in G2_cells:
         if sheet.face_df.loc[cell, 'timer'] < 0:
             sheet.face_df.loc[cell, 'cell_class'] = 'M'
-            sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_M_min, tau_M_max), 3)
+            sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_M_min, tau_M_max), 4)
         else:
             sheet.face_df.loc[cell, 'timer'] -= dt
 
@@ -345,8 +516,8 @@ while t <= t_end:
         sheet.face_df.loc[index, 'cell_class'] = 'G1'
         sheet.face_df.loc[daughter_index, 'cell_class'] = 'G1'
         # Add a timer for each cell enters "G1".
-        sheet.face_df.loc[index, 'timer'] = round(rng.uniform(tau_G1_min, tau_G1_max), 3)
-        sheet.face_df.loc[daughter_index, 'timer'] = round(rng.uniform(tau_G1_min, tau_G1_max), 3)
+        sheet.face_df.loc[index, 'timer'] = round(rng.uniform(tau_G1_min, tau_G1_max), 4)
+        sheet.face_df.loc[daughter_index, 'timer'] = round(rng.uniform(tau_G1_min, tau_G1_max), 4)
 
     geom.update_all(sheet)
 
@@ -355,7 +526,7 @@ while t <= t_end:
     for cell in G1_cells:
         if sheet.face_df.loc[cell, 'timer'] < 0:
             sheet.face_df.loc[cell, 'cell_class'] = 'S'
-            sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_S_min, tau_S_max), 3)
+            sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_S_min, tau_S_max), 4)
         else:
             sheet.face_df.loc[cell, 'timer'] -= dt
 
@@ -366,7 +537,7 @@ while t <= t_end:
     F_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'F'].tolist()
     for cell in F_cells:
         if sheet.face_df.loc[cell, 'timer'] < 0:
-            sheet.face_df.loc[cell, 'cell_class'] = 'STB'
+            fuse_single_cell(sheet, cell)
         else:
             sheet.face_df.loc[cell, 'timer'] -= dt
     geom.update_all(sheet)
@@ -389,21 +560,6 @@ while t <= t_end:
         else:
             sheet.edge_df.loc[i, 'is_active'] = 1
 
-    # And update the drawing specs correctly according to active or not (dummy edge is bold).
-    # Assign cell colour by cell type. Pale yellow for STB, light purple for CTs.
-    for i in sheet.face_df.index:
-        if sheet.face_df.loc[i, 'cell_class'] == 'STB':
-            sheet.face_df.loc[i, 'color'] = 0.7
-        else:
-            sheet.face_df.loc[i, 'color'] = 0.1
-    draw_specs['face']['color'] = sheet.face_df['color']
-    # Assign edge thickness by its type.
-    for i in sheet.edge_df.index:
-        if sheet.edge_df.loc[i, 'is_active'] == 0:
-            sheet.edge_df.loc[i, 'width'] = 2
-        else:
-            sheet.edge_df.loc[i, 'width'] = 0.5
-    draw_specs['edge']['width'] = sheet.edge_df['width']
 
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
@@ -416,19 +572,17 @@ while t <= t_end:
     sheet.vert_df.loc[valid_active_verts, sheet.coords] = new_pos
     geom.update_all(sheet)
 
+    # Tracking STB Area.
+    total_STB = sheet.face_df.loc[sheet.face_df['cell_class'] == 'STB', 'area'].sum()
+    STB_area.append(total_STB)
+    time_list.append(t)
+    # Record fusion events and time.
+    fusion_events.append(fusion_count)
     # Print time in console.
     print(f'At time {t:.5f} \n')
 
     # Generate the plot at this time step.
-    # Enable face visibility.
-    draw_specs['face']['visible'] = True
-    for i in sheet.face_df.index:  # Assign face colour based on the cell type.
-        if sheet.face_df.loc[i, 'cell_class'] == 'STB':
-            sheet.face_df.loc[i, 'color'] = 0.7
-        else:
-            sheet.face_df.loc[i, 'color'] = 0.1
-    draw_specs['face']['color'] = sheet.face_df['color']
-    draw_specs['face']['alpha'] = 0.2  # Set transparency.
+    update_draw_specs(sheet, draw_specs)  # Update drawing specifications based on current sheet state
     fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
     ax.title.set_text(f'time = {round(t, 5)}')
     # Save to file instead of showing.
@@ -441,7 +595,7 @@ while t <= t_end:
 
 
 # Write the final sheet to a hdf5 file.
-hdf5.save_datasets('stochastic_delay_time.hdf5', sheet)
+hdf5.save_datasets('Proliferation_Fusion_1000steps.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
@@ -461,7 +615,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('all_stochastic_time_delay.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('Proliferation_Fusion_1000steps.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
@@ -469,11 +623,49 @@ with imageio.get_writer('all_stochastic_time_delay.mp4', fps=15, format='ffmpeg'
 
 
 
+plt.figure(figsize=(8, 5))
+plt.plot(time_list, STB_area, label='Total STB Area', color='purple')
+plt.xlabel('Time')
+plt.ylabel('STB Area')
+plt.title('STB Area Over Time')
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
 
 
+plt.figure(figsize=(8, 5))
+plt.plot(time_list, fusion_events, label='Fusion events per time step', color='red')
+plt.xlabel('Time')
+plt.ylabel('Number of fusion events')
+plt.title('Fusion Events Over Time')
+plt.grid(True)
+plt.legend()
+plt.tight_layout()
+plt.show()
 
+hours_per_step = dt * 100
+fusion_rate = [count / hours_per_step for count in fusion_events]
 
+plt.figure(figsize=(8, 5))
+plt.plot(time_list, fusion_rate, color='darkred')
+plt.xlabel('Time')
+plt.ylabel('Fusion events per hour')
+plt.title('Fusion Rate Over Time')
+plt.grid(True)
+plt.tight_layout()
+plt.show()
 
+# Create a DataFrame with all tracked quantities
+import pandas as pd
 
+df = pd.DataFrame({
+    "time": time_list,
+    "fusion_events": fusion_events,
+    "STB_area": STB_area
+})
+# Save to CSV
+df.to_csv("simulation_output.csv", index=False)
+print("Saved simulation_output.csv")
 
 print('\n This is the end of this script. (＾• ω •＾) ')
