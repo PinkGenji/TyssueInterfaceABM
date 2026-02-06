@@ -165,6 +165,7 @@ def fuse_single_cell(sheet, F_cell, tau_F_min, tau_F_max):
     new_edge = sheet_split(sheet, fv, F_cell)[0]
     new_edge = type1_transition(sheet, new_edge, do_reindex=True, remove_tri_faces=False, multiplier=5)
     sheet.face_df.loc[F_cell, 'cell_class'] = 'STB'
+    sheet.face_df.loc[F_cell,'timer'] = 0 # As a fresh STB unit, reset the timer to 0.
     geom.update_all(sheet)
     return new_edge
 
@@ -279,10 +280,15 @@ def face_boundary_edges(sheet, face_id):
 def stb_extrusion(sheet, cell_id):
     if cell_id not in sheet.face_df.index:
         return
-    boundary_edges = face_boundary_edges(sheet,cell_id)
-    for edge_id in boundary_edges:
+    while True:
+        boundary_edges = face_boundary_edges(sheet, cell_id)
+        if len(boundary_edges) == 0:
+            break
+        edge_id = boundary_edges[0]
+        if edge_id not in sheet.edge_df.index:
+            break
         collapse_edge(sheet, edge_id, reindex=False)
-    sheet.reset_index(order=False) # Removes redundant indices without reordering.
+    sheet.reset_index(order=False)
 
 
 # Define the directory name
@@ -344,7 +350,7 @@ tau_M_min = 0.005   # Min M phase time is 0.5 hours
 tau_M_max = 0.01    # Max M phase time is 1 hour
 tau_F_min = 0.24    # Min F phase time is 24 hours
 tau_F_max = 0.30     # Max F phase time is 30 hours
-stb_age = 0.5
+stb_age = 0.3
 
 print('New attributes: cell_class; timer created for all cells. \n ')
 
@@ -367,7 +373,7 @@ for i in range(0,num_x-2):  # These are the indices of the bottom layer.
 
 for i in range(num_x-2,len(sheet.face_df)):     # These are the indices of the top layer.
     sheet.face_df.loc[i,'cell_class'] = 'STB'
-    sheet.face_df.loc[i, 'timer'] = round(rng.uniform(0, 0.24), 4)   # Assign a random age to each STB cell, between 0 and the defined maximum age of STB.
+    sheet.face_df.loc[i, 'timer'] = round(rng.uniform(0.2, 0.24), 4)   # Assign a random age to each STB cell, between 0 and the defined maximum age of STB.
 
 print(f'There are {total_cell_num} total cells; equally split into "G1" and "STB" classes. ')
 
@@ -650,7 +656,7 @@ while t <= t_end:
     STB_units = sheet.face_df.index[sheet.face_df['cell_class'] == 'STB'].tolist()
     for unit in STB_units:
         if sheet.face_df.loc[unit, 'timer'] > stb_age:
-            if rng.random() < 0.1:  # 10% probability to extrude.
+            if rng.random()<0.2:  # Each STB unit has 20% probability to extrude at each time step after reaching the age threshold.
                 sheet.face_df.loc[unit, 'cell_class'] = 'E'  # Mark the cell as extruding.
                 stb_detach(sheet, geom, unit)
         else:
@@ -772,7 +778,7 @@ df = pd.DataFrame({
 df.to_csv("simulation_output_50h_pf.csv", index=False)
 print("Saved simulation_output.csv")
 
-print(f'The initial STB area is {initial_stb_area:.2f},\n the initial STB-CT interface length is {initial_stb_ct_interface_length:.2f},\n and the initial mean thickness is {initial_stb_thickness:.2f}.\n')
-
+print(f' The initial STB area is {initial_stb_area:.2f},\n the initial STB-CT interface length is {initial_stb_ct_interface_length:.2f},\n and the initial mean thickness is {initial_stb_thickness:.2f}.\n')
+print(f' The final STB area is {final_stb_area:.2f},\n the final STB-CT interface length is {final_stb_ct_interface_length:.2f},\n and the final mean thickness is {final_stb_thickness:.2f}.\n')
 
 print('\n This is the end of this script. (＾• ω •＾) ')
