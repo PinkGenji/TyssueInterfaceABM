@@ -120,8 +120,42 @@ def identify_edge_endpoints(sheet, F_cell, indirect_edge):
 from tyssue.topology.base_topology import split_vert as base_split
 from tyssue.topology.sheet_topology import split_vert as sheet_split
 from tyssue.topology.sheet_topology import type1_transition
-def fuse_single_cell(sheet, F_cell):
+def fuse_single_cell(sheet, F_cell, tau_F_min, tau_F_max):
+    """
+    Attempt to fuse a CT cell (now in class 'F') into the STB layer.
+
+    Fusion requires a specific geometric configuration:
+    - The F cell must touch an STB–STB mutual edge.
+    - That edge must share a vertex with the F cell.
+    - Only then can the geometric fusion (vertex splitting + T1) proceed.
+
+    If the geometry is NOT ready (e.g., due to T1/T2/T3 transitions or cell division),
+    the fusion is postponed by extending the F timer. This prevents:
+        - invalid topology operations,
+        - isolated STB cells,
+        - broken bilayer structure,
+        - simulation crashes.
+
+    Parameters
+    ----------
+    sheet : tyssue.Sheet
+        The current tissue sheet.
+    F_cell : int
+        Index of the cell attempting to fuse.
+
+    Returns
+    -------
+    new_edge : int or None
+        The index of the newly created edge after fusion,
+        or None if fusion was postponed.
+    """
     sse = find_local_stb_stb_edge(sheet, F_cell)
+    if sse is None:
+        # Geometry not ready for fusion, postpone by extending the timer with a random extra time within F phase.
+        extra_time = round(rng.uniform(tau_F_min, tau_F_max), 4)
+        sheet.face_df.loc[F_cell, 'timer'] += extra_time
+        return None
+    # If we reach here, it means the geometry is ready for fusion. Do full geometric operation to fuse the cell.
     stb_face = sheet.edge_df.loc[sse, 'face']
     stbv, fv = identify_edge_endpoints(sheet, F_cell, sse)
     base_split(sheet, stbv, stb_face, sheet.edge_df[sheet.edge_df['face'] == stb_face], epsilon=1, recenter=True)
@@ -236,6 +270,7 @@ for face, data in sheet.face_df.iterrows():
     ax.text(data.x, data.y, face)
 plt.show()
 ax.set_title("Initial Bilayer Setup")  # Adding title
+ax.set_axis_off()
 print('Initial geometry plot generated. \n')
 
 # Add a new attribute to the face_df, called "cell class"
@@ -244,16 +279,16 @@ sheet.face_df['timer'] = np.nan
 total_cell_num = len(sheet.face_df)
 # Min and Max values for different phase time.
 # I am using 1 hour = 0.01 time unit in the simulation, thus 1 full time unit is 100 hours, about 4.17 days.
-tau_G1_min = 5   # Min G1 phase time is 5 hours
-tau_G1_max = 11   # Max G1 phase time is 11 hours
-tau_S_min = 7    # Min S phase time is 7 hours
-tau_S_max = 8    # Max S phase time is 8 hours
-tau_G2_min = 3   # Min G2 phase time is 3 hours
-tau_G2_max = 4   # Max G2 phase time is 4 hours
-tau_M_min = 0.5   # Min M phase time is 0.5 hours
-tau_M_max = 1    # Max M phase time is 1 hour
-tau_F_min = 24    # Min F phase time is 24 hours
-tau_F_max = 30     # Max F phase time is 30 hours
+tau_G1_min = 0.05   # Min G1 phase time is 5 hours
+tau_G1_max = 0.11   # Max G1 phase time is 11 hours
+tau_S_min = 0.07    # Min S phase time is 7 hours
+tau_S_max = 0.08    # Max S phase time is 8 hours
+tau_G2_min = 0.03   # Min G2 phase time is 3 hours
+tau_G2_max = 0.04   # Max G2 phase time is 4 hours
+tau_M_min = 0.005   # Min M phase time is 0.5 hours
+tau_M_max = 0.01    # Max M phase time is 1 hour
+tau_F_min = 0.24    # Min F phase time is 24 hours
+tau_F_max = 0.30     # Max F phase time is 30 hours
 
 print('New attributes: cell_class; timer created for all cells. \n ')
 
@@ -351,6 +386,7 @@ for i in sheet.edge_df.index:
 draw_specs['edge']['width'] = sheet.edge_df['width']
 
 fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
+ax.set_axis_off()
 plt.show()
 
 
@@ -366,7 +402,7 @@ time_list = []
 STB_area = []
 # Start simulating.
 t = 0
-t_end = 1
+t_end = 0.5
 
 while t <= t_end:
     dt = 0.001  # initial time step, will be updated dynamically later.
@@ -537,7 +573,7 @@ while t <= t_end:
     F_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'F'].tolist()
     for cell in F_cells:
         if sheet.face_df.loc[cell, 'timer'] < 0:
-            fuse_single_cell(sheet, cell)
+            fuse_single_cell(sheet, cell, tau_F_min, tau_F_max)
         else:
             sheet.face_df.loc[cell, 'timer'] -= dt
     geom.update_all(sheet)
@@ -573,20 +609,22 @@ while t <= t_end:
     geom.update_all(sheet)
 
     # Tracking STB Area.
+    real_time_hours = t * 100
     total_STB = sheet.face_df.loc[sheet.face_df['cell_class'] == 'STB', 'area'].sum()
     STB_area.append(total_STB)
-    time_list.append(t)
+    time_list.append(real_time_hours)
     # Record fusion events and time.
     fusion_events.append(fusion_count)
     # Print time in console.
-    print(f'At time {t:.5f} \n')
+    print(f'At time {real_time_hours:.1f} hours\n')
 
     # Generate the plot at this time step.
     update_draw_specs(sheet, draw_specs)  # Update drawing specifications based on current sheet state
     fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
-    ax.title.set_text(f'time = {round(t, 5)}')
+    ax.title.set_text(f'time = {real_time_hours:.1f}')
+    ax.set_axis_off()
     # Save to file instead of showing.
-    frame_path = f"frames/frame_{t:.5f}.png"
+    frame_path = f"frames/frame_{real_time_hours:.1f}.png"
     plt.savefig(frame_path)
     plt.close(fig)  # Close figure to prevent memory leaks
 
@@ -595,7 +633,7 @@ while t <= t_end:
 
 
 # Write the final sheet to a hdf5 file.
-hdf5.save_datasets('Proliferation_Fusion_1000steps.hdf5', sheet)
+hdf5.save_datasets('Proliferation_Fusion_50h.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
@@ -615,7 +653,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('Proliferation_Fusion_1000steps.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('Proliferation_Fusion_50h.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
@@ -665,7 +703,7 @@ df = pd.DataFrame({
     "STB_area": STB_area
 })
 # Save to CSV
-df.to_csv("simulation_output.csv", index=False)
+df.to_csv("simulation_output_50h_pf.csv", index=False)
 print("Saved simulation_output.csv")
 
 print('\n This is the end of this script. (＾• ω •＾) ')
