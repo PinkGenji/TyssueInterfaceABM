@@ -229,6 +229,21 @@ def update_draw_specs(sheet, draw_specs):
 
     print('Drawing specifications updated based on current cell classes and edge activity.')
 
+def stb_ct_interface_length(sheet):
+    length = 0.0
+    for e in sheet.edge_df.index:
+        f1 = sheet.edge_df.loc[e, 'face']
+        opp = sheet.edge_df.loc[e, 'opposite']
+        if opp == -1:
+            continue
+        f2 = sheet.edge_df.loc[opp, 'face']
+
+        if (f1 in sheet.face_df.index and f2 in sheet.face_df.index and
+            sheet.face_df.loc[f1, 'cell_class'] != sheet.face_df.loc[f2, 'cell_class']):
+            length += sheet.edge_df.loc[e, 'length']
+    return length
+
+
 
 # Define the directory name
 frames_dir = "frames"
