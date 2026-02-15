@@ -294,16 +294,16 @@ sheet.face_df['timer'] = np.nan
 total_cell_num = len(sheet.face_df)
 # Min and Max values for different phase time.
 # I am using 1 hour = 0.01 time unit in the simulation, thus 1 full time unit is 100 hours, about 4.17 days.
-tau_G1_min = 0.05   # Min G1 phase time is 5 hours
-tau_G1_max = 0.11   # Max G1 phase time is 11 hours
-tau_S_min = 0.07    # Min S phase time is 7 hours
-tau_S_max = 0.08    # Max S phase time is 8 hours
-tau_G2_min = 0.03   # Min G2 phase time is 3 hours
-tau_G2_max = 0.04   # Max G2 phase time is 4 hours
-tau_M_min = 0.005   # Min M phase time is 0.5 hours
-tau_M_max = 0.01    # Max M phase time is 1 hour
-tau_F_min = 0.24    # Min F phase time is 24 hours
-tau_F_max = 0.30     # Max F phase time is 30 hours
+tau_G1_min = 5   # Min G1 phase time is 5 hours
+tau_G1_max = 11   # Max G1 phase time is 11 hours
+tau_S_min = 7    # Min S phase time is 7 hours
+tau_S_max = 8    # Max S phase time is 8 hours
+tau_G2_min = 3   # Min G2 phase time is 3 hours
+tau_G2_max = 4   # Max G2 phase time is 4 hours
+tau_M_min = 0.5   # Min M phase time is 0.5 hours
+tau_M_max = 1    # Max M phase time is 1 hour
+tau_F_min = 24    # Min F phase time is 24 hours
+tau_F_max = 30     # Max F phase time is 30 hours
 
 print('New attributes: cell_class; timer created for all cells. \n ')
 
@@ -417,7 +417,7 @@ time_list = []
 STB_area = []
 # Start simulating.
 t = 0
-t_end = 0.5
+t_end = 50
 
 while t <= t_end:
     dt = 0.001  # initial time step, will be updated dynamically later.
