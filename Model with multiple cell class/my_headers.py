@@ -358,8 +358,9 @@ def T1_check(eptm, threshold, scale):
 
 
 def my_ode(eptm):
-    grad_U =model.compute_gradient(eptm).loc[eptm.active_verts]
-    dr_dt = -grad_U.values / eptm.vert_df.loc[eptm.active_verts, "viscosity"].values[:, None]
+    valid_verts = eptm.active_verts[eptm.active_verts.isin(eptm.vert_df.index)]
+    grad_U = model.compute_gradient(eptm).loc[valid_verts]
+    dr_dt = -grad_U.values / eptm.vert_df.loc[valid_verts, 'viscosity'].values[:, None]
     return dr_dt
 
 
@@ -402,75 +403,63 @@ def collapse_edge(sheet, edge, reindex=True, allow_two_sided=False):
     sheet.edge_df.drop(collapsed.index, axis=0, inplace=True)
     return srce
 
-def type1_transition_custom(sheet, edge01, multiplier=1.5):
-    """A safe custom T1 transition that avoids invalid topology and preserves Tyssue structure."""
-    import numpy as np
 
-    # Get source, target and associated face
+def type1_transition_custom(sheet, edge01, multiplier=1.5):
+    """Performs a type 1 transition around the specified edge,
+    reusing the collapsed edge's index and vertices for the newly created edge.
+
+    Parameters
+    ----------
+    sheet : a `Sheet` instance
+    edge01 : int
+       Index of the edge around which the transition takes place
+    remove_tri_faces : bool, optional
+       If True (default), removes triangular cells after the T1 transition is performed
+    multiplier : float, optional
+       Default 1.5, multiplier to the threshold length for the new edge
+
+    Returns
+    -------
+    int : The index of the newly created edge (same as the collapsed edge)
+    """
+
+    # Get the source, target, and face associated with edge01
     srce, trgt, face = sheet.edge_df.loc[edge01, ["srce", "trgt", "face"]].astype(int)
 
-    # Get opposite edge
-    opp_edge = sheet.edge_df.loc[edge01, "opposite"]
-    if opp_edge == -1:
-        # Do not perform T1 on boundary edge
-        return
+    # Step 1: Collapse the edge by merging vertices and updating positions
+    vert = min(srce, trgt)  # Use the smaller index for consistency
+    the_other_vert = max(srce, trgt)
+    sheet.vert_df.loc[vert, sheet.coords] = sheet.vert_df.loc[[srce, trgt], sheet.coords].mean(axis=0)
 
-    # Get opposite face and vertices
-    opp_face = sheet.edge_df.loc[opp_edge, "face"]
-    srce_opp, trgt_opp = sheet.edge_df.loc[opp_edge, ["trgt", "srce"]].astype(int)
+    # Remove the target vertex (trgt) from vert_df and rewire edges
+    sheet.vert_df.drop(trgt, inplace=True)
+    sheet.edge_df.replace({"srce": trgt, "trgt": trgt}, vert, inplace=True)
 
-    # Coordinates before collapse
-    coord_1 = sheet.vert_df.loc[srce, sheet.coords].values
-    coord_2 = sheet.vert_df.loc[trgt, sheet.coords].values
-    midpoint = (coord_1 + coord_2) / 2
+    # Remove edges that have collapsed (where srce == trgt)
+    collapsed_edges = sheet.edge_df.query("srce == trgt").index
+    sheet.edge_df.drop(collapsed_edges, inplace=True)
 
-    # Create two new vertices offset from the midpoint
-    dir_vec = coord_2 - coord_1
-    if np.linalg.norm(dir_vec) < 1e-10:
-        return  # Avoid division by zero if edge already collapsed
-    normal_vec = np.array([-dir_vec[1], dir_vec[0]])  # 90-degree rotation for 2D normal
-    normal_vec = normal_vec / np.linalg.norm(normal_vec)
+    # Step 2: Create a new vertex and connect it to form a new edge
+    # Add the new vertex by copying the coordinates of vert and shifting towards the face center
+    new_vert_coords = sheet.vert_df.loc[vert, sheet.coords].copy()
+    face_center = sheet.face_df.loc[face, sheet.coords]
+    direction = face_center - new_vert_coords
+    shift = (direction * multiplier / np.linalg.norm(direction)) / 2.0  # half shift for balance
+    new_vert_coords += shift
 
-    offset = multiplier * sheet.settings.get("threshold_length", 1.0) / 2
-    v1_coords = midpoint + offset * normal_vec
-    v2_coords = midpoint - offset * normal_vec
+    # Add new vertex to vert_df
+    new_vert = sheet.vert_df.index.max() + 1
+    sheet.vert_df.loc[new_vert] = new_vert_coords
 
-    # Create new vertices
-    new_v1 = sheet.vert_df.index.max() + 1
-    new_v2 = new_v1 + 1
-    sheet.vert_df.loc[new_v1] = [*v1_coords, 1]
-    sheet.vert_df.loc[new_v2] = [*v2_coords, 1]
+    # Reassign edges initially pointing to vert to new_vert for the new connection
+    to_rewire = sheet.edge_df[(sheet.edge_df["srce"] == vert) | (sheet.edge_df["trgt"] == vert)]
+    sheet.edge_df.loc[to_rewire.index, ["srce", "trgt"]] = to_rewire.replace({vert: new_vert})
 
-    # Redirect old edges that pointed to srce/trgt to new_v1/new_v2
-    def rewire_face_edges(face, old_v, new_v):
-        face_edges = sheet.edge_df[sheet.edge_df['face'] == face]
-        for idx in face_edges.index:
-            if sheet.edge_df.loc[idx, 'srce'] == old_v:
-                sheet.edge_df.loc[idx, 'srce'] = new_v
-            if sheet.edge_df.loc[idx, 'trgt'] == old_v:
-                sheet.edge_df.loc[idx, 'trgt'] = new_v
-
-    rewire_face_edges(face, srce, new_v1)
-    rewire_face_edges(face, trgt, new_v1)
-    rewire_face_edges(opp_face, srce, new_v2)
-    rewire_face_edges(opp_face, trgt, new_v2)
-
-    # Replace the collapsed edge with a new edge between v1 and v2
-    sheet.edge_df.loc[edge01, ['srce', 'trgt']] = [new_v1, new_v2]
-    sheet.edge_df.loc[edge01, 'face'] = face
-    sheet.edge_df.loc[edge01, 'is_active'] = 1
-
-    # Update the opposite edge
-    sheet.edge_df.loc[opp_edge, ['srce', 'trgt']] = [new_v2, new_v1]
-    sheet.edge_df.loc[opp_edge, 'face'] = opp_face
-    sheet.edge_df.loc[opp_edge, 'is_active'] = 1
-
-    # Update opposite relationships
-    sheet.edge_df.loc[edge01, 'opposite'] = opp_edge
-    sheet.edge_df.loc[opp_edge, 'opposite'] = edge01
+    # Step 3: Create the new edge using the same index as the original edge01
+    sheet.edge_df.loc[edge01, ["srce", "trgt"]] = [vert, new_vert]
+    sheet.edge_df.loc[edge01, "length"] = multiplier * sheet.settings.get("threshold_length", 1.0)
 
     return edge01
-
 
 
 def division_mt(sheet, rng, cent_data, cell_id):
@@ -543,105 +532,6 @@ def division_mt(sheet, rng, cent_data, cell_id):
             return new_face_index
 
 
-
-def division_mt_ver2(sheet, rng, cent_data, cell_id):
-    """
-    This division function invovles mitosis index.
-    The cells keep growing, when the area exceeds a critical area, then
-    the cell divides.
-
-    Parameters
-    ----------
-    sheet: a :class:`Sheet` object
-    cell_id: int
-        the index of the dividing cell
-    """
-    condition = sheet.edge_df.loc[:, 'face'] == cell_id
-    edge_in_cell = sheet.edge_df[condition]
-    # We need to randomly choose one of the edges in cell 2.
-    chosen_index = rng.choice(list(edge_in_cell.index))
-    # Extract and store the centroid coordinate.
-    c0x = float(cent_data.loc[cent_data['face'] == cell_id, ['fx']].values[0])
-    c0y = float(cent_data.loc[cent_data['face'] == cell_id, ['fy']].values[0])
-    c0 = [c0x, c0y]
-
-    # Add a vertex in the middle of the chosen edge.
-    new_mid_index = add_vert(sheet, edge=chosen_index)[0]
-    # Extract for source vertex coordinates of the newly added vertex.
-    p0x = sheet.vert_df.loc[new_mid_index, 'x']
-    p0y = sheet.vert_df.loc[new_mid_index, 'y']
-    p0 = [p0x, p0y]
-
-    # Compute the directional vector from new_mid_point to centroid.
-    rx = c0x - p0x
-    ry = c0y - p0y
-    r = [rx, ry]  # use the line in opposite direction.
-    # We need to use iterrows to iterate over rows in pandas df
-    # The iteration has the form of (index, series)
-    # The series can be sliced.
-    for index, row in edge_in_cell.iterrows():
-        s0x = row['sx']
-        s0y = row['sy']
-        t0x = row['tx']
-        t0y = row['ty']
-        v1 = [s0x - p0x, s0y - p0y]
-        v2 = [t0x - p0x, t0y - p0y]
-        # if the xprod_2d returns negative, then line intersects the line segment.
-        if xprod_2d(r, v1) * xprod_2d(r, v2) < 0 and index != chosen_index:
-            dx = row['dx']
-            dy = row['dy']
-            c1 = dx * ry - dy * rx
-            c2 = s0y * rx - p0y * rx - s0x * ry + p0x * ry
-            k = c2 / c1
-            intersection = [s0x + k * dx, s0y + k * dy]
-            oppo_index = put_vert(sheet, index, intersection)[0]
-            # Split the cell with a line.
-            new_face_index = face_division(sheet, mother=cell_id, vert_a=new_mid_index, vert_b=oppo_index)
-            # Put a vertex at the centroid, on the newly formed edge (last row in df).
-            cent_index = put_vert(sheet, edge=sheet.edge_df.index[-1], coord_put=c0)[0]
-            # Draw two random numbers from uniform distribution [10,15] for mitosis cycle duration.
-            # random_int_1 = rng.integers(10000, 15000) / 1000
-            # random_int_2 = rng.integers(10000, 15000) / 1000
-            # # Assign mitosis cycle duration to the two daughter cells.
-            # sheet.face_df.loc[cell_id,'T_cycle'] = Decimal(random_int_1)
-            # sheet.face_df.loc[new_face_index,'T_cycle'] = Decimal(random_int_2)
-
-            # Following lines are commented out: Instead of using a new variable, I will minus T_cycle after each dt step by dt.
-            # sheet.face_df.loc[cell_id, 'T_age'] = dt
-            # sheet.face_df.loc[new_face_index,'T_age'] = dt
-
-            print(f'cell {cell_id} is divided, dauther cell {new_face_index} is created.')
-            return new_face_index
-        # === Fallback strategy if no intersecting edge is found ===
-        # Sort edges by angle w.r.t. vector to centroid, pick the most orthogonal one
-    print(f"⚠️ No intersection found for cell {cell_id}, applying fallback division.")
-    vectors = []
-    for idx, row in edge_in_cell.iterrows():
-        sx, sy, tx, ty = row['sx'], row['sy'], row['tx'], row['ty']
-        mx, my = (sx + tx) / 2, (sy + ty) / 2
-        edge_vec = [tx - sx, ty - sy]
-        to_centroid = [c0x - mx, c0y - my]
-        norm = np.linalg.norm(edge_vec) * np.linalg.norm(to_centroid)
-        if norm == 0:
-            angle = 0
-        else:
-            dot = edge_vec[0] * to_centroid[0] + edge_vec[1] * to_centroid[1]
-            angle = np.abs(dot / norm)  # closer to 0 = more perpendicular
-        vectors.append((idx, angle))
-
-    # Pick the most orthogonal edge (minimum cosine)
-    fallback_edge_idx = sorted(vectors, key=lambda x: x[1])[0][0]
-    fallback_vert = add_vert(sheet, edge=fallback_edge_idx)[0]
-
-    fallback_coords = sheet.vert_df.loc[fallback_vert, ['x', 'y']].values.tolist()
-    midpoint = [(p0x + fallback_coords[0]) / 2, (p0y + fallback_coords[1]) / 2]
-    mid_vert = put_vert(sheet, edge=fallback_edge_idx, coord_put=midpoint)[0]
-
-    new_face_index = face_division(sheet, mother=cell_id, vert_a=new_mid_index, vert_b=mid_vert)
-    cent_index = put_vert(sheet, edge=sheet.edge_df.index[-1], coord_put=c0)[0]
-    print(f'Fallback division succeeded: cell {cell_id} split, daughter {new_face_index} created.')
-    return new_face_index
-
 def time_step_bot(sheet, dt, max_dist_allowed):
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
@@ -651,12 +541,21 @@ def time_step_bot(sheet, dt, max_dist_allowed):
 
     movement = dot_r * dt
     current_movement = np.linalg.norm(movement, axis=1)
-    while max(current_movement, default=0) > max_dist_allowed:
-        print('dt adjusted')
-        dt /= 2
-        movement = dot_r * dt
-        current_movement = np.linalg.norm(movement, axis=1)
-    return dt, movement.ravel()
+    # while max(current_movement, default=0) > max_dist_allowed:
+    #     print('dt adjusted')
+    #     dt /= 2
+    #     movement = dot_r * dt
+    #     current_movement = np.linalg.norm(movement, axis=1)
+
+    # Calculate scaling factor for movements exceeding the limit
+    # We use np.maximum to avoid division by zero
+    scale = np.ones_like(current_movement)
+    mask = current_movement > max_dist_allowed
+    scale[mask] = max_dist_allowed / current_movement[mask]
+
+    # Apply scaling to keep dt fixed but movement capped
+    movement *= scale[:, np.newaxis]
+    return dt, movement
 
 
 def boundary_nodes(sheet):
@@ -849,9 +748,9 @@ def find_boundary(sheet):
     boundary_edge = set()
     for i in sheet.edge_df.index:
         if sheet.edge_df.loc[i, 'opposite'] == -1:
-            boundary_vert.add(sheet.vert_df.loc[sheet.edge_df.loc[i, 'srce'],'unique_id'])
-            boundary_vert.add(sheet.vert_df.loc[sheet.edge_df.loc[i, 'trgt'],'unique_id'])
-            boundary_edge.add(sheet.edge_df.loc[i, 'unique_id'])
+            boundary_vert.add(sheet.edge_df.loc[i, 'srce'])
+            boundary_vert.add(sheet.edge_df.loc[i, 'trgt'])
+            boundary_edge.add(i)
     return boundary_vert, boundary_edge
 
 
@@ -1292,21 +1191,7 @@ def record_cell_energy_dynamic(sheet, model, face_ids):
 
     return records
 
-def remove_collapsed_edges(sheet):
-    """Removes degenerate edges where srce == trgt, which causes issues in Tyssue when call type1_transition()."""
-    bad_edges = sheet.edge_df.query("srce == trgt").index
-    if len(bad_edges) > 0:
-        print(f"Removing {len(bad_edges)} collapsed edge(s): {list(bad_edges)}")
-        sheet.edge_df.drop(index=bad_edges, inplace=True)
-        sheet.reset_index(order=False)  # Re-index edges to keep things consistent
 
-def remove_self_loop_edges(sheet):
-    bad_edges = sheet.edge_df[sheet.edge_df['srce'] == sheet.edge_df['trgt']].index
-    if len(bad_edges) > 0:
-        print(f"Removed {len(bad_edges)} edges with srce == trgt.")
-        sheet.remove(bad_edges)
-        sheet.reset_index(order=True)
-        geom.update_all(sheet)
 
 
 
