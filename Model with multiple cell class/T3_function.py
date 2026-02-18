@@ -58,7 +58,10 @@ def dist_computer(sheet, edge, vert, d_sep):
     srce_p = np.round(point-end1_position, 7)
     srce_p_scaled = srce_p/line_length
     dot = np.dot(srce_p_scaled, line_unit)
-    if dot <0:
+    if int(vert) not in sheet.vert_df.index:
+        # vertex was removed by a topology event
+        return np.inf, None
+    elif dot <0:
         distance = np.round(np.linalg.norm(point-end1_position),7)
         nearest = end1_position + d_sep*line_unit
         return distance, nearest
