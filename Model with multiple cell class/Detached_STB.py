@@ -43,7 +43,7 @@ rng = np.random.default_rng(70)    # Seed the random number generator.
 
 # Generate the initial cell sheet for tri-layer.
 num_x = 16
-num_y = 5
+num_y = 4
 
 sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = num_x, ny = num_y, distx = 1, disty = 1)
 geom.update_all(sheet)
@@ -80,10 +80,10 @@ sheet.face_df['timer'] = 'NA'
 total_cell_num = len(sheet.face_df)
 
 print('New attributes: cell_class; timer created for all cells. \n ')
-for i in range(0,2*num_x-4):  # These are the indices of bottom layer.
+for i in range(0,14):  # These are the indices of bottom layer.
     sheet.face_df.loc[i,'cell_class'] = 'S'
 
-for i in range(2*num_x-4,len(sheet.face_df)):     # These are the indices of top layer.
+for i in range(14,len(sheet.face_df)):     # These are the indices of top layer.
     sheet.face_df.loc[i,'cell_class'] = 'STB'
 
 print(f'There are {total_cell_num} total cells; top layer is assigned to be "STB"; bottom two layers are assigned to be "S". \n" ')
@@ -376,12 +376,12 @@ while t < t_end:
 
     if t1_done == 0 and t > 0.5:
 
-        # find the edge number by checking the mutual edge between cell 19 and 34.
+        # find the edge number by checking the mutual edge between cell 20 and 7.
         sheet.get_extra_indices()
         for i in sheet.edge_df.index:
-            if sheet.edge_df.loc[i, 'face'] == 19:
+            if sheet.edge_df.loc[i, 'face'] == 7:
                 opposite_edge = sheet.edge_df.loc[i, 'opposite']
-                if opposite_edge != -1 and sheet.edge_df.loc[opposite_edge, 'face'] == 34:
+                if opposite_edge != -1 and sheet.edge_df.loc[opposite_edge, 'face'] == 20:
                     edge_to_process = i
                     print(f'Edge {edge_to_process} is the edge we want to do T1 transition.')
                     # Do a T1 transition on the edge we want, find the edge number first.
@@ -391,12 +391,12 @@ while t < t_end:
             else:
                 continue
 
-        # find the edge number by checking the mutual edge between cell 20 and 34.
+        # find the edge number by checking the mutual edge between cell 20 and 6.
         sheet.get_extra_indices()
         for i in sheet.edge_df.index:
-            if sheet.edge_df.loc[i, 'face'] == 20:
+            if sheet.edge_df.loc[i, 'face'] == 6:
                 opposite_edge = sheet.edge_df.loc[i, 'opposite']
-                if opposite_edge != -1 and sheet.edge_df.loc[opposite_edge, 'face'] == 34:
+                if opposite_edge != -1 and sheet.edge_df.loc[opposite_edge, 'face'] == 20:
                     edge_to_process = i
                     print(f'Edge {edge_to_process} is the edge we want to do T1 transition.')
                     # Do a T1 transition on the edge we want, find the edge number first.
@@ -405,8 +405,6 @@ while t < t_end:
                     sheet.reset_index(order=True)
             else:
                 continue
-
-
 
         t1_done = 1
 
