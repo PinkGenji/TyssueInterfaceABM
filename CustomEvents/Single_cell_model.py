@@ -69,8 +69,7 @@ solver = QSSolver()
 
 # Specify the specs, just want to expand the cell to size of 1.
 model = model_factory([
-    effectors.LineTension,
-    effectors.FaceContractility,
+    effectors.PerimeterElasticity,
     effectors.FaceAreaElasticity
 ])
 specs = {
@@ -84,8 +83,10 @@ specs = {
    'face': {
        'area_elasticity': 1.0,
        'contractility': 0,
+       'perimeter_elasticity': 1,
+       'prefered_perimeter':3,  # perimeter of a regular hexagon with area 2.0
        'is_alive': 1,
-       'prefered_area': 1.0},
+       'prefered_area': 2.0},
    'settings': {
        'grad_norm_factor': 1.0,
        'nrj_norm_factor': 1.0
@@ -122,8 +123,9 @@ fig, ax = sheet_view(sheet)
 ax.set_title('Solver completed')
 plt.show()
 print('Solver completed, plot of what the current system looks like is generated.')
-
-create_gif(solver.history, "isolated_cell_division.gif", num_frames=150, margin= -1)
+print('final area of the cell 1 is: ', sheet.face_df.loc[0,'area'])
+print(f'final area of the cell 2 is: {sheet.face_df.loc[1,"area"]}')
+# create_gif(solver.history, "isolated_cell_division.gif", num_frames=150, margin= -1)
 
 
 
