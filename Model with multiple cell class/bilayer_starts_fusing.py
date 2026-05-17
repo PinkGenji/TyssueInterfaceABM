@@ -40,6 +40,106 @@ def drop_face(sheet, face, **kwargs):
     edge = sheet.edge_df.loc[(sheet.edge_df['face'] == face)].index
     print(f"Removing face '{face}'")
     sheet.remove(edge, **kwargs)
+"""
+A cell fusion behaviour function is used when a CT is fusing into the STB layer. The cell class of the selection cell 
+should become "STB" at the end of the function.
+First, the shared STB edges that share a vertex on the F cells identified.
+
+Secondly, split STB shared vertices that on the outer surface and create separated edges.
+
+Thirdly, split vertex shared by STBs and CT, creating a new CT edge.
+
+Fourthly, F class cell transition to STB class.
+
+Lastly, new dynamic parameters need to be updated to ensure consistent physics rule.
+"""
+def face_vertices(sheet, face_id):
+    """
+    Given a face_id, return the list of vertex indices that are part of that face.
+    """
+    edges = sheet.edge_df[sheet.edge_df['face'] == face_id]
+    verts = list(edges['srce']) + list(edges['trgt'])
+    return list(set(verts))
+def find_local_stb_stb_edge(sheet, F_cell):
+    """
+    Find the ONE STB–STB mutual edge such that:
+    1. Both faces are STB neighbours of F_cell.
+    2. At least one endpoint of the edge is a vertex of F_cell.
+    Only loops over sheet.sgle_edges.
+    Returns a single integer edge index, or None.
+    """
+
+    sheet.get_extra_indices()
+
+    # Vertices of the F cell (force into Python ints)
+    F_vertices = list(map(int, face_vertices(sheet, F_cell)))
+
+    # STB neighbours of F_cell
+    neighbours = sheet.get_neighbors(F_cell)
+    stb_neigh = [int(n) for n in neighbours
+                 if sheet.face_df.loc[n, 'cell_class'] == 'STB']
+
+    # Loop ONLY over unique edges
+    for e in sheet.sgle_edges:
+
+        e = int(e)  # ensure scalar int
+
+        f1 = int(sheet.edge_df.loc[e, 'face'])
+        opp = int(sheet.edge_df.loc[e, 'opposite'])
+
+        if opp == -1:
+            continue
+
+        f2 = int(sheet.edge_df.loc[opp, 'face'])
+
+        # Condition 1: both faces are STB neighbours of F_cell
+        if f1 not in stb_neigh or f2 not in stb_neigh:
+            continue
+
+        # Condition 2: edge touches the F cell
+        v1 = int(sheet.edge_df.loc[e, 'srce'])
+        v2 = int(sheet.edge_df.loc[e, 'trgt'])
+
+        if v1 in F_vertices or v2 in F_vertices:
+            return e  # return immediately
+
+    return None
+
+
+def identify_edge_endpoints(sheet, F_cell, indirect_edge):
+    """
+    For each edge in local_edges, determine:
+    - which endpoint belongs to the F cell
+    - which endpoint belongs to the STB neighbour
+    Returns a list: [STB_vertex, F_vertex]
+    """
+
+    F_vertices = face_vertices(sheet, F_cell)
+    v1 = sheet.edge_df.loc[indirect_edge, 'srce']
+    v2 = sheet.edge_df.loc[indirect_edge, 'trgt']
+
+    # Determine which vertex belongs to the F cell
+    if v1 in F_vertices and v2 not in F_vertices:
+        return [v2, v1]
+
+    elif v2 in F_vertices and v1 not in F_vertices:
+        return [v1, v2]
+
+    # Return None if neither vertex belongs to the F cell (should not happen if preconditions are met)
+    return None
+
+from tyssue.topology.base_topology import split_vert as base_split
+from tyssue.topology.sheet_topology import split_vert as sheet_split
+from tyssue.topology.sheet_topology import type1_transition
+def fuse_single_cell(sheet, F_cell):
+    sse = find_local_stb_stb_edge(sheet, F_cell)
+    stb_face = sheet.edge_df.loc[sse, 'face']
+    stbv, fv = identify_edge_endpoints(sheet, F_cell, sse)
+    base_split(sheet, stbv, stb_face, sheet.edge_df[sheet.edge_df['face'] == stb_face], epsilon=1, recenter=True)
+    new_edge = sheet_split(sheet, fv, F_cell)[0]
+    new_edge = type1_transition(sheet, new_edge)
+    geom.update_all(sheet)
+    return new_edge
 
 # Define the directory name
 frames_dir = "frames"
@@ -301,21 +401,6 @@ while t <= t_end:
 
     geom.update_all(sheet)
 
-    # # Cell division.
-    # # For all cells in "M", divide the cell. Then cells becomes "G1".
-    # # Store the centroid before iteration of cells.
-    # unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
-    # centre_data = unique_edges_df.loc[:, ['face', 'fx', 'fy']]
-    # # Cells in "M" class can be divided.
-    # cells_can_divide = sheet.face_df.index[sheet.face_df['cell_class'] == 'M'].tolist()
-    # for index in cells_can_divide:
-    #     daughter_index = division_mt(sheet, rng=rng, cent_data=centre_data, cell_id=index)
-    #     sheet.face_df.loc[index, 'cell_class'] = 'G1'
-    #     sheet.face_df.loc[daughter_index, 'cell_class'] = 'G1'
-    #     # Add a timer for each cell enters "G1".
-    #     sheet.face_df.loc[index, 'timer'] = 0.11
-    #     sheet.face_df.loc[daughter_index, 'timer'] = 0.11
-    # geom.update_all(sheet)
 
     # At the end of the timer, "G1" class becomes "S".
     G1_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'G1'].tolist()
@@ -328,38 +413,26 @@ while t <= t_end:
     sheet.reset_index(order=True)
     geom.update_all(sheet)
 
-    # At the end of the timer, "F" class becomes "STB.
-    F_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'F'].tolist()
-    for cell in F_cells:
-        if sheet.face_df.loc[cell, 'timer'] < 0:
-            sheet.face_df.loc[cell, 'cell_class'] = 'STB'
-        else:
-            sheet.face_df.loc[cell, 'timer'] -= dt
-
-    geom.update_all(sheet)
 
     # At t = 0.5, I select cell number 20 to fuse.
     if switch == 1 and t > 0.5:
-        sheet.face_df.loc[20, 'cell_class'] = 'F'
-        sheet.face_df.loc[20, 'timer'] = 0.01
-        switch = 0      # turn off the switch, make sure we do this operation once only, at the first time t > 0.5
+        print("Triggering fusion for cell 20")
+        fuse_single_cell(sheet, 20)
+        switch = 0
 
-    # Before computation the force, we need to make sure we disable the correct dummy edges.
-    sheet.get_extra_indices()  # make sure we have correct opposite edges computed.
+    # After fusion or any class changes:
+    sheet.get_extra_indices()
     for i in sheet.edge_df.index:
-        # For a non-boundary edge, if both of itself and its opposite edge are STB class, disable it. Otherwise, make it active.
-        if sheet.edge_df.loc[i, 'opposite'] != -1:
-            associated_cell = sheet.edge_df.loc[i, 'face']
-            opposite_edge = sheet.edge_df.loc[i, 'opposite']
-            opposite_cell = sheet.edge_df.loc[opposite_edge, 'face']
-            if sheet.face_df.loc[associated_cell, 'cell_class'] == 'STB' and sheet.face_df.loc[
-                opposite_cell, 'cell_class'] == 'STB':
+        opp = sheet.edge_df.loc[i, 'opposite']
+        if opp != -1:
+            f1 = sheet.edge_df.loc[i, 'face']
+            f2 = sheet.edge_df.loc[opp, 'face']
+            if sheet.face_df.loc[f1, 'cell_class'] == 'STB' and sheet.face_df.loc[f2, 'cell_class'] == 'STB':
                 sheet.edge_df.loc[i, 'is_active'] = 0
-                sheet.edge_df.loc[opposite_edge, 'is_active'] = 0
+                sheet.edge_df.loc[opp, 'is_active'] = 0
             else:
                 sheet.edge_df.loc[i, 'is_active'] = 1
-                sheet.edge_df.loc[opposite_edge, 'is_active'] = 1
-        # Boundary edges are always active in this model.
+                sheet.edge_df.loc[opp, 'is_active'] = 1
         else:
             sheet.edge_df.loc[i, 'is_active'] = 1
 
