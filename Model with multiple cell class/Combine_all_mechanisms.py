@@ -9,7 +9,7 @@ import re
 import matplotlib.pyplot as plt
 from tyssue import Sheet
 from tyssue.topology.sheet_topology import remove_face, type1_transition
-from tyssue.topology.base_topology import close_face, drop_face
+from tyssue.topology.base_topology import close_face, drop_face, collapse_edge
 from tyssue import PlanarGeometry as geom #for simple 2d geometry
 from tyssue.dynamics import effectors, model_factory
 from tyssue.dynamics.planar_vertex_model import PlanarModel as smodel
@@ -29,7 +29,7 @@ import os
 from tyssue.io import hdf5 # For saving the datasets
 import imageio.v2 as imageio
 
-def detach(sheet, geom, cell_id):
+def stb_detach(sheet, geom, cell_id):
     sheet.get_extra_indices()
     while True:
         internal_edges = sheet.edge_df[(sheet.edge_df['face'] == cell_id) & (sheet.edge_df['opposite'] != -1)]
@@ -41,13 +41,27 @@ def detach(sheet, geom, cell_id):
                 continue
             else:
                 print(f'processing edge {edge_id} for detachment of cell {cell_id}. ')
-                type1_transition(sheet, edge_id, remove_tri_faces=False, multiplier=5)
+                collapse_edge(sheet, edge_id, reindex=True)
                 geom.update_all(sheet)
-                sheet.reset_index(order=True)
+                sheet.reset_index(order=False)
                 did_t1 = True
                 break
         if not did_t1:
             break
+
+def face_boundary_edges(sheet, face_id):
+    """Return all boundary edges belonging to a given face."""
+    return sheet.edge_df[
+        (sheet.edge_df['face'] == face_id) &
+        (sheet.edge_df['opposite'] == -1)
+    ].index.tolist()
+
+
+def stb_extrusion(sheet, cell_id):
+    boundary_edges = face_boundary_edges(sheet,cell_id)
+    for edge_id in boundary_edges:
+        collapse_edge(sheet, edge_id, reindex=False)
+    sheet.reset_index(order=False) # Removes redundant indices without reordering.
 
 
 
