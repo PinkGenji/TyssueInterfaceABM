@@ -13,8 +13,12 @@ from tyssue.topology.base_topology import drop_face
 from tyssue.behaviors import EventManager
 from tyssue.behaviors.sheet.cell_class_events import cell_cycle_transition
 from tyssue.solvers.viscous import EulerSolver
+from tyssue.solvers import QSSolver
+
 # Plotting related
 from tyssue.draw import sheet_view
+from tyssue.config.draw import sheet_spec
+
 
 
 
@@ -45,13 +49,6 @@ while np.any(sheet.face_df['num_sides'].values != 6):
 # Update the geometry and computes the grabs all pairs of half-edges.
 geom.update_all(sheet)
 sheet.get_opposite()
-
-# Plot the figure to see the initial setup is what we want.
-fig, ax = sheet_view(sheet)
-ax.set_title("Initial Bilayer Setup")  # Adding title
-for face, data in sheet.face_df.iterrows():
-    ax.text(data.x, data.y, face, fontsize=10, color="r")
-plt.show()
 print('Initial geometry plot generated. \n')
 
 # Add a new attribute to the face_df, called "cell class"
@@ -61,9 +58,21 @@ total_cell_num = len(sheet.face_df)
 print('New attributes: cell_class; timer created for all cells. \n ')
 
 for i in range(0,num_x-2):  # These are the indices of the bottom layer.
-    sheet.face_df.loc[i,'cell_class'] = 'G1'
-    # Add a timer for each cell enters "G1".
-    sheet.face_df.loc[i, 'timer'] = 0.11
+    # All CTs assigned with class ‘G1’, ‘S’, ‘M’, or ‘G2’ based on probabilities that reflect typical times in each stage of the cell cycle
+    # Draw a random number between 0 and 1, it's G1 if  < 11/24, S if < 19/24, M if < 20/24, else, G2.
+    random_num = rng.random()
+    if random_num < 11/24:
+        sheet.face_df.loc[i,'cell_class'] = 'G1'
+        sheet.face_df.loc[i, 'timer'] = 8
+    elif 11/24 <= random_num < 19/24:
+        sheet.face_df.loc[i,'cell_class'] = 'S'
+        sheet.face_df.loc[i, 'timer'] = 7
+    elif 19/24 <= random_num < 20/24:
+        sheet.face_df.loc[i,'cell_class'] = 'M'
+        sheet.face_df.loc[i, 'timer'] = 0.5
+    else:
+        sheet.face_df.loc[i,'cell_class'] = 'G2'
+        sheet.face_df.loc[i, 'timer'] = 3
 
 for i in range(num_x-2,len(sheet.face_df)):     # These are the indices of the top layer.
     sheet.face_df.loc[i,'cell_class'] = 'STB'
@@ -78,30 +87,77 @@ model = model_factory([
     effectors.FaceContractility,
     effectors.FaceAreaElasticity
 ])
-sheet.vert_df['viscosity'] = 1.0
+
 specs = {
     'edge': {
         'is_active': 1,
-        'line_tension': 0,
+        'line_tension': 10,
         'ux': 0.0,
         'uy': 0.0,
         'uz': 0.0
     },
-   'face': {
-       'area_elasticity': 1.0,
-       'contractility': 0,
-       'is_alive': 1,
-       'prefered_area': 0.5},
-   'settings': {
-       'grad_norm_factor': 1.0,
-       'nrj_norm_factor': 1.0
-   },
-   'vert': {
-       'is_active': 1
-   }
+    'face': {
+        'area_elasticity': 110,
+        'contractility': 0,
+        'is_alive': 1,
+        'prefered_area': 2},
+    'settings': {
+        'grad_norm_factor': 1.0,
+        'nrj_norm_factor': 1.0
+    },
+    'vert': {
+        'is_active': 1
+    }
 }
-# Update the dynamic specs
+sheet.vert_df['viscosity'] = 1.0
+# Update the specs (adds / changes the values in the dataframes' columns)
 sheet.update_specs(specs, reset=True)
+geom.update_all(sheet)
+
+# Adjust for cell-boundary adhesion force.
+for i in sheet.edge_df.index:
+    if sheet.edge_df.loc[i, 'opposite'] == -1:
+        sheet.edge_df.loc[i, 'line_tension'] *= 2
+    else:
+        continue
+geom.update_all(sheet)
+
+# Use QS solver to start with the steady state of the system.
+solver = QSSolver()
+res = solver.find_energy_min(sheet, geom, model)
+print("Successfull gradient descent? ", res['success'])
+
+# Deactivate the edges between STB units.
+for i in sheet.edge_df.index:
+    if sheet.edge_df.loc[i,'opposite'] != -1:
+        associated_cell = sheet.edge_df.loc[i,'face']
+        opposite_edge = sheet.edge_df.loc[i,'opposite']
+        opposite_cell = sheet.edge_df.loc[opposite_edge,'face']
+        if sheet.face_df.loc[associated_cell,'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell,'cell_class'] == 'STB':
+            sheet.edge_df.loc[i,'is_active'] = 0
+            sheet.edge_df.loc[opposite_edge,'is_active'] = 0
+
+
+# Next, I need to colour STB and others differently and bold the dummy edges when plotting.
+draw_specs = sheet_spec()
+# Enable face visibility.
+draw_specs['face']['visible'] = True
+for i in sheet.face_df.index:   # Assign face colour based on cell type.
+    if sheet.face_df.loc[i,'cell_class'] == 'STB': sheet.face_df.loc[i,'color'] = 0.7
+    else: sheet.face_df.loc[i,'color'] = 0.1
+draw_specs['face']['color'] = sheet.face_df['color']
+draw_specs['face']['alpha'] = 0.2   # Set transparency.
+
+# Enable edge visibility
+draw_specs['edge']['visible'] = True
+for i in sheet.edge_df.index:
+    if sheet.edge_df.loc[i,'is_active'] == 0: sheet.edge_df.loc[i,'width'] = 2
+    else: sheet.edge_df.loc[i,'width'] = 0.5
+draw_specs['edge']['width'] = sheet.edge_df['width']
+
+fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
+ax.set_axis_off()
+plt.show()
 
 # Initialise the event manager
 time_step = 0.001
@@ -110,7 +166,7 @@ manager.append(cell_cycle_transition, dt = time_step)   # using the default dura
 solver = EulerSolver(sheet, geom, model, manager=manager)
 print('solver is set up. \n')
 print('solver starts ...')
-solver.solve(tf=3, dt=time_step)
+solver.solve(tf=40, dt=time_step)
 geom.update_all(sheet)
 fig, ax = sheet_view(sheet)
 ax.set_title('Solver completed')
