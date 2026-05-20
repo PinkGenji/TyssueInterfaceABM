@@ -12,15 +12,14 @@ from tyssue.dynamics import effectors, model_factory
 from tyssue.topology.base_topology import drop_face
 from tyssue.behaviors import EventManager
 from tyssue.behaviors.sheet.cell_class_events import cell_cycle_transition
+from tyssue.behaviors.sheet.bilayer_dummy_set import auto_dummy_edges, update_draw_specs, deactivate_cells
 from tyssue.solvers.viscous import EulerSolver
 from tyssue.solvers import QSSolver
 
 # Plotting related
 from tyssue.draw import sheet_view
 from tyssue.config.draw import sheet_spec
-
-
-
+from tyssue.draw.plt_draw import create_gif
 
 
 random.seed(42)  # Controls Python's random module (e.g. event shuffling)
@@ -127,37 +126,16 @@ solver = QSSolver()
 res = solver.find_energy_min(sheet, geom, model)
 print("Successfull gradient descent? ", res['success'])
 
-# Deactivate the edges between STB units.
-for i in sheet.edge_df.index:
-    if sheet.edge_df.loc[i,'opposite'] != -1:
-        associated_cell = sheet.edge_df.loc[i,'face']
-        opposite_edge = sheet.edge_df.loc[i,'opposite']
-        opposite_cell = sheet.edge_df.loc[opposite_edge,'face']
-        if sheet.face_df.loc[associated_cell,'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell,'cell_class'] == 'STB':
-            sheet.edge_df.loc[i,'is_active'] = 0
-            sheet.edge_df.loc[opposite_edge,'is_active'] = 0
+# Assign dummy edges
+auto_dummy_edges(sheet)
 
+# Deactivate the four cells at four corners, avoid them from energy minimisation.
+cells_to_deactivate = [0, 13, 14, 27]
+deactivate_cells(sheet, cells_to_deactivate)
 
-# Next, I need to colour STB and others differently and bold the dummy edges when plotting.
-draw_specs = sheet_spec()
-# Enable face visibility.
-draw_specs['face']['visible'] = True
-for i in sheet.face_df.index:   # Assign face colour based on cell type.
-    if sheet.face_df.loc[i,'cell_class'] == 'STB': sheet.face_df.loc[i,'color'] = 0.7
-    else: sheet.face_df.loc[i,'color'] = 0.1
-draw_specs['face']['color'] = sheet.face_df['color']
-draw_specs['face']['alpha'] = 0.2   # Set transparency.
-
-# Enable edge visibility
-draw_specs['edge']['visible'] = True
-for i in sheet.edge_df.index:
-    if sheet.edge_df.loc[i,'is_active'] == 0: sheet.edge_df.loc[i,'width'] = 2
-    else: sheet.edge_df.loc[i,'width'] = 0.5
-draw_specs['edge']['width'] = sheet.edge_df['width']
-
-fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
-ax.set_axis_off()
-plt.show()
+# update the draw specs
+draw_specs = update_draw_specs(sheet)
+geom.update_all(sheet)
 
 # Initialise the event manager
 time_step = 0.001
@@ -169,9 +147,17 @@ print('solver starts ...')
 solver.solve(tf=40, dt=time_step)
 geom.update_all(sheet)
 fig, ax = sheet_view(sheet)
-ax.set_title('Solver completed')
+ax.set_title('Solver completed \n')
 plt.show()
-print('Solver completed, plot of what the current system looks like is generated.')
+create_gif(
+    solver.history,
+    "simulation.gif",
+    num_frames=500,
+    draw_func=lambda s: sheet_view(s, ['x','y'], **draw_specs),
+    margin=-1
+)
+
+print('Solver completed, plot and gif of what the current system looks like is generated.')
 
 
 print('\n This is the end of this script. (＾• ω •＾) ')
