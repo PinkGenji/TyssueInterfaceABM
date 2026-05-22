@@ -191,6 +191,8 @@ t2_threshold = sheet.face_df['area'].mean()/10
 uid = sheet.face_df.loc[6,'unique_id']
 
 # Initialize the event manager with behaviour functions
+tau1 = 0.01
+tau2 = 0.11
 manager = EventManager('face')
 manager.append(fusion,geom=geom, drawing_spec = draw_specs, unique_id = uid)   # using the default duration values
 manager.append(T1Swap, geom = geom, t1_threshold = my_t1, multiplier = 1.5)
