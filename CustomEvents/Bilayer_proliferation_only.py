@@ -31,7 +31,7 @@ from tyssue.dynamics import model_factory, effectors
 from tyssue.topology.sheet_topology import remove_face, cell_division, face_division
 from tyssue.behaviors import EventManager
 from tyssue.behaviors.sheet.cell_activity_events import proliferation
-from tyssue.behaviors.sheet.bilayer_dummy_set import bilayer_dummy_set, update_draw_specs, deactivate_cells
+from tyssue.behaviors.sheet.bilayer_dummy_set import auto_dummy_edges, update_draw_specs, deactivate_cells
 from tyssue.solvers.viscous import EulerSolver
 
 
@@ -117,7 +117,7 @@ res = solver.find_energy_min(sheet, geom, model)
 geom.update_all(sheet)
 
 # Assign dummy edges
-bilayer_dummy_set(sheet)
+auto_dummy_edges(sheet)
 
 # Deactivate the four cells at four corners, avoid them from energy minimisation.
 cells_to_deactivate = [0, 13, 14, 27]
@@ -152,7 +152,5 @@ geom.update_all(sheet)
 fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
 ax.set_title('Growth rate: CT = 0.3, STB non-proliferative')
 plt.show()
-
-
 
 print('This is the end of this script. (＾• ω •＾) ')
