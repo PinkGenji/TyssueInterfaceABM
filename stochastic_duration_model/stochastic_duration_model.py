@@ -14,7 +14,9 @@ from tyssue import PlanarGeometry as geom #for simple 2d geometry
 from tyssue.dynamics import effectors, model_factory
 from tyssue.dynamics.planar_vertex_model import PlanarModel as smodel
 from tyssue.solvers import QSSolver
-
+# we need to surpress the version warnings from Pandas.
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 # 2D plotting
 from tyssue.draw import sheet_view
 from tyssue.draw.plt_draw import plot_forces
@@ -25,16 +27,13 @@ from tyssue.config.draw import sheet_spec
 import os
 import sys
 
-# Get the absolute path to the project root (the folder containing both subfolders)
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Model with multiple cell class'))
+sys.path.append(model_path)
+print("Model path:", model_path)
+print("Files in directory:", os.listdir(model_path))
 
-# Add the project root to Python path
-if project_root not in sys.path:
-    sys.path.append(project_root)
-
-# Now you can import from model_all_three_activities
-from model_all_three_activities.my_headers import *
-from model_all_three_activities.T3_function import *
+from my_headers import *
+from T3_function import *
 
 
 import os
