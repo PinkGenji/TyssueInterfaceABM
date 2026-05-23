@@ -22,8 +22,20 @@ from tyssue.topology.sheet_topology import cell_division
 from tyssue.config.draw import sheet_spec
 
 # import my own functions
-from my_headers import *
-from T3_function import *
+import os
+import sys
+
+# Get the absolute path to the project root (the folder containing both subfolders)
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+# Add the project root to Python path
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+# Now you can import from model_all_three_activities
+from model_all_three_activities.my_headers import *
+from model_all_three_activities.T3_function import *
+
 
 import os
 from tyssue.io import hdf5 # For saving the datasets
