@@ -388,17 +388,18 @@ for i in range(num_x-2,len(sheet.face_df)):     # These are the indices of the t
 
 print(f'There are {total_cell_num} total cells; equally split into "G1" and "STB" classes. ')
 
+
 # Add dynamics to the model.
 specs = {
     'edge': {
         'is_active': 1,
-        'line_tension': 10,
+        'line_tension': 0.1,
         'ux': 0.0,
         'uy': 0.0,
         'uz': 0.0
     },
     'face': {
-        'area_elasticity': 110,
+        'area_elasticity': 1.1,
         'contractility': 0,
         'is_alive': 1,
         'prefered_area': 2},
@@ -410,7 +411,7 @@ specs = {
         'is_active': 1
     }
 }
-sheet.vert_df['viscosity'] = 1.0
+sheet.vert_df['viscosity'] = 0.1
 # Update the specs (adds / changes the values in the dataframes' columns)
 sheet.update_specs(specs, reset=True)
 geom.update_all(sheet)
@@ -715,7 +716,7 @@ final_stb_ct_interface_length = stb_ct_interface_length(sheet)
 final_stb_thickness = final_stb_area/final_stb_ct_interface_length
 
 # Write the final sheet to a hdf5 file.
-hdf5.save_datasets('PFE_50h.hdf5', sheet)
+hdf5.save_datasets('stochastic_duration_model.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
@@ -735,12 +736,11 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('PFE_50h.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('stochastic_duration_model.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
         writer.append_data(image)        # Write image to video
-
 
 
 plt.figure(figsize=(8, 5))
@@ -752,7 +752,6 @@ plt.legend()
 plt.grid(True)
 plt.tight_layout()
 plt.show()
-
 
 plt.figure(figsize=(8, 5))
 plt.plot(time_list, fusion_events, label='Fusion events per time step', color='red')
@@ -785,8 +784,8 @@ df = pd.DataFrame({
     "STB_area": STB_area
 })
 # Save to CSV
-df.to_csv("simulation_output_50h_pf.csv", index=False)
-print("Saved simulation_output.csv")
+df.to_csv("stochastic_duration_model.csv", index=False)
+print("Saved simulation output csv")
 
 print(f' The initial STB area is {initial_stb_area:.2f},\n the initial STB-CT interface length is {initial_stb_ct_interface_length:.2f},\n and the initial mean thickness is {initial_stb_thickness:.2f}.\n')
 print(f' The final STB area is {final_stb_area:.2f},\n the final STB-CT interface length is {final_stb_ct_interface_length:.2f},\n and the final mean thickness is {final_stb_thickness:.2f}.\n')
