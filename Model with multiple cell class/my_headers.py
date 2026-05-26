@@ -476,12 +476,28 @@ def division_mt(sheet, rng, cent_data, cell_id):
     """
     condition = sheet.edge_df.loc[:, 'face'] == cell_id
     edge_in_cell = sheet.edge_df[condition]
-    # We need to randomly choose one of the edges in cell 2.
-    chosen_index = rng.choice(list(edge_in_cell.index))
     # Extract and store the centroid coordinate.
     c0x = float(cent_data.loc[cent_data['face'] == cell_id, ['fx']].values[0])
     c0y = float(cent_data.loc[cent_data['face'] == cell_id, ['fy']].values[0])
     c0 = [c0x, c0y]
+    # Compute midpoints and horizontal distance to centroid
+    edge_mid = []
+    for idx, row in edge_in_cell.iterrows():
+        mx = 0.5 * (row['sx'] + row['tx'])
+        my = 0.5 * (row['sy'] + row['ty'])
+        dx = abs(mx - c0x)
+        edge_mid.append((idx, mx, my, dx))
+
+    # Prefer edges whose midpoint x is closest to centroid x
+    min_dx = min(e[3] for e in edge_mid)
+    tol = 0.1  # adjust based on cell size
+    candidates = [e[0] for e in edge_mid if abs(e[3] - min_dx) < tol]
+
+    if len(candidates) == 0:
+        # fallback: choose the single best edge
+        candidates = [min(edge_mid, key=lambda e: e[3])[0]]
+
+    chosen_index = rng.choice(candidates)
 
     # Add a vertex in the middle of the chosen edge.
     new_mid_index = add_vert(sheet, edge=chosen_index)[0]
