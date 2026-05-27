@@ -317,7 +317,7 @@ rng = np.random.default_rng(70)
 
 # Generate the initial cell sheet for bilayer.
 print('\n Now we change the initial geometry to bilayer.')
-num_x = 16
+num_x = 42
 num_y = 4
 
 sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = num_x, ny = num_y, distx = 1, disty = 1)
@@ -350,18 +350,18 @@ sheet.face_df['cell_class'] = 'default'
 sheet.face_df['timer'] = np.nan
 total_cell_num = len(sheet.face_df)
 # Min and Max values for different phase time.
-# I am using 1 hour = 0.01 time unit in the simulation, thus 1 full time unit is 100 hours, about 4.17 days.
-tau_G1_min = 0.05   # Min G1 phase time is 5 hours
-tau_G1_max = 0.11   # Max G1 phase time is 11 hours
-tau_S_min = 0.07    # Min S phase time is 7 hours
-tau_S_max = 0.08    # Max S phase time is 8 hours
-tau_G2_min = 0.03   # Min G2 phase time is 3 hours
-tau_G2_max = 0.04   # Max G2 phase time is 4 hours
-tau_M_min = 0.005   # Min M phase time is 0.5 hours
-tau_M_max = 0.01    # Max M phase time is 1 hour
-tau_F_min = 0.24    # Min F phase time is 24 hours
-tau_F_max = 0.30     # Max F phase time is 30 hours
-stb_age = 0.35       # After 35 hours, STB units can start to extrude with a certain probability at each time step.
+# I am using 1 hour = 1 time unit in the simulation, thus 1 full time unit is 100 hours, about 4.17 days.
+tau_G1_min = 5   # Min G1 phase time is 5 hours
+tau_G1_max = 11   # Max G1 phase time is 11 hours
+tau_S_min = 7    # Min S phase time is 7 hours
+tau_S_max = 8    # Max S phase time is 8 hours
+tau_G2_min = 3   # Min G2 phase time is 3 hours
+tau_G2_max = 4   # Max G2 phase time is 4 hours
+tau_M_min = 0.5   # Min M phase time is 0.5 hours
+tau_M_max = 1    # Max M phase time is 1 hour
+tau_F_min = 24    # Min F phase time is 24 hours
+tau_F_max = 30     # Max F phase time is 30 hours
+stb_age = 35       # After 35 hours, STB units can start to extrude with a certain probability at each time step.
 
 print('New attributes: cell_class; timer created for all cells. \n ')
 
@@ -393,13 +393,13 @@ print(f'There are {total_cell_num} total cells; equally split into "G1" and "STB
 specs = {
     'edge': {
         'is_active': 1,
-        'line_tension': 0.1,
+        'line_tension': 10,
         'ux': 0.0,
         'uy': 0.0,
         'uz': 0.0
     },
     'face': {
-        'area_elasticity': 1.1,
+        'area_elasticity': 110,
         'contractility': 0,
         'is_alive': 1,
         'prefered_area': 2},
@@ -411,7 +411,7 @@ specs = {
         'is_active': 1
     }
 }
-sheet.vert_df['viscosity'] = 0.1
+sheet.vert_df['viscosity'] = 1
 # Update the specs (adds / changes the values in the dataframes' columns)
 sheet.update_specs(specs, reset=True)
 geom.update_all(sheet)
@@ -439,9 +439,6 @@ for i in sheet.edge_df.index:
             sheet.edge_df.loc[i,'is_active'] = 0
             sheet.edge_df.loc[opposite_edge,'is_active'] = 0
 
-# Create force plot
-fig, ax = plot_forces(sheet, geom, model, ['x', 'y'], scaling=0.01)
-plt.show()
 
 # Next, I need to colour STB and others differently and bold the dummy edges when plotting.
 draw_specs = sheet_spec()
@@ -482,7 +479,7 @@ initial_stb_thickness = initial_stb_area/initial_stb_ct_interface_length
 
 # Start simulating.
 t = 0
-t_end = 0.5
+t_end = 72
 
 while t <= t_end:
     dt = 0.001  # initial time step, will be updated dynamically later.
@@ -689,7 +686,7 @@ while t <= t_end:
     geom.update_all(sheet)
 
     # Tracking STB Area.
-    real_time_hours = t * 100
+    real_time_hours = t
     total_STB = sheet.face_df.loc[sheet.face_df['cell_class'] == 'STB', 'area'].sum()
     STB_area.append(total_STB)
     time_list.append(real_time_hours)
@@ -736,7 +733,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('stochastic_duration_model.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('stochastic_40_cells.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
@@ -784,7 +781,7 @@ df = pd.DataFrame({
     "STB_area": STB_area
 })
 # Save to CSV
-df.to_csv("stochastic_duration_model.csv", index=False)
+df.to_csv("stochastic_40_cells.csv", index=False)
 print("Saved simulation output csv")
 
 print(f' The initial STB area is {initial_stb_area:.2f},\n the initial STB-CT interface length is {initial_stb_ct_interface_length:.2f},\n and the initial mean thickness is {initial_stb_thickness:.2f}.\n')
