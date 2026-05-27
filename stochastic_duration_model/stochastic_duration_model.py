@@ -317,7 +317,7 @@ rng = np.random.default_rng(70)
 
 # Generate the initial cell sheet for bilayer.
 print('\n Now we change the initial geometry to bilayer.')
-num_x = 42
+num_x = 16
 num_y = 4
 
 sheet =Sheet.planar_sheet_2d(identifier='bilayer', nx = num_x, ny = num_y, distx = 1, disty = 1)
@@ -457,11 +457,6 @@ for i in sheet.edge_df.index:
     else: sheet.edge_df.loc[i,'width'] = 0.5
 draw_specs['edge']['width'] = sheet.edge_df['width']
 
-fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
-ax.set_axis_off()
-plt.show()
-
-
 # Set the threshold values for mesh restructure.
 t1_threshold = sheet.edge_df['length'].mean()/10
 t2_threshold = sheet.face_df['area'].mean()/10
@@ -479,7 +474,7 @@ initial_stb_thickness = initial_stb_area/initial_stb_ct_interface_length
 
 # Start simulating.
 t = 0
-t_end = 72
+t_end = 50
 
 while t <= t_end:
     dt = 0.001  # initial time step, will be updated dynamically later.
@@ -516,7 +511,6 @@ while t <= t_end:
                     continue
                 edge_to_process = index
                 edge_length = sheet.edge_df.loc[edge_to_process, 'length']
-                # print(f'Edge {edge_to_process} is too short: {edge_length}')
                 # Process the identified edge with T1 transition
                 type1_transition(sheet, edge_to_process, remove_tri_faces=False, multiplier=2)
                 # Post-processing the mesh after a T1 transition
@@ -544,7 +538,6 @@ while t <= t_end:
     # T3 transition.
     while True:
         T3_todo = None
-        # print('computing boundary indices.')
         boundary_vert, boundary_edge = find_boundary(sheet)
 
         for edge_e in boundary_edge:
@@ -557,15 +550,11 @@ while t <= t_end:
                 distance, nearest = dist_computer(sheet, edge_e, vertex_v, d_sep)
                 if distance < d_min:
                     T3_todo = vertex_v
-                    # print(f'Found incoming vertex: {vertex_v} and colliding edge: {edge_e}')
                     T3_swap(sheet, edge_e, vertex_v, nearest, d_sep)
                     sheet.reset_index(order=False)
                     geom.update_all(sheet)
                     sheet.remove(sheet.get_invalid())
                     sheet.get_extra_indices()
-                    # fig, ax = sheet_view(sheet, edge={'head_width': 0.1})
-                    # for face, data in sheet.vert_df.iterrows():
-                    #     ax.text(data.x, data.y, face)
                     break
             if T3_todo is not None:
                 break  # Exit outer loop to restart with updated boundary
@@ -693,15 +682,15 @@ while t <= t_end:
     # Record fusion events and time.
     fusion_events.append(fusion_count)
     # Print time in console.
-    print(f'At time {real_time_hours:.1f} hours\n')
+    print(f'At time {real_time_hours} hours\n')
 
     # Generate the plot at this time step.
     update_draw_specs(sheet, draw_specs)  # Update drawing specifications based on current sheet state
     fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
-    ax.title.set_text(f'time = {real_time_hours:.1f}')
+    ax.title.set_text(f'time = {real_time_hours}')
     ax.set_axis_off()
     # Save to file instead of showing.
-    frame_path = f"frames/frame_{real_time_hours:.1f}.png"
+    frame_path = f"frames/frame_{real_time_hours}.png"
     plt.savefig(frame_path)
     plt.close(fig)  # Close figure to prevent memory leaks
 
@@ -713,7 +702,7 @@ final_stb_ct_interface_length = stb_ct_interface_length(sheet)
 final_stb_thickness = final_stb_area/final_stb_ct_interface_length
 
 # Write the final sheet to a hdf5 file.
-hdf5.save_datasets('stochastic_duration_model.hdf5', sheet)
+hdf5.save_datasets('stochastic_40_cells.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
