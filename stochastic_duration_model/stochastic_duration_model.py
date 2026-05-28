@@ -16,6 +16,9 @@ from tyssue.dynamics.planar_vertex_model import PlanarModel as smodel
 from tyssue.solvers import QSSolver
 # we need to surpress the version warnings from Pandas.
 import warnings
+
+from src.tyssue import Epithelium
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
 # 2D plotting
 from tyssue.draw import sheet_view
@@ -429,6 +432,12 @@ solver = QSSolver()
 res = solver.find_energy_min(sheet, geom, smodel)
 print("Successfull gradient descent? ", res['success'])
 
+# Deactivate the four corner cells as boundary condition
+corner_id = [0, num_x-3, num_x-2, len(sheet.face_df)-1]
+for cell in corner_id:
+    sheet.face_df.loc[cell,'is_active'] = 0
+geom.update_all(sheet)
+
 # Deactivate the edges between STB units.
 for i in sheet.edge_df.index:
     if sheet.edge_df.loc[i,'opposite'] != -1:
@@ -438,7 +447,6 @@ for i in sheet.edge_df.index:
         if sheet.face_df.loc[associated_cell,'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell,'cell_class'] == 'STB':
             sheet.edge_df.loc[i,'is_active'] = 0
             sheet.edge_df.loc[opposite_edge,'is_active'] = 0
-
 
 # Next, I need to colour STB and others differently and bold the dummy edges when plotting.
 draw_specs = sheet_spec()
@@ -456,6 +464,9 @@ for i in sheet.edge_df.index:
     if sheet.edge_df.loc[i,'is_active'] == 0: sheet.edge_df.loc[i,'width'] = 2
     else: sheet.edge_df.loc[i,'width'] = 0.5
 draw_specs['edge']['width'] = sheet.edge_df['width']
+
+fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
+plt.show()
 
 # Set the threshold values for mesh restructure.
 t1_threshold = sheet.edge_df['length'].mean()/10
