@@ -16,9 +16,6 @@ from tyssue.dynamics.planar_vertex_model import PlanarModel as smodel
 from tyssue.solvers import QSSolver
 # we need to surpress the version warnings from Pandas.
 import warnings
-
-from src.tyssue import Epithelium
-
 warnings.simplefilter(action='ignore', category=FutureWarning)
 # 2D plotting
 from tyssue.draw import sheet_view
