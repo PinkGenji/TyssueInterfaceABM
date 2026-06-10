@@ -672,7 +672,7 @@ while t <= t_end:
     geom.update_all(sheet)
 
     # Tracking STB Area.
-    real_time_hours = t * 100
+    real_time_hours = t
     total_STB = sheet.face_df.loc[sheet.face_df['cell_class'] == 'STB', 'area'].sum()
     STB_area.append(total_STB)
     time_list.append(real_time_hours)
