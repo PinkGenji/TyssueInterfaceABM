@@ -30,6 +30,8 @@ import os
 from tyssue.io import hdf5 # For saving the datasets
 import imageio.v2 as imageio
 
+from src.tyssue import Epithelium
+
 """
 A cell fusion behaviour function is used when a CT is fusing into the STB layer. The cell class of the selection cell 
 should become "STB" at the end of the function.
@@ -340,14 +342,13 @@ sheet.face_df['cell_class'] = 'default'
 sheet.face_df['timer'] = np.nan
 total_cell_num = len(sheet.face_df)
 # Min and Max values for different phase time.
-# I am using 1 hour = 0.1 time unit in the simulation, thus 1 full time unit is 100 hours, about 4.17 days.
-tau_G1 = 0.8   # Min G1 phase time is 8 hours
-tau_S = 0.7    # Min S phase time is 7 hours
-tau_G2 = 0.3   # Min G2 phase time is 3 hours
-tau_M = 0.05   # Min M phase time is 0.5 hours
-tau_F = 2.4    # Min F phase time is 24 hours
-stb_age = 3.5      # After 35 hours, STB units can start to extrude with a certain probability at each time step.
-
+# I am using 1 hour = 1 time unit in the simulation, thus 1 full time unit is 100 hours, about 4.17 days.
+tau_G1 = 8   # Min G1 phase time is 8 hours
+tau_S = 7    # Min S phase time is 7 hours
+tau_G2 = 3   # Min G2 phase time is 3 hours
+tau_M = 5   # Min M phase time is 0.5 hours
+tau_F = 4    # Min F phase time is 24 hours
+stb_age = 35      # After 35 hours, STB units can start to extrude with a certain probability at each time step.
 print('New attributes: cell_class; timer created for all cells. \n ')
 
 for i in range(0,num_x-2):  # These are the indices of the bottom layer.
@@ -377,13 +378,13 @@ print(f'There are {total_cell_num} total cells; equally split into "G1" and "STB
 specs = {
     'edge': {
         'is_active': 1,
-        'line_tension': 0.1,
+        'line_tension': 10,
         'ux': 0.0,
         'uy': 0.0,
         'uz': 0.0
     },
     'face': {
-        'area_elasticity': 1.1,
+        'area_elasticity': 110,
         'contractility': 0,
         'is_alive': 1,
         'prefered_area': 2},
@@ -395,7 +396,7 @@ specs = {
         'is_active': 1
     }
 }
-sheet.vert_df['viscosity'] = 0.1
+sheet.vert_df['viscosity'] = 1
 # Update the specs (adds / changes the values in the dataframes' columns)
 sheet.update_specs(specs, reset=True)
 geom.update_all(sheet)
@@ -423,9 +424,15 @@ for i in sheet.edge_df.index:
             sheet.edge_df.loc[i,'is_active'] = 0
             sheet.edge_df.loc[opposite_edge,'is_active'] = 0
 
-# Create force plot
-fig, ax = plot_forces(sheet, geom, model, ['x', 'y'], scaling=0.01)
-plt.show()
+# Deactivate the vertices associated with the four corner cells
+corner_cells = [0, num_x-3, num_x-2, len(sheet.face_df)-1]
+fix_vert_set = set()
+for cell in corner_cells:
+    vert_list = sheet.edge_df[sheet.edge_df['face'] == cell][['srce', 'trgt']].values.flatten()
+    fix_vert_set.update(vert_list)
+for vert in fix_vert_set:
+    sheet.vert_df.loc[vert,'is_active'] = 0
+
 
 # Next, I need to colour STB and others differently and bold the dummy edges when plotting.
 draw_specs = sheet_spec()
@@ -466,7 +473,7 @@ initial_stb_thickness = initial_stb_area/initial_stb_ct_interface_length
 
 # Start simulating.
 t = 0
-t_end = 7
+t_end = 40
 
 while t <= t_end:
     dt = 0.001  # initial time step, will be updated dynamically later.
@@ -574,23 +581,16 @@ while t <= t_end:
                 can_fuse = 1
             else:
                 continue
-        # Use rng to randomly generate a number between 1 and 10, this will determine the fate of the mature CT.
+        # Use rng to randomly generate a number between 0 and 1, this will determine the fate of the mature CT.
         cell_fate_roulette = rng.random()
-        if can_fuse == 1 and cell_fate_roulette < 0.5:  # If CT is adjacent to STB, then it has 20% probability to fuse.
+        if can_fuse == 1 and cell_fate_roulette < 0.3:  # If CT is adjacent to STB, then it has 30% probability to fuse.
             sheet.face_df.loc[cell, 'cell_class'] = 'F'
             # Add a timer for each cell enters 'F'.
             sheet.face_df.loc[cell, 'timer'] = tau_F
             fusion_count += 1
-        elif can_fuse == 1: # If CT is adjacent to STB, it has 10% probability to divide.
+        else:   # Otherwise, all the cells becomes a G2 class.
             sheet.face_df.loc[cell, 'cell_class'] = 'G2'
             sheet.face_df.loc[cell, 'timer'] = tau_G2
-
-        elif cell_fate_roulette <= 0.3:  # If CT is not adjacent to STB, then divide with probability 30%.
-            sheet.face_df.loc[cell, 'cell_class'] = 'G2'
-            # Add a timer for each cell enters "G2".
-            sheet.face_df.loc[cell, 'timer'] = tau_G2
-        else:
-            continue
     geom.update_all(sheet)
 
     # At the end of the timer, "G2" becomes "M".
@@ -618,7 +618,6 @@ while t <= t_end:
         # Add a timer for each cell enters "G1".
         sheet.face_df.loc[index, 'timer'] = tau_G1
         sheet.face_df.loc[daughter_index, 'timer'] = tau_G1
-
     geom.update_all(sheet)
 
     # At the end of the timer, "G1" class becomes "S".
@@ -700,7 +699,7 @@ final_stb_ct_interface_length = stb_ct_interface_length(sheet)
 final_stb_thickness = final_stb_area/final_stb_ct_interface_length
 
 # Write the final sheet to a hdf5 file.
-hdf5.save_datasets('PFE_50h.hdf5', sheet)
+hdf5.save_datasets('baseline_fixed_boundary.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
@@ -720,7 +719,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('baseline_ouput.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('baseline_fixed_boundary.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
@@ -775,7 +774,7 @@ df = pd.DataFrame({
     "STB_area": STB_area
 })
 # Save to CSV
-df.to_csv("baseline_output.csv", index=False)
+df.to_csv("baseline_fixed_boundary.csv", index=False)
 print("Saved csv file \n")
 
 print(f' The initial STB area is {initial_stb_area:.2f},\n the initial STB-CT interface length is {initial_stb_ct_interface_length:.2f},\n and the initial mean thickness is {initial_stb_thickness:.2f}.\n')
