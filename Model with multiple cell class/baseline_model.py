@@ -293,7 +293,7 @@ def stb_extrusion(sheet, cell_id):
 
 
 # Define the directory name
-frames_dir = "frames"
+frames_dir = "frames2"
 # Create directory for frames
 if not os.path.exists(frames_dir):
     print(f"Directory '{frames_dir}' does not exist. Creating it.")
@@ -693,7 +693,7 @@ while t <= t_end:
     ax.title.set_text(f'time = {real_time_hours:.4f}')
     ax.set_axis_off()
     # Save to file instead of showing.
-    frame_path = f"frames/frame_{real_time_hours:.4f}.png"
+    frame_path = f"frames2/frame_{real_time_hours:.4f}.png"
     plt.savefig(frame_path)
     plt.close(fig)  # Close figure to prevent memory leaks
 
@@ -709,7 +709,7 @@ hdf5.save_datasets('baseline_90_hour.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
-frame_folder = "frames"
+frame_folder = "frames2"
 
 # Helper function to extract the numeric part from a filename
 # For example, from "frame_12.png", it extracts 12
