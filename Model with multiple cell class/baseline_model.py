@@ -165,10 +165,10 @@ def fuse_single_cell(sheet, F_cell, tau_F):
     base_split(sheet, stbv, stb_face, sheet.edge_df[sheet.edge_df['face'] == stb_face], epsilon=1, recenter=True)
     new_edge = sheet_split(sheet, fv, F_cell)[0]
     new_edge = type1_transition(sheet, new_edge, do_reindex=True, remove_tri_faces=False, multiplier=5)
-    sheet.face_df.loc[F_cell, 'cell_class'] = 'STB'
-    sheet.face_df.loc[F_cell,'timer'] = 0 # As a fresh STB unit, reset the timer to 0.
+    # sheet.face_df.loc[F_cell, 'cell_class'] = 'STB'
+    # sheet.face_df.loc[F_cell,'timer'] = 0 # As a fresh STB unit, reset the timer to 0.
     geom.update_all(sheet)
-    return new_edge
+    return F_cell
 
 def auto_dummy_edges(sheet):
     sheet.get_extra_indices()
@@ -340,7 +340,7 @@ sheet.face_df['cell_class'] = 'default'
 sheet.face_df['timer'] = np.nan
 total_cell_num = len(sheet.face_df)
 # Min and Max values for different phase time.
-# I am using 1 hour = 1 time unit in the simulation, thus 1 full time unit is 100 hours, about 4.17 days.
+# I am using 1 hour = 1 time unit in the simulation, the simulation should run for 4 days. So picking 0<t<96 hours.
 tau_G1 = 8   # Min G1 phase time is 8 hours
 tau_S = 7    # Min S phase time is 7 hours
 tau_G2 = 3   # Min G2 phase time is 3 hours
@@ -368,11 +368,17 @@ for i in range(0,num_x-2):  # These are the indices of the bottom layer.
 
 for i in range(num_x-2,len(sheet.face_df)):     # These are the indices of the top layer.
     sheet.face_df.loc[i,'cell_class'] = 'STB'
-    sheet.face_df.loc[i, 'timer'] = 0
+    sheet.face_df.loc[i, 'timer'] = np.nan
 
 print(f'There are {total_cell_num} total cells; equally split into "G1" and "STB" classes. ')
 
-# Add dynamics to the model.
+# Add dynamics to the model, start with effectors, then change values.
+model = model_factory([
+    effectors.LineTension,
+    effectors.FaceContractility,
+    effectors.FaceAreaElasticity
+])
+
 specs = {
     'edge': {
         'is_active': 1,
@@ -409,7 +415,7 @@ geom.update_all(sheet)
 
 # Use QS solver to start with the steady state of the system.
 solver = QSSolver()
-res = solver.find_energy_min(sheet, geom, smodel)
+res = solver.find_energy_min(sheet, geom, model)
 print("Successfull gradient descent? ", res['success'])
 
 # Deactivate the edges between STB units.
@@ -471,7 +477,7 @@ initial_stb_thickness = initial_stb_area/initial_stb_ct_interface_length
 
 # Start simulating.
 t = 0
-t_end = 40
+t_end = 96
 
 while t <= t_end:
     dt = 0.001  # initial time step, will be updated dynamically later.
@@ -568,7 +574,7 @@ while t <= t_end:
         sheet.remove(sheet.get_invalid())
         sheet.get_extra_indices()
 
-    # For all mature "S" cells, it is possible for them to proliferate; fuse or quiescent.
+    # For a mature 'S' cell, if it's touching STB, then it's possible to fuse, otherwise, must continue CT cycle.
     S_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist()
     fusion_count = 0
     for cell in S_cells:
@@ -634,26 +640,28 @@ while t <= t_end:
     F_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'F'].tolist()
     for cell in F_cells:
         if sheet.face_df.loc[cell, 'timer'] < 0:
-            fuse_single_cell(sheet, cell, tau_F)
+            fusing_cell = fuse_single_cell(sheet, cell, tau_F)
+            sheet.face_df.loc[F_cell, 'cell_class'] = 'STB'
+            sheet.face_df.loc[F_cell,'timer'] = np.nan # As a fresh STB unit, reset the timer to 0.
         else:
             sheet.face_df.loc[cell, 'timer'] -= dt
     geom.update_all(sheet)
 
-    # Extrude the 'E' units before assigning new 'E' units.
-    E_units = sheet.face_df.index[sheet.face_df['cell_class'] == 'E'].tolist()
-    for unit in E_units:
-        stb_extrusion(sheet, unit)
-    geom.update_all(sheet)
-
-    # Work on STB units
-    STB_units = sheet.face_df.index[sheet.face_df['cell_class'] == 'STB'].tolist()
-    for unit in STB_units:
-        if sheet.face_df.loc[unit, 'timer'] > stb_age:
-            sheet.face_df.loc[unit, 'cell_class'] = 'E'  # Mark the cell as extruding.
-            stb_detach(sheet, geom, unit)
-        else:
-            sheet.face_df.loc[unit, 'timer'] += dt
-    geom.update_all(sheet)
+    # # Extrude the 'E' units before assigning new 'E' units.
+    # E_units = sheet.face_df.index[sheet.face_df['cell_class'] == 'E'].tolist()
+    # for unit in E_units:
+    #     stb_extrusion(sheet, unit)
+    # geom.update_all(sheet)
+    #
+    # # Work on STB units
+    # STB_units = sheet.face_df.index[sheet.face_df['cell_class'] == 'STB'].tolist()
+    # for unit in STB_units:
+    #     if sheet.face_df.loc[unit, 'timer'] > stb_age:
+    #         sheet.face_df.loc[unit, 'cell_class'] = 'E'  # Mark the cell as extruding.
+    #         stb_detach(sheet, geom, unit)
+    #     else:
+    #         sheet.face_df.loc[unit, 'timer'] += dt
+    # geom.update_all(sheet)
 
     # Update dummy edges after all cell class changes.
     auto_dummy_edges(sheet)
@@ -677,15 +685,15 @@ while t <= t_end:
     # Record fusion events and time.
     fusion_events.append(fusion_count)
     # Print time in console.
-    print(f'At time {real_time_hours:.1f} hours\n')
+    print(f'At time {real_time_hours:.4f} hours\n')
 
     # Generate the plot at this time step.
     update_draw_specs(sheet, draw_specs)  # Update drawing specifications based on current sheet state
     fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
-    ax.title.set_text(f'time = {real_time_hours:.1f}')
+    ax.title.set_text(f'time = {real_time_hours:.4f}')
     ax.set_axis_off()
     # Save to file instead of showing.
-    frame_path = f"frames/frame_{real_time_hours:.1f}.png"
+    frame_path = f"frames/frame_{real_time_hours:.4f}.png"
     plt.savefig(frame_path)
     plt.close(fig)  # Close figure to prevent memory leaks
 
@@ -697,7 +705,7 @@ final_stb_ct_interface_length = stb_ct_interface_length(sheet)
 final_stb_thickness = final_stb_area/final_stb_ct_interface_length
 
 # Write the final sheet to a hdf5 file.
-hdf5.save_datasets('baseline_fixed_boundary.hdf5', sheet)
+hdf5.save_datasets('baseline_90_hour.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
@@ -717,7 +725,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('baseline_fixed_boundary.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('baseline_90_hour.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
@@ -772,7 +780,7 @@ df = pd.DataFrame({
     "STB_area": STB_area
 })
 # Save to CSV
-df.to_csv("baseline_fixed_boundary.csv", index=False)
+df.to_csv("baseline_90_hour.csv", index=False)
 print("Saved csv file \n")
 
 print(f' The initial STB area is {initial_stb_area:.2f},\n the initial STB-CT interface length is {initial_stb_ct_interface_length:.2f},\n and the initial mean thickness is {initial_stb_thickness:.2f}.\n')
