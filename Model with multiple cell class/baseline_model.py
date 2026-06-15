@@ -293,7 +293,7 @@ def stb_extrusion(sheet, cell_id):
 
 
 # Define the directory name
-frames_dir = "frames2"
+frames_dir = "frames3"
 # Create directory for frames
 if not os.path.exists(frames_dir):
     print(f"Directory '{frames_dir}' does not exist. Creating it.")
@@ -480,7 +480,7 @@ t = 0
 t_end = 96
 
 while t <= t_end:
-    dt = 0.001  # initial time step, will be updated dynamically later.
+    dt = 0.01  # initial time step, will be updated dynamically later.
 
     # Mesh restructure check
     # T1 transition, edge rearrangment check
@@ -693,7 +693,7 @@ while t <= t_end:
     ax.title.set_text(f'time = {real_time_hours:.4f}')
     ax.set_axis_off()
     # Save to file instead of showing.
-    frame_path = f"frames2/frame_{real_time_hours:.4f}.png"
+    frame_path = f"frames3/frame_{real_time_hours:.4f}.png"
     plt.savefig(frame_path)
     plt.close(fig)  # Close figure to prevent memory leaks
 
@@ -705,11 +705,11 @@ final_stb_ct_interface_length = stb_ct_interface_length(sheet)
 final_stb_thickness = final_stb_area/final_stb_ct_interface_length
 
 # Write the final sheet to a hdf5 file.
-hdf5.save_datasets('baseline_90_hour.hdf5', sheet)
+hdf5.save_datasets('baseline_dt_updated.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
-frame_folder = "frames2"
+frame_folder = "frames3"
 
 # Helper function to extract the numeric part from a filename
 # For example, from "frame_12.png", it extracts 12
@@ -725,7 +725,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('baseline_90_hour.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('baseline_dt_updated.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
@@ -780,7 +780,7 @@ df = pd.DataFrame({
     "STB_area": STB_area
 })
 # Save to CSV
-df.to_csv("baseline_90_hour.csv", index=False)
+df.to_csv("baseline_dt_updated.csv", index=False)
 print("Saved csv file \n")
 
 print(f' The initial STB area is {initial_stb_area:.2f},\n the initial STB-CT interface length is {initial_stb_ct_interface_length:.2f},\n and the initial mean thickness is {initial_stb_thickness:.2f}.\n')
