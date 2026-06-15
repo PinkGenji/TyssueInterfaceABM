@@ -15,7 +15,7 @@ import os
 import re
 
 # Path to folder containing the frame images
-frame_folder = "frames"
+frame_folder = "frames3"
 
 # Helper function to extract the numeric part from a filename
 # For example, from "frame_12.png", it extracts 12
