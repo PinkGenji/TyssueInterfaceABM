@@ -160,6 +160,7 @@ def fuse_single_cell(sheet, F_cell, tau_F):
         sheet.face_df.loc[F_cell, 'timer'] += extra_time
         return None
     # If we reach here, it means the geometry is ready for fusion. Do full geometric operation to fuse the cell.
+    unique_id = sheet.face_df.loc[F_cell,'unique_id']
     stb_face = sheet.edge_df.loc[sse, 'face']
     stbv, fv = identify_edge_endpoints(sheet, F_cell, sse)
     base_split(sheet, stbv, stb_face, sheet.edge_df[sheet.edge_df['face'] == stb_face], epsilon=1, recenter=True)
@@ -168,7 +169,7 @@ def fuse_single_cell(sheet, F_cell, tau_F):
     # sheet.face_df.loc[F_cell, 'cell_class'] = 'STB'
     # sheet.face_df.loc[F_cell,'timer'] = 0 # As a fresh STB unit, reset the timer to 0.
     geom.update_all(sheet)
-    return F_cell
+    return unique_id
 
 def auto_dummy_edges(sheet):
     sheet.get_extra_indices()
@@ -578,24 +579,27 @@ while t <= t_end:
     S_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist()
     fusion_count = 0
     for cell in S_cells:
-        can_fuse = 0
-        neighbours = sheet.get_neighbors(cell)
-        for i in neighbours:
-            if sheet.face_df.loc[i, 'cell_class'] == 'STB':
-                can_fuse = 1
-            else:
-                continue
-        # Use rng to randomly generate a number between 0 and 1, this will determine the fate of the mature CT.
-        cell_fate_roulette = rng.random()
-        if can_fuse == 1 and cell_fate_roulette < 0.3:  # If CT is adjacent to STB, then it has 30% probability to fuse.
-            sheet.face_df.loc[cell, 'cell_class'] = 'F'
-            # Add a timer for each cell enters 'F'.
-            sheet.face_df.loc[cell, 'timer'] = tau_F
-            fusion_count += 1
-        else:   # Otherwise, all the cells becomes a G2 class.
-            sheet.face_df.loc[cell, 'cell_class'] = 'G2'
-            sheet.face_df.loc[cell, 'timer'] = tau_G2
-    geom.update_all(sheet)
+        if sheet.face_df.loc[cell, 'timer'] >0:
+            sheet.face_df.loc[cell, 'timer'] -= dt
+        else:
+            can_fuse = 0 # Initialise the spatial viability variable for fusion.
+            neighbours = sheet.get_neighbors(cell)
+            for i in neighbours:
+                if sheet.face_df.loc[i, 'cell_class'] == 'STB':
+                    can_fuse = 1
+                else:
+                    continue
+            # Use rng to randomly generate a number between 0 and 1, this will determine the fate of the mature CT.
+            cell_fate_roulette = rng.random()
+            if can_fuse == 1 and cell_fate_roulette < 0.3:  # If CT is adjacent to STB, then it has 30% probability to fuse.
+                sheet.face_df.loc[cell, 'cell_class'] = 'F'
+                # Add a timer for each cell enters 'F'.
+                sheet.face_df.loc[cell, 'timer'] = tau_F
+                fusion_count += 1
+            else:   # Otherwise, all the cells becomes a G2 class.
+                sheet.face_df.loc[cell, 'cell_class'] = 'G2'
+                sheet.face_df.loc[cell, 'timer'] = tau_G2
+        geom.update_all(sheet)
 
     # At the end of the timer, "G2" becomes "M".
     G2_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'G2'].tolist()
@@ -641,8 +645,9 @@ while t <= t_end:
     for cell in F_cells:
         if sheet.face_df.loc[cell, 'timer'] < 0:
             fusing_cell = fuse_single_cell(sheet, cell, tau_F)
-            sheet.face_df.loc[fusing_cell, 'cell_class'] = 'STB'
-            sheet.face_df.loc[fusing_cell,'timer'] = np.nan # As a fresh STB unit, reset the timer to 0.
+            fusing_cell_idx = sheet.face_df[sheet.face_df['unique_id'] == fusing_cell].index
+            sheet.face_df.loc[fusing_cell_idx, 'cell_class'] = 'STB'
+            sheet.face_df.loc[fusing_cel_idx,'timer'] = np.nan # As a fresh STB unit, reset the timer to nan
         else:
             sheet.face_df.loc[cell, 'timer'] -= dt
     geom.update_all(sheet)
