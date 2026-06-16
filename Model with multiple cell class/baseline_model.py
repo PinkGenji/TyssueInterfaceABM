@@ -30,6 +30,8 @@ import os
 from tyssue.io import hdf5 # For saving the datasets
 import imageio.v2 as imageio
 
+from src.tyssue import Epithelium
+
 """
 A cell fusion behaviour function is used when a CT is fusing into the STB layer. The cell class of the selection cell 
 should become "STB" at the end of the function.
@@ -345,7 +347,7 @@ total_cell_num = len(sheet.face_df)
 tau_G1 = 8   # Min G1 phase time is 8 hours
 tau_S = 7    # Min S phase time is 7 hours
 tau_G2 = 3   # Min G2 phase time is 3 hours
-tau_M = 5   # Min M phase time is 0.5 hours
+tau_M = 0.5   # Min M phase time is 0.5 hours
 tau_F = 4    # Min F phase time is 24 hours
 stb_age = 35      # After 35 hours, STB units can start to extrude with a certain probability at each time step.
 print('New attributes: cell_class; timer created for all cells. \n ')
@@ -620,13 +622,16 @@ while t <= t_end:
     # Cells in "M" class can be divided.
     cells_can_divide = sheet.face_df.index[sheet.face_df['cell_class'] == 'M'].tolist()
     for index in cells_can_divide:
-        daughter_index = division_mt(sheet, rng=rng, cent_data=centre_data, cell_id=index)
-        sheet.face_df.loc[index, 'cell_class'] = 'G1'
-        sheet.face_df.loc[daughter_index, 'cell_class'] = 'G1'
-        # Add a timer for each cell enters "G1".
-        sheet.face_df.loc[index, 'timer'] = tau_G1
-        sheet.face_df.loc[daughter_index, 'timer'] = tau_G1
-    geom.update_all(sheet)
+        if sheet.face_df.loc[index, 'timer'] > 0:
+            sheet.face_df.loc[index, 'timer'] -= dt
+        else:
+            daughter_index = division_mt(sheet, rng=rng, cent_data=centre_data, cell_id=index)
+            sheet.face_df.loc[index, 'cell_class'] = 'G1'
+            sheet.face_df.loc[daughter_index, 'cell_class'] = 'G1'
+            # Add a timer for each cell enters "G1".
+            sheet.face_df.loc[index, 'timer'] = tau_G1
+            sheet.face_df.loc[daughter_index, 'timer'] = tau_G1
+        geom.update_all(sheet)
 
     # At the end of the timer, "G1" class becomes "S".
     G1_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'G1'].tolist()
