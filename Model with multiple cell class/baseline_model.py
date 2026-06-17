@@ -650,7 +650,7 @@ while t <= t_end:
             fusing_cell = fuse_single_cell(sheet, cell, tau_F)
             fusing_cell_idx = sheet.face_df[sheet.face_df['unique_id'] == fusing_cell].index
             sheet.face_df.loc[fusing_cell_idx, 'cell_class'] = 'STB'
-            sheet.face_df.loc[fusing_cel_idx,'timer'] = np.nan # As a fresh STB unit, reset the timer to nan
+            sheet.face_df.loc[fusing_cell_idx,'timer'] = np.nan # As a fresh STB unit, reset the timer to nan
         else:
             sheet.face_df.loc[cell, 'timer'] -= dt
     geom.update_all(sheet)
