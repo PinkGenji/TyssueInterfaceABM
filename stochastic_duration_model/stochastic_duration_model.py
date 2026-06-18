@@ -1,6 +1,5 @@
 """
-This script contains a vertex model that starts with a bilayer structure.
-The system has a multi-class system. Three cellular behaviours are modelled: cell proliferation, fusion and extrusion.
+Stochastic model without extrusion.
 """
 
 # Load all required modules.
@@ -303,7 +302,7 @@ def stb_extrusion(sheet, cell_id):
 
 
 # Define the directory name
-frames_dir = "frames"
+frames_dir = "frames_stochastic"
 # Create directory for frames
 if not os.path.exists(frames_dir):
     print(f"Directory '{frames_dir}' does not exist. Creating it.")
@@ -430,10 +429,13 @@ res = solver.find_energy_min(sheet, geom, smodel)
 print("Successfull gradient descent? ", res['success'])
 
 # Deactivate the four corner cells as boundary condition
-corner_id = [0, num_x-3, num_x-2, len(sheet.face_df)-1]
-for cell in corner_id:
-    sheet.face_df.loc[cell,'is_active'] = 0
-geom.update_all(sheet)
+corner_cells = [0, num_x-3, num_x-2, len(sheet.face_df)-1]
+fix_vert_set = set()
+for cell in corner_cells:
+    vert_list = sheet.edge_df[sheet.edge_df['face'] == cell][['srce', 'trgt']].values.flatten()
+    fix_vert_set.update(vert_list)
+for vert in fix_vert_set:
+    sheet.vert_df.loc[vert,'is_active'] = 0
 
 # Deactivate the edges between STB units.
 for i in sheet.edge_df.index:
@@ -482,10 +484,10 @@ initial_stb_thickness = initial_stb_area/initial_stb_ct_interface_length
 
 # Start simulating.
 t = 0
-t_end = 50
+t_end = 24
 
 while t <= t_end:
-    dt = 0.001  # initial time step, will be updated dynamically later.
+    dt = 0.01  # initial time step, will be updated dynamically later.
 
     # Mesh restructure check
     # T1 transition, edge rearrangment check
@@ -577,31 +579,34 @@ while t <= t_end:
     S_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist()
     fusion_count = 0
     for cell in S_cells:
-        can_fuse = 0
-        neighbours = sheet.get_neighbors(cell)
-        for i in neighbours:
-            if sheet.face_df.loc[i, 'cell_class'] == 'STB':
-                can_fuse = 1
+        if sheet.face_df.loc[cell, 'timer'] >0:
+            sheet.face_df.loc[cell, 'timer'] -= dt
+        else:
+            can_fuse = 0
+            neighbours = sheet.get_neighbors(cell)
+            for i in neighbours:
+                if sheet.face_df.loc[i, 'cell_class'] == 'STB':
+                    can_fuse = 1
+                else:
+                    continue
+            # Use rng to randomly generate a number between 1 and 10, this will determine the fate of the mature CT.
+            cell_fate_roulette = rng.random()
+            if can_fuse == 1 and cell_fate_roulette < 0.2:  # If CT is adjacent to STB, then it has 20% probability to fuse.
+                sheet.face_df.loc[cell, 'cell_class'] = 'F'
+                # Add a timer for each cell enters 'F'.
+                sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_F_min, tau_F_max), 4)
+                fusion_count += 1
+            elif can_fuse == 1 and 0.2< cell_fate_roulette <0.3: # If CT is adjacent to STB, it has 10% probability to divide.
+                sheet.face_df.loc[cell, 'cell_class'] = 'G2'
+                sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_G2_min, tau_G2_max), 4)
+
+            elif cell_fate_roulette <= 0.3:  # If CT is not adjacent to STB, then divide with probability 30%.
+                sheet.face_df.loc[cell, 'cell_class'] = 'G2'
+                # Add a timer for each cell enters "G2".
+                sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_G2_min, tau_G2_max), 4)
             else:
                 continue
-        # Use rng to randomly generate a number between 1 and 10, this will determine the fate of the mature CT.
-        cell_fate_roulette = rng.random()
-        if can_fuse == 1 and cell_fate_roulette < 0.2:  # If CT is adjacent to STB, then it has 20% probability to fuse.
-            sheet.face_df.loc[cell, 'cell_class'] = 'F'
-            # Add a timer for each cell enters 'F'.
-            sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_F_min, tau_F_max), 4)
-            fusion_count += 1
-        elif can_fuse == 1 and 0.2< cell_fate_roulette <0.3: # If CT is adjacent to STB, it has 10% probability to divide.
-            sheet.face_df.loc[cell, 'cell_class'] = 'G2'
-            sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_G2_min, tau_G2_max), 4)
-
-        elif cell_fate_roulette <= 0.3:  # If CT is not adjacent to STB, then divide with probability 30%.
-            sheet.face_df.loc[cell, 'cell_class'] = 'G2'
-            # Add a timer for each cell enters "G2".
-            sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_G2_min, tau_G2_max), 4)
-        else:
-            continue
-    geom.update_all(sheet)
+        geom.update_all(sheet)
 
     # At the end of the timer, "G2" becomes "M".
     G2_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'G2'].tolist()
@@ -622,13 +627,16 @@ while t <= t_end:
     # Cells in "M" class can be divided.
     cells_can_divide = sheet.face_df.index[sheet.face_df['cell_class'] == 'M'].tolist()
     for index in cells_can_divide:
-        daughter_index = division_mt(sheet, rng=rng, cent_data=centre_data, cell_id=index)
-        sheet.face_df.loc[index, 'cell_class'] = 'G1'
-        sheet.face_df.loc[daughter_index, 'cell_class'] = 'G1'
-        # Add a timer for each cell enters "G1".
-        sheet.face_df.loc[index, 'timer'] = round(rng.uniform(tau_G1_min, tau_G1_max), 4)
-        sheet.face_df.loc[daughter_index, 'timer'] = round(rng.uniform(tau_G1_min, tau_G1_max), 4)
-    geom.update_all(sheet)
+        if sheet.face_df.loc[index, 'timer'] > 0:
+            sheet.face_df.loc[index, 'timer'] -= dt
+        else:
+            daughter_index = division_mt(sheet, rng=rng, cent_data=centre_data, cell_id=index)
+            sheet.face_df.loc[index, 'cell_class'] = 'G1'
+            sheet.face_df.loc[daughter_index, 'cell_class'] = 'G1'
+            # Add a timer for each cell enters "G1".
+            sheet.face_df.loc[index, 'timer'] = round(rng.uniform(tau_G1_min, tau_G1_max), 4)
+            sheet.face_df.loc[daughter_index, 'timer'] = round(rng.uniform(tau_G1_min, tau_G1_max), 4)
+        geom.update_all(sheet)
 
     # At the end of the timer, "G1" class becomes "S".
     G1_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'G1'].tolist()
@@ -646,27 +654,30 @@ while t <= t_end:
     F_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'F'].tolist()
     for cell in F_cells:
         if sheet.face_df.loc[cell, 'timer'] < 0:
-            fuse_single_cell(sheet, cell, tau_F_min, tau_F_max)
+            fusing_cell = fuse_single_cell(sheet, cell, tau_F)
+            fusing_cell_idx = sheet.face_df[sheet.face_df['unique_id'] == fusing_cell].index
+            sheet.face_df.loc[fusing_cell_idx, 'cell_class'] = 'STB'
+            sheet.face_df.loc[fusing_cell_idx,'timer'] = np.nan # As a fresh STB unit, reset the timer to nan
         else:
             sheet.face_df.loc[cell, 'timer'] -= dt
     geom.update_all(sheet)
 
-    # Extrude the 'E' units before assigning new 'E' units.
-    E_units = sheet.face_df.index[sheet.face_df['cell_class'] == 'E'].tolist()
-    for unit in E_units:
-        stb_extrusion(sheet, unit)
-    geom.update_all(sheet)
-
-    # Work on STB units
-    STB_units = sheet.face_df.index[sheet.face_df['cell_class'] == 'STB'].tolist()
-    for unit in STB_units:
-        if sheet.face_df.loc[unit, 'timer'] > stb_age:
-            if rng.random()<0.00025:  # Each STB unit has 20% probability to extrude at each time step after reaching the age threshold.
-                sheet.face_df.loc[unit, 'cell_class'] = 'E'  # Mark the cell as extruding.
-                stb_detach(sheet, geom, unit)
-        else:
-            sheet.face_df.loc[unit, 'timer'] += dt
-    geom.update_all(sheet)
+    # # Extrude the 'E' units before assigning new 'E' units.
+    # E_units = sheet.face_df.index[sheet.face_df['cell_class'] == 'E'].tolist()
+    # for unit in E_units:
+    #     stb_extrusion(sheet, unit)
+    # geom.update_all(sheet)
+    #
+    # # Work on STB units
+    # STB_units = sheet.face_df.index[sheet.face_df['cell_class'] == 'STB'].tolist()
+    # for unit in STB_units:
+    #     if sheet.face_df.loc[unit, 'timer'] > stb_age:
+    #         if rng.random()<0.00025:  # Each STB unit has 20% probability to extrude at each time step after reaching the age threshold.
+    #             sheet.face_df.loc[unit, 'cell_class'] = 'E'  # Mark the cell as extruding.
+    #             stb_detach(sheet, geom, unit)
+    #     else:
+    #         sheet.face_df.loc[unit, 'timer'] += dt
+    # geom.update_all(sheet)
 
     # Update dummy edges after all cell class changes.
     auto_dummy_edges(sheet)
@@ -698,7 +709,7 @@ while t <= t_end:
     ax.title.set_text(f'time = {real_time_hours}')
     ax.set_axis_off()
     # Save to file instead of showing.
-    frame_path = f"frames/frame_{real_time_hours}.png"
+    frame_path = f"frames_stochastic/frame_{real_time_hours}.png"
     plt.savefig(frame_path)
     plt.close(fig)  # Close figure to prevent memory leaks
 
@@ -714,7 +725,7 @@ hdf5.save_datasets('stochastic_40_cells.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
-frame_folder = "frames"
+frame_folder = "frames_stochastic"
 
 # Helper function to extract the numeric part from a filename
 # For example, from "frame_12.png", it extracts 12
