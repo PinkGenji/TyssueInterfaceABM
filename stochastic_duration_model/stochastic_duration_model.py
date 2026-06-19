@@ -484,7 +484,7 @@ initial_stb_thickness = initial_stb_area/initial_stb_ct_interface_length
 
 # Start simulating.
 t = 0
-t_end = 24
+t_end = 96
 
 while t <= t_end:
     dt = 0.01  # initial time step, will be updated dynamically later.
