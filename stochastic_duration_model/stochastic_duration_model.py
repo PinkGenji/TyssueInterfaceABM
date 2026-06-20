@@ -654,7 +654,7 @@ while t <= t_end:
     F_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'F'].tolist()
     for cell in F_cells:
         if sheet.face_df.loc[cell, 'timer'] < 0:
-            fusing_cell = fuse_single_cell(sheet, cell, tau_F)
+            fusing_cell = fuse_single_cell(sheet, cell, tau_F_min, tau_F_max)
             fusing_cell_idx = sheet.face_df[sheet.face_df['unique_id'] == fusing_cell].index
             sheet.face_df.loc[fusing_cell_idx, 'cell_class'] = 'STB'
             sheet.face_df.loc[fusing_cell_idx,'timer'] = np.nan # As a fresh STB unit, reset the timer to nan
