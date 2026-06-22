@@ -596,16 +596,10 @@ while t <= t_end:
                 # Add a timer for each cell enters 'F'.
                 sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_F_min, tau_F_max), 4)
                 fusion_count += 1
-            elif can_fuse == 1 and 0.2< cell_fate_roulette <0.3: # If CT is adjacent to STB, it has 10% probability to divide.
-                sheet.face_df.loc[cell, 'cell_class'] = 'G2'
-                sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_G2_min, tau_G2_max), 4)
-
-            elif cell_fate_roulette <= 0.3:  # If CT is not adjacent to STB, then divide with probability 30%.
+            else:
                 sheet.face_df.loc[cell, 'cell_class'] = 'G2'
                 # Add a timer for each cell enters "G2".
                 sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_G2_min, tau_G2_max), 4)
-            else:
-                continue
         geom.update_all(sheet)
 
     # At the end of the timer, "G2" becomes "M".
