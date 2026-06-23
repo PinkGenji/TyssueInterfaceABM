@@ -302,7 +302,7 @@ def stb_extrusion(sheet, cell_id):
 
 
 # Define the directory name
-frames_dir = "frames_stochastic_10"
+frames_dir = "frames_stochastic_5"
 # Create directory for frames
 if not os.path.exists(frames_dir):
     print(f"Directory '{frames_dir}' does not exist. Creating it.")
@@ -591,7 +591,7 @@ while t <= t_end:
                     continue
             # Use rng to randomly generate a number between 1 and 10, this will determine the fate of the mature CT.
             cell_fate_roulette = rng.random()
-            if can_fuse == 1 and cell_fate_roulette < 0.1:  # If CT is adjacent to STB, then it has 20% probability to fuse.
+            if can_fuse == 1 and cell_fate_roulette < 0.05:  # If CT is adjacent to STB, then it has 5% probability to fuse.
                 sheet.face_df.loc[cell, 'cell_class'] = 'F'
                 # Add a timer for each cell enters 'F'.
                 sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_F_min, tau_F_max), 4)
@@ -703,7 +703,7 @@ while t <= t_end:
     ax.title.set_text(f'time = {real_time_hours}')
     ax.set_axis_off()
     # Save to file instead of showing.
-    frame_path = f"frames_stochastic_10/frame_{real_time_hours}.png"
+    frame_path = f"frames_stochastic_5/frame_{real_time_hours}.png"
     plt.savefig(frame_path)
     plt.close(fig)  # Close figure to prevent memory leaks
 
@@ -715,11 +715,11 @@ final_stb_ct_interface_length = stb_ct_interface_length(sheet)
 final_stb_thickness = final_stb_area/final_stb_ct_interface_length
 
 # Write the final sheet to a hdf5 file.
-hdf5.save_datasets('stochastic_10_percent.hdf5', sheet)
+hdf5.save_datasets('stochastic_5_percent.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
-frame_folder = "frames_stochastic_10"
+frame_folder = "frames_stochastic_5"
 
 # Helper function to extract the numeric part from a filename
 # For example, from "frame_12.png", it extracts 12
@@ -735,7 +735,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('stochastic_10_percent.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('stochastic_5_percent.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
@@ -783,7 +783,7 @@ df = pd.DataFrame({
     "STB_area": STB_area
 })
 # Save to CSV
-df.to_csv("stochastic_10_percent.csv", index=False)
+df.to_csv("stochastic_5_percent.csv", index=False)
 print("Saved simulation output csv")
 
 print(f' The initial STB area is {initial_stb_area:.2f},\n the initial STB-CT interface length is {initial_stb_ct_interface_length:.2f},\n and the initial mean thickness is {initial_stb_thickness:.2f}.\n')
