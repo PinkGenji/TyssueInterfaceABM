@@ -591,7 +591,7 @@ while t <= t_end:
                     continue
             # Use rng to randomly generate a number between 1 and 10, this will determine the fate of the mature CT.
             cell_fate_roulette = rng.random()
-            if can_fuse == 1 and cell_fate_roulette < 0.3:  # If CT is adjacent to STB, then it has 20% probability to fuse.
+            if can_fuse == 1 and cell_fate_roulette < 0.1:  # If CT is adjacent to STB, then it has 20% probability to fuse.
                 sheet.face_df.loc[cell, 'cell_class'] = 'F'
                 # Add a timer for each cell enters 'F'.
                 sheet.face_df.loc[cell, 'timer'] = round(rng.uniform(tau_F_min, tau_F_max), 4)
@@ -715,7 +715,7 @@ final_stb_ct_interface_length = stb_ct_interface_length(sheet)
 final_stb_thickness = final_stb_area/final_stb_ct_interface_length
 
 # Write the final sheet to a hdf5 file.
-hdf5.save_datasets('stochastic_30_percent.hdf5', sheet)
+hdf5.save_datasets('stochastic_10_percent.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
@@ -735,7 +735,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('stochastic_30_percent.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('stochastic_10_percent.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
@@ -783,7 +783,7 @@ df = pd.DataFrame({
     "STB_area": STB_area
 })
 # Save to CSV
-df.to_csv("stochastic_30_percent.csv", index=False)
+df.to_csv("stochastic_10_percent.csv", index=False)
 print("Saved simulation output csv")
 
 print(f' The initial STB area is {initial_stb_area:.2f},\n the initial STB-CT interface length is {initial_stb_ct_interface_length:.2f},\n and the initial mean thickness is {initial_stb_thickness:.2f}.\n')
