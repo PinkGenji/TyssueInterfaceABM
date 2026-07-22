@@ -19,7 +19,8 @@ from tyssue.solvers import QSSolver
 # 2D plotting
 from tyssue.draw import sheet_view
 from tyssue.draw.plt_draw import plot_forces
-from tyssue.topology.sheet_topology import cell_division, boundary_ids, T3_transition
+from tyssue.topology.sheet_topology import cell_division, boundary_ids
+from tyssue.topology.sheet_topology import T3_transition as T3
 from tyssue.config.draw import sheet_spec
 
 # import my own functions
@@ -543,7 +544,7 @@ while t <= t_end:
 
     # T3 transition.
     boundary_edges, boundary_vertices = boundary_ids(sheet)
-    T3_transition(sheet, boundary_vertices, boundary_edges, length_threshold=d_min, multiplier=1.5)
+    T3(sheet, boundary_vertices, boundary_edges, length_threshold=d_min, multiplier=1.5)
     sheet.reset_index(order=True)
     geom.update_all(sheet)
     sheet.remove(sheet.get_invalid())
