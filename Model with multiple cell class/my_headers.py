@@ -532,7 +532,7 @@ def division_mt(sheet, rng, cent_data, cell_id):
             # Split the cell with a line.
             new_face_index = face_division(sheet, mother=cell_id, vert_a=new_mid_index, vert_b=oppo_index)
             # Put a vertex at the centroid, on the newly formed edge (last row in df).
-            cent_index = add_vert(sheet, edge=sheet.edge_df.index[-1], coord_put=c0)[0]
+            cent_index = add_vert(sheet, edge=sheet.edge_df.index[-1], coords=c0)[0]
 
             print(f'cell {cell_id} is divided, dauther cell {new_face_index} is created.')
             return new_face_index
