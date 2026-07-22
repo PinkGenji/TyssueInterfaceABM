@@ -19,12 +19,11 @@ from tyssue.solvers import QSSolver
 # 2D plotting
 from tyssue.draw import sheet_view
 from tyssue.draw.plt_draw import plot_forces
-from tyssue.topology.sheet_topology import cell_division
+from tyssue.topology.sheet_topology import cell_division, boundary_ids, T3_transition
 from tyssue.config.draw import sheet_spec
 
 # import my own functions
 from my_headers import *
-from T3_function import *
 
 import os
 from tyssue.io import hdf5 # For saving the datasets
@@ -294,7 +293,7 @@ def stb_extrusion(sheet, cell_id):
 
 
 # Define the directory name
-frames_dir = "frames3"
+frames_dir = "framesT3"
 # Create directory for frames
 if not os.path.exists(frames_dir):
     print(f"Directory '{frames_dir}' does not exist. Creating it.")
@@ -433,6 +432,8 @@ for i in sheet.edge_df.index:
 corner_cells = [0, num_x-3, num_x-2, len(sheet.face_df)-1]
 fix_vert_set = set()
 for cell in corner_cells:
+    # Assign these cells into 'boundary' class, hence no cell class change on them.
+    sheet.face_df.loc[cell,"cell_class"] = "boundary_fixed"
     vert_list = sheet.edge_df[sheet.edge_df['face'] == cell][['srce', 'trgt']].values.flatten()
     fix_vert_set.update(vert_list)
 for vert in fix_vert_set:
@@ -541,39 +542,12 @@ while t <= t_end:
     geom.update_all(sheet)
 
     # T3 transition.
-    while True:
-        T3_todo = None
-        # print('computing boundary indices.')
-        boundary_vert, boundary_edge = find_boundary(sheet)
-
-        for edge_e in boundary_edge:
-            # Extract source and target vertex IDs
-            srce_id, trgt_id = sheet.edge_df.loc[edge_e, ['srce', 'trgt']]
-            for vertex_v in boundary_vert:
-                if vertex_v == srce_id or vertex_v == trgt_id:
-                    continue
-
-                distance, nearest = dist_computer(sheet, edge_e, vertex_v, d_sep)
-                if distance < d_min:
-                    T3_todo = vertex_v
-                    # print(f'Found incoming vertex: {vertex_v} and colliding edge: {edge_e}')
-                    T3_swap(sheet, edge_e, vertex_v, nearest, d_sep)
-                    sheet.reset_index(order=False)
-                    geom.update_all(sheet)
-                    sheet.remove(sheet.get_invalid())
-                    sheet.get_extra_indices()
-                    # fig, ax = sheet_view(sheet, edge={'head_width': 0.1})
-                    # for face, data in sheet.vert_df.iterrows():
-                    #     ax.text(data.x, data.y, face)
-                    break
-            if T3_todo is not None:
-                break  # Exit outer loop to restart with updated boundary
-        if T3_todo is None:
-            break
-        sheet.reset_index(order=True)
-        geom.update_all(sheet)
-        sheet.remove(sheet.get_invalid())
-        sheet.get_extra_indices()
+    boundary_edges, boundary_vertices = boundary_ids(sheet)
+    T3_transition(sheet, boundary_vertices, boundary_edges, length_threshold=d_min, multiplier=1.5)
+    sheet.reset_index(order=True)
+    geom.update_all(sheet)
+    sheet.remove(sheet.get_invalid())
+    sheet.get_extra_indices()
 
     # For a mature 'S' cell, if it's touching STB, then it's possible to fuse, otherwise, must continue CT cycle.
     S_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist()
@@ -701,7 +675,7 @@ while t <= t_end:
     ax.title.set_text(f'time = {real_time_hours:.4f}')
     ax.set_axis_off()
     # Save to file instead of showing.
-    frame_path = f"frames3/frame_{real_time_hours:.4f}.png"
+    frame_path = f"framesT3/frame_{real_time_hours:.4f}.png"
     plt.savefig(frame_path)
     plt.close(fig)  # Close figure to prevent memory leaks
 
@@ -713,11 +687,11 @@ final_stb_ct_interface_length = stb_ct_interface_length(sheet)
 final_stb_thickness = final_stb_area/final_stb_ct_interface_length
 
 # Write the final sheet to a hdf5 file.
-hdf5.save_datasets('baseline_dt_updated.hdf5', sheet)
+hdf5.save_datasets('baseline_new_T3.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
-frame_folder = "frames3"
+frame_folder = "framesT3"
 
 # Helper function to extract the numeric part from a filename
 # For example, from "frame_12.png", it extracts 12
@@ -733,7 +707,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('baseline_dt_updated.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('baseline_new_T3.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
@@ -788,7 +762,7 @@ df = pd.DataFrame({
     "STB_area": STB_area
 })
 # Save to CSV
-df.to_csv("baseline_dt_updated.csv", index=False)
+df.to_csv("baseline_new_T3.csv", index=False)
 print("Saved csv file \n")
 
 print(f' The initial STB area is {initial_stb_area:.2f},\n the initial STB-CT interface length is {initial_stb_ct_interface_length:.2f},\n and the initial mean thickness is {initial_stb_thickness:.2f}.\n')
