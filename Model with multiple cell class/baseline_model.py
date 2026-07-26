@@ -435,6 +435,7 @@ fix_vert_set = set()
 for cell in corner_cells:
     # Assign these cells into 'boundary' class, hence no cell class change on them.
     sheet.face_df.loc[cell,"cell_class"] = "boundary_fixed"
+    sheet.face_df.loc[cell,"timer"] = np.nan
     vert_list = sheet.edge_df[sheet.edge_df['face'] == cell][['srce', 'trgt']].values.flatten()
     fix_vert_set.update(vert_list)
 for vert in fix_vert_set:
@@ -550,6 +551,7 @@ while t <= t_end:
     sheet.remove(sheet.get_invalid())
     sheet.get_extra_indices()
 
+    ### Cell class governing section starts.
     # For a mature 'S' cell, if it's touching STB, then it's possible to fuse, otherwise, must continue CT cycle.
     S_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist()
     fusion_count = 0
@@ -574,7 +576,6 @@ while t <= t_end:
             else:   # Otherwise, all the cells becomes a G2 class.
                 sheet.face_df.loc[cell, 'cell_class'] = 'G2'
                 sheet.face_df.loc[cell, 'timer'] = tau_G2
-        geom.update_all(sheet)
 
     # At the end of the timer, "G2" becomes "M".
     G2_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'G2'].tolist()
@@ -585,19 +586,17 @@ while t <= t_end:
         else:
             sheet.face_df.loc[cell, 'timer'] -= dt
 
-    geom.update_all(sheet)
-
     # Cell division.
     # For all cells in "M", divide the cell. Then cells become "G1".
-    # Store the centroid before iteration of cells.
-    unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
-    centre_data = unique_edges_df.loc[:, ['face', 'fx', 'fy']]
     # Cells in "M" class can be divided.
     cells_can_divide = sheet.face_df.index[sheet.face_df['cell_class'] == 'M'].tolist()
     for index in cells_can_divide:
         if sheet.face_df.loc[index, 'timer'] > 0:
             sheet.face_df.loc[index, 'timer'] -= dt
         else:
+            # Store the centroid before iteration of cells.
+            unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
+            centre_data = unique_edges_df.loc[:, ['face', 'fx', 'fy']]
             daughter_index = division_mt(sheet, rng=rng, cent_data=centre_data, cell_id=index)
             sheet.face_df.loc[index, 'cell_class'] = 'G1'
             sheet.face_df.loc[daughter_index, 'cell_class'] = 'G1'
@@ -614,9 +613,6 @@ while t <= t_end:
             sheet.face_df.loc[cell, 'timer'] = tau_S
         else:
             sheet.face_df.loc[cell, 'timer'] -= dt
-
-    sheet.reset_index(order=True)
-    geom.update_all(sheet)
 
     # At the end of a timer, "F" class becomes "STB" and dummy edge is generated.
     F_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'F'].tolist()
