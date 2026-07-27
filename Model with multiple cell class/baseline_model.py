@@ -30,6 +30,8 @@ import os
 from tyssue.io import hdf5 # For saving the datasets
 import imageio.v2 as imageio
 
+from src.tyssue import Epithelium
+
 """
 A cell fusion behaviour function is used when a CT is fusing into the STB layer. The cell class of the selection cell 
 should become "STB" at the end of the function.
@@ -624,6 +626,7 @@ while t <= t_end:
             sheet.face_df.loc[fusing_cell_idx,'timer'] = np.nan # As a fresh STB unit, reset the timer to nan
         else:
             sheet.face_df.loc[cell, 'timer'] -= dt
+    sheet.reset_index()
     geom.update_all(sheet)
 
     # # Extrude the 'E' units before assigning new 'E' units.
