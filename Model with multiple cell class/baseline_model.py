@@ -437,27 +437,21 @@ for cell in corner_cells:
     # Assign these cells into 'boundary' class, hence no cell class change on them.
     sheet.face_df.loc[cell,"cell_class"] = "boundary_fixed"
     sheet.face_df.loc[cell,"timer"] = np.nan
+    sheet.face_df.loc[cell,'is_alive'] = 0
     vert_list = sheet.edge_df[sheet.edge_df['face'] == cell][['srce', 'trgt']].values.flatten()
     fix_vert_set.update(vert_list)
 for vert in fix_vert_set:
     sheet.vert_df.loc[vert,'is_active'] = 0
 
-
-# Next, I need to colour STB and others differently and bold the dummy edges when plotting.
 draw_specs = sheet_spec()
-# Enable face visibility.
+# --- Faces ---
 draw_specs['face']['visible'] = True
-for i in sheet.face_df.index:   # Assign face colour based on cell type.
-    if sheet.face_df.loc[i,'cell_class'] == 'STB': sheet.face_df.loc[i,'color'] = 0.7
-    else: sheet.face_df.loc[i,'color'] = 0.1
+sheet.face_df['color'] = sheet.face_df['cell_class'].eq('STB').map({True: 0.7, False: 0.1})
 draw_specs['face']['color'] = sheet.face_df['color']
-draw_specs['face']['alpha'] = 0.2   # Set transparency.
-
-# Enable edge visibility
+draw_specs['face']['alpha'] = 0.2
+# --- Edges ---
 draw_specs['edge']['visible'] = True
-for i in sheet.edge_df.index:
-    if sheet.edge_df.loc[i,'is_active'] == 0: sheet.edge_df.loc[i,'width'] = 2
-    else: sheet.edge_df.loc[i,'width'] = 0.5
+sheet.edge_df['width'] = sheet.edge_df['is_active'].eq(0).map({True: 2, False: 0.5})
 draw_specs['edge']['width'] = sheet.edge_df['width']
 
 fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
@@ -595,10 +589,7 @@ while t <= t_end:
         if sheet.face_df.loc[index, 'timer'] > 0:
             sheet.face_df.loc[index, 'timer'] -= dt
         else:
-            # Store the centroid before iteration of cells.
-            unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
-            centre_data = unique_edges_df.loc[:, ['face', 'fx', 'fy']]
-            daughter_index = division_mt(sheet, rng=rng, cent_data=centre_data, cell_id=index)
+            daughter_index = division_mt(sheet, rng=rng, cell_id=index)
             sheet.face_df.loc[index, 'cell_class'] = 'G1'
             sheet.face_df.loc[daughter_index, 'cell_class'] = 'G1'
             # Add a timer for each cell enters "G1".
