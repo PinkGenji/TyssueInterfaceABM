@@ -462,7 +462,7 @@ def type1_transition_custom(sheet, edge01, multiplier=1.5):
     return edge01
 
 
-def division_mt(sheet, rng, cent_data, cell_id):
+def division_mt(sheet, rng, cell_id):
     """
     This division function invovles mitosis index.
     The cells keep growing, when the area exceeds a critical area, then
@@ -474,6 +474,9 @@ def division_mt(sheet, rng, cent_data, cell_id):
     cell_id: int
         the index of the dividing cell
     """
+    # record the centroid coordiantes.
+    unique_edges_df = sheet.edge_df.drop_duplicates(subset='face')
+    cent_data = unique_edges_df.loc[:, ['face', 'fx', 'fy']]
     condition = sheet.edge_df.loc[:, 'face'] == cell_id
     edge_in_cell = sheet.edge_df[condition]
     # Extract and store the centroid coordinate.
@@ -531,8 +534,17 @@ def division_mt(sheet, rng, cent_data, cell_id):
             oppo_index = add_vert(sheet, index, intersection)[0]
             # Split the cell with a line.
             new_face_index = face_division(sheet, mother=cell_id, vert_a=new_mid_index, vert_b=oppo_index)
-            # Put a vertex at the centroid, on the newly formed edge (last row in df).
-            cent_index = add_vert(sheet, edge=sheet.edge_df.index[-1], coords=c0)[0]
+            # Find the edge that connects new_mid_index and oppo_index (either direction)
+            mask_edge = ((sheet.edge_df['srce'] == new_mid_index) & (sheet.edge_df['trgt'] == oppo_index)) | \
+                        ((sheet.edge_df['srce'] == oppo_index) & (sheet.edge_df['trgt'] == new_mid_index))
+
+            matching_edges = sheet.edge_df[mask_edge].index.tolist()
+            if not matching_edges:
+                # fallback: try edges that were just created (last few indices)
+                matching_edges = [sheet.edge_df.index[-1]]
+
+            edge_for_centroid = matching_edges[0]
+            cent_index = add_vert(sheet, edge=edge_for_centroid, coords=c0)[0]
 
             print(f'cell {cell_id} is divided, dauther cell {new_face_index} is created.')
             return new_face_index
