@@ -437,7 +437,7 @@ for cell in corner_cells:
     # Assign these cells into 'boundary' class, hence no cell class change on them.
     sheet.face_df.loc[cell,"cell_class"] = "boundary_fixed"
     sheet.face_df.loc[cell,"timer"] = np.nan
-    sheet.face_df.loc[cell,'is_alive'] = 0
+    # sheet.face_df.loc[cell,'is_alive'] = 0
     vert_list = sheet.edge_df[sheet.edge_df['face'] == cell][['srce', 'trgt']].values.flatten()
     fix_vert_set.update(vert_list)
 for vert in fix_vert_set:
@@ -446,7 +446,7 @@ for vert in fix_vert_set:
 draw_specs = sheet_spec()
 # --- Faces ---
 draw_specs['face']['visible'] = True
-sheet.face_df['color'] = sheet.face_df['cell_class'].eq('STB').map({True: 0.7, False: 0.1})
+sheet.face_df['color'] = (sheet.face_df['cell_class'].map({'boundary_fixed': 0.1, 'STB': 0.5}).fillna(0.9))
 draw_specs['face']['color'] = sheet.face_df['color']
 draw_specs['face']['alpha'] = 0.2
 # --- Edges ---
@@ -476,7 +476,7 @@ initial_stb_thickness = initial_stb_area/initial_stb_ct_interface_length
 
 # Start simulating.
 t = 0
-t_end = 96
+t_end = 0.1
 
 while t <= t_end:
     dt = 0.01  # initial time step, will be updated dynamically later.
@@ -595,7 +595,9 @@ while t <= t_end:
             # Add a timer for each cell enters "G1".
             sheet.face_df.loc[index, 'timer'] = tau_G1
             sheet.face_df.loc[daughter_index, 'timer'] = tau_G1
-        geom.update_all(sheet)
+    sheet.reset_index()
+    sheet.reset_topo()
+    geom.update_all(sheet)
 
     # At the end of the timer, "G1" class becomes "S".
     G1_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'G1'].tolist()
@@ -613,10 +615,11 @@ while t <= t_end:
             fusing_cell = fuse_single_cell(sheet, cell, tau_F)
             fusing_cell_idx = sheet.face_df[sheet.face_df['unique_id'] == fusing_cell].index
             sheet.face_df.loc[fusing_cell_idx, 'cell_class'] = 'STB'
-            sheet.face_df.loc[fusing_cell_idx,'timer'] = np.nan # As a fresh STB unit, reset the timer to nan
+            sheet.face_df.loc[fusing_cell_idx,'timer'] = 0 # As a fresh STB unit, set the timer to be 0
         else:
             sheet.face_df.loc[cell, 'timer'] -= dt
     sheet.reset_index()
+    sheet.reset_topo()
     geom.update_all(sheet)
 
     # # Extrude the 'E' units before assigning new 'E' units.
