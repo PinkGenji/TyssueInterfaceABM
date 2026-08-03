@@ -9,11 +9,10 @@ import numpy as np
 import re
 import matplotlib.pyplot as plt
 from tyssue import Sheet
-from tyssue.topology.sheet_topology import remove_face, cell_division
+from tyssue.topology.sheet_topology import remove_face, cell_division, fuse_single_cell, auto_dummy_edges
 from tyssue.topology.base_topology import close_face, drop_face
 from tyssue import PlanarGeometry as geom #for simple 2d geometry
 from tyssue.dynamics import effectors, model_factory
-from tyssue.dynamics.planar_vertex_model import PlanarModel as smodel
 from tyssue.solvers import QSSolver
 
 # 2D plotting
@@ -29,212 +28,36 @@ from my_headers import *
 import os
 from tyssue.io import hdf5 # For saving the datasets
 import imageio.v2 as imageio
-
-
-"""
-A cell fusion behaviour function is used when a CT is fusing into the STB layer. The cell class of the selection cell 
-should become "STB" at the end of the function.
-First, the shared STB edges that share a vertex on the F cells identified.
-
-Secondly, split STB shared vertices that on the outer surface and create separated edges.
-
-Thirdly, split vertex shared by STBs and CT, creating a new CT edge.
-
-Fourthly, F class cell transition to STB class.
-
-Lastly, new dynamic parameters need to be updated to ensure consistent physics rule.
-"""
-def face_vertices(sheet, face_id):
-    """
-    Given a face_id, return the list of vertex indices that are part of that face.
-    """
-    edges = sheet.edge_df[sheet.edge_df['face'] == face_id]
-    verts = list(edges['srce']) + list(edges['trgt'])
-    return list(set(verts))
-def find_local_stb_stb_edge(sheet, F_cell):
-    """
-    Find the ONE STB–STB mutual edge such that:
-    1. Both faces are STB neighbours of F_cell.
-    2. At least one endpoint of the edge is a vertex of F_cell.
-    Only loops over sheet.sgle_edges.
-    Returns a single integer edge index, or None.
-    """
-
-    sheet.get_extra_indices()
-
-    # Vertices of the F cell (force into Python ints)
-    F_vertices = list(map(int, face_vertices(sheet, F_cell)))
-
-    # STB neighbours of F_cell
-    neighbours = sheet.get_neighbors(F_cell)
-    stb_neigh = [int(n) for n in neighbours
-                 if sheet.face_df.loc[n, 'cell_class'] == 'STB']
-
-    # Loop ONLY over unique edges
-    for e in sheet.sgle_edges:
-
-        e = int(e)  # ensure scalar int
-
-        f1 = int(sheet.edge_df.loc[e, 'face'])
-        opp = int(sheet.edge_df.loc[e, 'opposite'])
-
-        if opp == -1:
-            continue
-
-        f2 = int(sheet.edge_df.loc[opp, 'face'])
-
-        # Condition 1: both faces are STB neighbours of F_cell
-        if f1 not in stb_neigh or f2 not in stb_neigh:
-            continue
-
-        # Condition 2: edge touches the F cell
-        v1 = int(sheet.edge_df.loc[e, 'srce'])
-        v2 = int(sheet.edge_df.loc[e, 'trgt'])
-
-        if v1 in F_vertices or v2 in F_vertices:
-            return e  # return immediately
-
-    return None
-
-
-def identify_edge_endpoints(sheet, F_cell, indirect_edge):
-    """
-    For each edge in local_edges, determine:
-    - which endpoint belongs to the F cell
-    - which endpoint belongs to the STB neighbour
-    Returns a list: [STB_vertex, F_vertex]
-    """
-
-    F_vertices = face_vertices(sheet, F_cell)
-    v1 = sheet.edge_df.loc[indirect_edge, 'srce']
-    v2 = sheet.edge_df.loc[indirect_edge, 'trgt']
-
-    # Determine which vertex belongs to the F cell
-    if v1 in F_vertices and v2 not in F_vertices:
-        return [v2, v1]
-
-    elif v2 in F_vertices and v1 not in F_vertices:
-        return [v1, v2]
-
-    # Return None if neither vertex belongs to the F cell (should not happen if preconditions are met)
-    return None
-
-from tyssue.topology.base_topology import split_vert as base_split
-from tyssue.topology.sheet_topology import split_vert as sheet_split
-from tyssue.topology.sheet_topology import type1_transition
-
-def fuse_single_cell(sheet, F_cell, tau_F):
-    """
-    Attempt to fuse a CT cell (now in class 'F') into the STB layer.
-
-    Fusion requires a specific geometric configuration:
-    - The F cell must touch an STB–STB mutual edge.
-    - That edge must share a vertex with the F cell.
-    - Only then can the geometric fusion (vertex splitting + T1) proceed.
-
-    If the geometry is NOT ready (e.g., due to T1/T2/T3 transitions or cell division),
-    the fusion is postponed by extending the F timer. This prevents:
-        - invalid topology operations,
-        - isolated STB cells,
-        - broken bilayer structure,
-        - simulation crashes.
-
-    Parameters
-    ----------
-    sheet : tyssue.Sheet
-        The current tissue sheet.
-    F_cell : int
-        Index of the cell attempting to fuse.
-
-    Returns
-    -------
-    new_edge : int or None
-        The index of the newly created edge after fusion,
-        or None if fusion was postponed.
-    """
-    if F_cell not in sheet.face_df.index:
-        return None
-    sse = find_local_stb_stb_edge(sheet, F_cell)
-    if sse is None:
-        # Geometry not ready for fusion, postpone by extending the timer with a random extra time within F phase.
-        extra_time = tau_F
-        sheet.face_df.loc[F_cell, 'timer'] += extra_time
-        return None
-    # If we reach here, it means the geometry is ready for fusion. Do full geometric operation to fuse the cell.
-    unique_id = sheet.face_df.loc[F_cell,'unique_id']
-    stb_face = sheet.edge_df.loc[sse, 'face']
-    stbv, fv = identify_edge_endpoints(sheet, F_cell, sse)
-    base_split(sheet, stbv, stb_face, sheet.edge_df[sheet.edge_df['face'] == stb_face], epsilon=1, recenter=True)
-    new_edge = sheet_split(sheet, fv, F_cell)[0]
-    new_edge = type1_transition(sheet, new_edge, do_reindex=True, remove_tri_faces=False, multiplier=5)
-    # sheet.face_df.loc[F_cell, 'cell_class'] = 'STB'
-    # sheet.face_df.loc[F_cell,'timer'] = 0 # As a fresh STB unit, reset the timer to 0.
-    geom.update_all(sheet)
-    return unique_id
-
-def auto_dummy_edges(sheet):
-    sheet.get_extra_indices()
-    for i in sheet.edge_df.index:
-        opp = sheet.edge_df.loc[i, 'opposite']
-        # Boundary edge, always active
-        if opp == -1 or opp not in sheet.edge_df.index:
-            sheet.edge_df.loc[i, 'is_active'] = 1
-            continue
-
-        # Check faces on both sides of the edge
-        f1 = sheet.edge_df.loc[i, 'face']
-        f2 = sheet.edge_df.loc[opp, 'face']
-
-        # If faces are missing (during topology changes), keep edges active
-        if f1 not in sheet.face_df.index or f2 not in sheet.face_df.index:
-            sheet.edge_df.loc[i, 'is_active'] = 1
-            if opp in sheet.edge_df.index:
-                sheet.edge_df.loc[opp, 'is_active'] = 1
-            continue
-
-        # Treat E exactly like STB
-        c1 = sheet.face_df.loc[f1, 'cell_class']
-        c2 = sheet.face_df.loc[f2, 'cell_class']
-        is_stb_like_1 = (c1 == 'STB') or (c1 == 'E')
-        is_stb_like_2 = (c2 == 'STB') or (c2 == 'E')
-
-        if is_stb_like_1 and is_stb_like_2:
-            # Disable dummy edge
-            sheet.edge_df.loc[i, 'is_active'] = 0
-            sheet.edge_df.loc[opp, 'is_active'] = 0
-        else:
-            # Enable normal edge
-            sheet.edge_df.loc[i, 'is_active'] = 1
-            sheet.edge_df.loc[opp, 'is_active'] = 1
-
-    print('Dummy edges updated based on current cell classes.')
-
-def update_draw_specs(sheet, draw_specs):
+def update_draw_specs(sheet):
     """
     Update drawing specifications for faces and edges based on:
-    - cell_class (STB vs CT)
-    - is_active (dummy edges vs real edges)
+    - cell_class (STB, boundary_fixed, others)
+    - is_active (dummy vs real edges)
     """
-
     # --- FACE COLORS ---
-    # STB = pale yellow (0.7), CT = light purple (0.1)
-    sheet.face_df['color'] = sheet.face_df['cell_class'].map(
-        lambda c: 0.7 if c == 'STB' else (0.5 if c == 'E' else 0.1)
+    # boundary_fixed = 0.1 (dark purple)
+    # STB            = 0.5 (mid purple)
+    # everything else = 0.9 (light background)
+    face_color_map = {
+        'boundary_fixed': 0.1,
+        'STB': 0.5,
+    }
+    sheet.face_df['color'] = (
+        sheet.face_df['cell_class']
+        .map(face_color_map)
+        .fillna(0.9)
     )
-
-    draw_specs['face']['color'] = sheet.face_df['color']
     draw_specs['face']['visible'] = True
-    draw_specs['face']['alpha'] = 0.2   # transparency
-
+    draw_specs['face']['color'] = sheet.face_df['color']
+    draw_specs['face']['alpha'] = 0.2
     # --- EDGE WIDTHS ---
-    # inactive (dummy) edges = thick, active edges = thin
-    sheet.edge_df['width'] = sheet.edge_df['is_active'].map(
-        lambda a: 2 if a == 0 else 0.5
-    )
-
+    # inactive (0) → thick (2)
+    # active   (1) → thin (0.5)
+    sheet.edge_df['width'] = sheet.edge_df['is_active'].map({0: 2, 1: 0.5})
+    draw_specs['edge']['visible'] = True
     draw_specs['edge']['width'] = sheet.edge_df['width']
+    return draw_specs
 
-    print('Drawing specifications updated based on current cell classes and edge activity.')
 
 def stb_ct_interface_length(sheet):
     length = 0.0
@@ -279,19 +102,6 @@ def face_boundary_edges(sheet, face_id):
         (sheet.edge_df['opposite'] == -1)
     ].index.tolist()
 
-
-def stb_extrusion(sheet, cell_id):
-    if cell_id not in sheet.face_df.index:
-        return
-    while True:
-        boundary_edges = face_boundary_edges(sheet, cell_id)
-        if len(boundary_edges) == 0:
-            break
-        edge_id = boundary_edges[0]
-        if edge_id not in sheet.edge_df.index:
-            break
-        collapse_edge(sheet, edge_id, reindex=False)
-    sheet.reset_index(order=False)
 
 
 # Define the directory name
@@ -476,7 +286,7 @@ initial_stb_thickness = initial_stb_area/initial_stb_ct_interface_length
 
 # Start simulating.
 t = 0
-t_end = 96
+t_end = 72
 
 while t <= t_end:
     dt = 0.01  # initial time step, will be updated dynamically later.
@@ -612,7 +422,7 @@ while t <= t_end:
     F_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'F'].tolist()
     for cell in F_cells:
         if sheet.face_df.loc[cell, 'timer'] < 0:
-            fusing_cell = fuse_single_cell(sheet, cell, tau_F)
+            fusing_cell = fuse_single_cell(sheet, cell, 10*d_min)
             fusing_cell_idx = sheet.face_df[sheet.face_df['unique_id'] == fusing_cell].index
             sheet.face_df.loc[fusing_cell_idx, 'cell_class'] = 'STB'
             sheet.face_df.loc[fusing_cell_idx,'timer'] = 0 # As a fresh STB unit, set the timer to be 0
