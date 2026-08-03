@@ -28,7 +28,7 @@ from my_headers import *
 import os
 from tyssue.io import hdf5 # For saving the datasets
 import imageio.v2 as imageio
-def update_draw_specs(sheet):
+def update_draw_specs(sheet, draw_specs):
     """
     Update drawing specifications for faces and edges based on:
     - cell_class (STB, boundary_fixed, others)
