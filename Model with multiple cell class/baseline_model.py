@@ -367,7 +367,7 @@ while t <= t_end:
             can_fuse = 0 # Initialise the spatial viability variable for fusion.
             neighbours = sheet.get_neighbors(cell)
             for i in neighbours:
-                if sheet.face_df.loc[i, 'cell_class'] == 'STB':
+                if sheet.face_df.loc[i, 'cell_class'] == 'STB' and len(neighbours) > 0:
                     can_fuse = 1
                 else:
                     continue
