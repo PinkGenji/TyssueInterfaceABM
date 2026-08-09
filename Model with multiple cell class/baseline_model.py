@@ -364,16 +364,14 @@ while t <= t_end:
         if sheet.face_df.loc[cell, 'timer'] >0:
             sheet.face_df.loc[cell, 'timer'] -= dt
         else:
-            can_fuse = 0 # Initialise the spatial viability variable for fusion.
-            neighbours = sheet.get_neighbors(cell)
-            for i in neighbours:
-                if sheet.face_df.loc[i, 'cell_class'] == 'STB' and len(neighbours) > 0:
-                    can_fuse = 1
-                else:
-                    continue
+            neighbours = list(sheet.get_neighbors(cell))
+            # Count the number of STB neighbours the cell has. Only fuse when have at least 2 STB units touching.
+            neighbours_df = sheet.face_df.loc[neighbours]
+            stb_count = (neighbours_df['cell_class'] == 'STB').sum()
+
             # Use rng to randomly generate a number between 0 and 1, this will determine the fate of the mature CT.
             cell_fate_roulette = rng.random()
-            if can_fuse == 1 and cell_fate_roulette < 0.3:  # If CT is adjacent to STB, then it has 30% probability to fuse.
+            if stb_count > 1 and cell_fate_roulette < 0.3:  # If CT is adjacent to STB, then it has 30% probability to fuse.
                 sheet.face_df.loc[cell, 'cell_class'] = 'F'
                 # Add a timer for each cell enters 'F'.
                 sheet.face_df.loc[cell, 'timer'] = tau_F
