@@ -231,14 +231,14 @@ res = solver.find_energy_min(sheet, geom, model)
 print("Successfull gradient descent? ", res['success'])
 
 # Deactivate the edges between STB units.
-for i in sheet.edge_df.index:
-    if sheet.edge_df.loc[i,'opposite'] != -1:
-        associated_cell = sheet.edge_df.loc[i,'face']
-        opposite_edge = sheet.edge_df.loc[i,'opposite']
-        opposite_cell = sheet.edge_df.loc[opposite_edge,'face']
-        if sheet.face_df.loc[associated_cell,'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell,'cell_class'] == 'STB':
-            sheet.edge_df.loc[i,'is_active'] = 0
-            sheet.edge_df.loc[opposite_edge,'is_active'] = 0
+# for i in sheet.edge_df.index:
+#     if sheet.edge_df.loc[i,'opposite'] != -1:
+#         associated_cell = sheet.edge_df.loc[i,'face']
+#         opposite_edge = sheet.edge_df.loc[i,'opposite']
+#         opposite_cell = sheet.edge_df.loc[opposite_edge,'face']
+#         if sheet.face_df.loc[associated_cell,'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell,'cell_class'] == 'STB':
+#             sheet.edge_df.loc[i,'is_active'] = 0
+#             sheet.edge_df.loc[opposite_edge,'is_active'] = 0
 
 # Deactivate the vertices associated with the four corner cells
 corner_cells = [0, num_x-3, num_x-2, len(sheet.face_df)-1]
@@ -447,7 +447,7 @@ while t <= t_end:
     # geom.update_all(sheet)
 
     # Update dummy edges after all cell class changes.
-    auto_dummy_edges(sheet)
+    # auto_dummy_edges(sheet)
 
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
