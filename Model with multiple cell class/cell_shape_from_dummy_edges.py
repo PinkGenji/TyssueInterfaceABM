@@ -187,7 +187,7 @@ print(f'There are {total_cell_num} total cells; equally split into "G1" and "STB
 # Add dynamics to the model, start with effectors, then change values.
 model = model_factory([
     effectors.LineTension,
-    effectors.FaceContractility,
+    effectors.PerimeterElasticity,
     effectors.FaceAreaElasticity
 ])
 
@@ -203,6 +203,8 @@ specs = {
         'area_elasticity': 110,
         'contractility': 0,
         'is_alive': 1,
+        'prefered_perimeter': 5.3,
+        'perimeter_elasticity':110,
         'prefered_area': 2},
     'settings': {
         'grad_norm_factor': 1.0,
@@ -231,14 +233,14 @@ res = solver.find_energy_min(sheet, geom, model)
 print("Successfull gradient descent? ", res['success'])
 
 # Deactivate the edges between STB units.
-# for i in sheet.edge_df.index:
-#     if sheet.edge_df.loc[i,'opposite'] != -1:
-#         associated_cell = sheet.edge_df.loc[i,'face']
-#         opposite_edge = sheet.edge_df.loc[i,'opposite']
-#         opposite_cell = sheet.edge_df.loc[opposite_edge,'face']
-#         if sheet.face_df.loc[associated_cell,'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell,'cell_class'] == 'STB':
-#             sheet.edge_df.loc[i,'is_active'] = 0
-#             sheet.edge_df.loc[opposite_edge,'is_active'] = 0
+for i in sheet.edge_df.index:
+    if sheet.edge_df.loc[i,'opposite'] != -1:
+        associated_cell = sheet.edge_df.loc[i,'face']
+        opposite_edge = sheet.edge_df.loc[i,'opposite']
+        opposite_cell = sheet.edge_df.loc[opposite_edge,'face']
+        if sheet.face_df.loc[associated_cell,'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell,'cell_class'] == 'STB':
+            sheet.edge_df.loc[i,'is_active'] = 0
+            sheet.edge_df.loc[opposite_edge,'is_active'] = 0
 
 # Deactivate the vertices associated with the four corner cells
 corner_cells = [0, num_x-3, num_x-2, len(sheet.face_df)-1]
@@ -447,7 +449,7 @@ while t <= t_end:
     # geom.update_all(sheet)
 
     # Update dummy edges after all cell class changes.
-    # auto_dummy_edges(sheet)
+    auto_dummy_edges(sheet)
 
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
