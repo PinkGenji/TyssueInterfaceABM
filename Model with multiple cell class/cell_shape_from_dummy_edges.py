@@ -203,7 +203,7 @@ specs = {
         'area_elasticity': 110,
         'contractility': 0,
         'is_alive': 1,
-        'prefered_perimeter': 5.3,
+        'prefered_perimeter': 4.5,
         'perimeter_elasticity':110,
         'prefered_area': 2},
     'settings': {
