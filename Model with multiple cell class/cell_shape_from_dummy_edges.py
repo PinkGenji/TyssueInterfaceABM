@@ -105,7 +105,7 @@ def face_boundary_edges(sheet, face_id):
 
 
 # Define the directory name
-frames_dir = "frames_Usually"
+frames_dir = "frames_dummy"
 # Create directory for frames
 if not os.path.exists(frames_dir):
     print(f"Directory '{frames_dir}' does not exist. Creating it.")
@@ -233,14 +233,14 @@ res = solver.find_energy_min(sheet, geom, model)
 print("Successfull gradient descent? ", res['success'])
 
 # Deactivate the edges between STB units.
-# for i in sheet.edge_df.index:
-#     if sheet.edge_df.loc[i,'opposite'] != -1:
-#         associated_cell = sheet.edge_df.loc[i,'face']
-#         opposite_edge = sheet.edge_df.loc[i,'opposite']
-#         opposite_cell = sheet.edge_df.loc[opposite_edge,'face']
-#         if sheet.face_df.loc[associated_cell,'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell,'cell_class'] == 'STB':
-#             sheet.edge_df.loc[i,'is_active'] = 0
-#             sheet.edge_df.loc[opposite_edge,'is_active'] = 0
+for i in sheet.edge_df.index:
+    if sheet.edge_df.loc[i,'opposite'] != -1:
+        associated_cell = sheet.edge_df.loc[i,'face']
+        opposite_edge = sheet.edge_df.loc[i,'opposite']
+        opposite_cell = sheet.edge_df.loc[opposite_edge,'face']
+        if sheet.face_df.loc[associated_cell,'cell_class'] == 'STB' and sheet.face_df.loc[opposite_cell,'cell_class'] == 'STB':
+            sheet.edge_df.loc[i,'is_active'] = 0
+            sheet.edge_df.loc[opposite_edge,'is_active'] = 0
 
 # Deactivate the vertices associated with the four corner cells
 corner_cells = [0, num_x-3, num_x-2, len(sheet.face_df)-1]
@@ -449,7 +449,7 @@ while t <= t_end:
     # geom.update_all(sheet)
 
     # Update dummy edges after all cell class changes.
-    # auto_dummy_edges(sheet)
+    auto_dummy_edges(sheet)
 
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
@@ -478,7 +478,7 @@ while t <= t_end:
     ax.title.set_text(f'time = {real_time_hours:.4f}')
     ax.set_axis_off()
     # Save to file instead of showing.
-    frame_path = f"frames_Usually/frame_{real_time_hours:.4f}.png"
+    frame_path = f"frames_dummy/frame_{real_time_hours:.4f}.png"
     plt.savefig(frame_path)
     plt.close(fig)  # Close figure to prevent memory leaks
 
@@ -490,11 +490,11 @@ final_stb_ct_interface_length = stb_ct_interface_length(sheet)
 final_stb_thickness = final_stb_area/final_stb_ct_interface_length
 
 # Write the final sheet to a hdf5 file.
-hdf5.save_datasets('Usual_proliferation.hdf5', sheet)
+hdf5.save_datasets('Dummy_proliferation.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
-frame_folder = "frames_Usually"
+frame_folder = "frames_dummy"
 
 # Helper function to extract the numeric part from a filename
 # For example, from "frame_12.png", it extracts 12
@@ -510,7 +510,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('Usual_proliferation.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('Dummy_proliferation.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
@@ -565,7 +565,7 @@ df = pd.DataFrame({
     "STB_area": STB_area
 })
 # Save to CSV
-df.to_csv("Usual_proliferation.csv", index=False)
+df.to_csv("Dummy_proliferation.csv", index=False)
 print("Saved csv file \n")
 
 print(f' The initial STB area is {initial_stb_area:.2f},\n the initial STB-CT interface length is {initial_stb_ct_interface_length:.2f},\n and the initial mean thickness is {initial_stb_thickness:.2f}.\n')
