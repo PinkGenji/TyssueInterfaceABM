@@ -14,6 +14,9 @@ from tyssue.topology.base_topology import close_face, drop_face
 from tyssue import PlanarGeometry as geom #for simple 2d geometry
 from tyssue.dynamics import effectors, model_factory
 from tyssue.solvers import QSSolver
+# Mute all the version warnings.
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 # 2D plotting
 from tyssue.draw import sheet_view
@@ -420,6 +423,7 @@ while t <= t_end:
     F_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'F'].tolist()
     for cell in F_cells:
         if sheet.face_df.loc[cell, 'timer'] < 0:
+            print(f'fusing the number {cell} cell')
             fusing_cell = fuse_single_cell(sheet, cell, 10*d_min)
             fusing_cell_idx = sheet.face_df[sheet.face_df['unique_id'] == fusing_cell].index
             sheet.face_df.loc[fusing_cell_idx, 'cell_class'] = 'STB'
