@@ -374,7 +374,7 @@ while t <= t_end:
 
             # Use rng to randomly generate a number between 0 and 1, this will determine the fate of the mature CT.
             cell_fate_roulette = rng.random()
-            if stb_count > 1 and cell_fate_roulette < 0.3:  # If CT is adjacent to STB, then it has 30% probability to fuse.
+            if stb_count == 2 and cell_fate_roulette < 0.3:  # If CT is adjacent to STB, then it has 30% probability to fuse.
                 sheet.face_df.loc[cell, 'cell_class'] = 'F'
                 # Add a timer for each cell enters 'F'.
                 sheet.face_df.loc[cell, 'timer'] = tau_F
