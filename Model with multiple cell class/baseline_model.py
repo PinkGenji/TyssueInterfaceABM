@@ -108,7 +108,7 @@ def face_boundary_edges(sheet, face_id):
 
 
 # Define the directory name
-frames_dir = "framesT3"
+frames_dir = "add_basement"
 # Create directory for frames
 if not os.path.exists(frames_dir):
     print(f"Directory '{frames_dir}' does not exist. Creating it.")
@@ -278,6 +278,7 @@ t2_threshold = sheet.face_df['area'].mean()/10
 d_min = t1_threshold
 d_sep = d_min *1.5
 max_movement = t1_threshold / 2
+default_tension = sheet.specs.get('edge').get('line_tension')
 # Before the simulation loop:
 fusion_events = []      # number of fusion events at each time step
 time_list = []
@@ -289,7 +290,7 @@ initial_stb_thickness = initial_stb_area/initial_stb_ct_interface_length
 
 # Start simulating.
 t = 0
-t_end = 72
+t_end = 24
 
 while t <= t_end:
     dt = 0.01  # initial time step, will be updated dynamically later.
@@ -374,7 +375,8 @@ while t <= t_end:
 
             # Use rng to randomly generate a number between 0 and 1, this will determine the fate of the mature CT.
             cell_fate_roulette = rng.random()
-            if stb_count == 2 and cell_fate_roulette < 0.3:  # If CT is adjacent to STB, then it has 30% probability to fuse.
+            enable_fusion = 0
+            if stb_count == 2 and cell_fate_roulette < 0.3 and enable_fusion == 1:  # If CT is adjacent to STB, then it has 30% probability to fuse.
                 sheet.face_df.loc[cell, 'cell_class'] = 'F'
                 # Add a timer for each cell enters 'F'.
                 sheet.face_df.loc[cell, 'timer'] = tau_F
@@ -451,7 +453,7 @@ while t <= t_end:
     # geom.update_all(sheet)
 
     # Update dummy edges after all cell class changes.
-    auto_dummy_edges(sheet)
+    auto_dummy_edges(sheet, default_tension = default_tension)
 
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
@@ -480,7 +482,7 @@ while t <= t_end:
     ax.title.set_text(f'time = {real_time_hours:.4f}')
     ax.set_axis_off()
     # Save to file instead of showing.
-    frame_path = f"framesT3/frame_{real_time_hours:.4f}.png"
+    frame_path = f"add_basement/frame_{real_time_hours:.4f}.png"
     plt.savefig(frame_path)
     plt.close(fig)  # Close figure to prevent memory leaks
 
@@ -492,11 +494,11 @@ final_stb_ct_interface_length = stb_ct_interface_length(sheet)
 final_stb_thickness = final_stb_area/final_stb_ct_interface_length
 
 # Write the final sheet to a hdf5 file.
-hdf5.save_datasets('baseline_new_T3.hdf5', sheet)
+hdf5.save_datasets('basement_added.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
-frame_folder = "framesT3"
+frame_folder = "add_basement"
 
 # Helper function to extract the numeric part from a filename
 # For example, from "frame_12.png", it extracts 12
@@ -512,7 +514,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('baseline_new_T3.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('basement_added.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
@@ -567,7 +569,7 @@ df = pd.DataFrame({
     "STB_area": STB_area
 })
 # Save to CSV
-df.to_csv("baseline_new_T3.csv", index=False)
+df.to_csv("basement_added.csv", index=False)
 print("Saved csv file \n")
 
 print(f' The initial STB area is {initial_stb_area:.2f},\n the initial STB-CT interface length is {initial_stb_ct_interface_length:.2f},\n and the initial mean thickness is {initial_stb_thickness:.2f}.\n')
