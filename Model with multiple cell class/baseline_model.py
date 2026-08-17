@@ -256,6 +256,9 @@ for cell in corner_cells:
 for vert in fix_vert_set:
     sheet.vert_df.loc[vert,'is_active'] = 0
 
+for cell in [1,num_x-4]:
+    sheet.face_df.loc[cell,'cell_class'] = 'stay_as_original'
+
 draw_specs = sheet_spec()
 # --- Faces ---
 draw_specs['face']['visible'] = True
