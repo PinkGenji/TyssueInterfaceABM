@@ -76,27 +76,6 @@ def stb_ct_interface_length(sheet):
             length += sheet.edge_df.loc[e, 'length']
     return length
 
-def stb_detach(sheet, geom, cell_id):
-    if cell_id not in sheet.face_df.index:
-        return
-    sheet.get_extra_indices()
-    while True:
-        internal_edges = sheet.edge_df[(sheet.edge_df['face'] == cell_id) & (sheet.edge_df['opposite'] != -1)]
-        did_t1 = False
-        for edge_id in internal_edges.index:
-            opposite_edge_id = internal_edges.loc[edge_id, 'opposite']
-            opposite_cell = sheet.edge_df.loc[opposite_edge_id, 'face']
-            if sheet.face_df.loc[opposite_cell, 'cell_class'] == 'STB' or sheet.face_df.loc[opposite_cell, 'cell_class'] == 'E':
-                continue
-            else:
-                print(f'processing edge {edge_id} for detachment of cell {cell_id}. ')
-                collapse_edge(sheet, edge_id, reindex=True)
-                geom.update_all(sheet)
-                sheet.reset_index(order=False)
-                did_t1 = True
-                break
-        if not did_t1:
-            break
 
 def face_boundary_edges(sheet, face_id):
     """Return all boundary edges belonging to a given face."""
@@ -378,7 +357,7 @@ while t <= t_end:
 
             # Use rng to randomly generate a number between 0 and 1, this will determine the fate of the mature CT.
             cell_fate_roulette = rng.random()
-            enable_fusion = 0
+            enable_fusion = 1
             if stb_count == 2 and cell_fate_roulette < 0.3 and enable_fusion == 1:  # If CT is adjacent to STB, then it has 30% probability to fuse.
                 sheet.face_df.loc[cell, 'cell_class'] = 'F'
                 # Add a timer for each cell enters 'F'.
