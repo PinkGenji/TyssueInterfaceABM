@@ -9,7 +9,7 @@ import numpy as np
 import re
 import matplotlib.pyplot as plt
 from tyssue import Sheet
-from tyssue.topology.sheet_topology import remove_face, cell_division, fuse_single_cell, auto_dummy_edges
+from tyssue.topology.sheet_topology import remove_face, cell_division, fuse_single_cell, auto_dummy_edges, update_prefered_area
 from tyssue.topology.base_topology import close_face, drop_face
 from tyssue import PlanarGeometry as geom #for simple 2d geometry
 from tyssue.dynamics import effectors, model_factory
@@ -87,7 +87,7 @@ def face_boundary_edges(sheet, face_id):
 
 
 # Define the directory name
-frames_dir = "add_fusion"
+frames_dir = "p_area_change"
 # Create directory for frames
 if not os.path.exists(frames_dir):
     print(f"Directory '{frames_dir}' does not exist. Creating it.")
@@ -205,6 +205,7 @@ for i in sheet.edge_df.index:
         sheet.edge_df.loc[i, 'line_tension'] *= 2
     else:
         continue
+update_prefered_area(sheet,2,1.5)
 geom.update_all(sheet)
 
 # Use QS solver to start with the steady state of the system.
@@ -357,7 +358,7 @@ while t <= t_end:
 
             # Use rng to randomly generate a number between 0 and 1, this will determine the fate of the mature CT.
             cell_fate_roulette = rng.random()
-            enable_fusion = 1
+            enable_fusion = 0
             if stb_count == 2 and cell_fate_roulette < 0.3 and enable_fusion == 1:  # If CT is adjacent to STB, then it has 30% probability to fuse.
                 sheet.face_df.loc[cell, 'cell_class'] = 'F'
                 # Add a timer for each cell enters 'F'.
@@ -412,6 +413,7 @@ while t <= t_end:
             fusing_cell_idx = sheet.face_df[sheet.face_df['unique_id'] == fusing_cell].index
             sheet.face_df.loc[fusing_cell_idx, 'cell_class'] = 'STB'
             sheet.face_df.loc[fusing_cell_idx,'timer'] = 0 # As a fresh STB unit, set the timer to be 0
+            geom.update_all(sheet)
         else:
             sheet.face_df.loc[cell, 'timer'] -= dt
     sheet.reset_index()
@@ -436,6 +438,7 @@ while t <= t_end:
 
     # Update dummy edges after all cell class changes.
     auto_dummy_edges(sheet, default_tension = default_tension, only_dummy = False)
+    update_prefered_area(sheet,2,1.5)
 
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
@@ -464,7 +467,7 @@ while t <= t_end:
     ax.title.set_text(f'time = {real_time_hours:.4f}')
     ax.set_axis_off()
     # Save to file instead of showing.
-    frame_path = f"add_fusion/frame_{real_time_hours:.4f}.png"
+    frame_path = f"p_area_change/frame_{real_time_hours:.4f}.png"
     plt.savefig(frame_path)
     plt.close(fig)  # Close figure to prevent memory leaks
 
@@ -476,11 +479,11 @@ final_stb_ct_interface_length = stb_ct_interface_length(sheet)
 final_stb_thickness = final_stb_area/final_stb_ct_interface_length
 
 # Write the final sheet to a hdf5 file.
-hdf5.save_datasets('fusion_added.hdf5', sheet)
+hdf5.save_datasets('p_area_changeed.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
-frame_folder = "add_fusion"
+frame_folder = "p_area_change"
 
 # Helper function to extract the numeric part from a filename
 # For example, from "frame_12.png", it extracts 12
@@ -496,7 +499,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('fusion_added.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('p_area_changeed.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
@@ -551,7 +554,7 @@ df = pd.DataFrame({
     "STB_area": STB_area
 })
 # Save to CSV
-df.to_csv("fusion_added.csv", index=False)
+df.to_csv("p_area_changeed.csv", index=False)
 print("Saved csv file \n")
 
 print(f' The initial STB area is {initial_stb_area:.2f},\n the initial STB-CT interface length is {initial_stb_ct_interface_length:.2f},\n and the initial mean thickness is {initial_stb_thickness:.2f}.\n')
