@@ -207,7 +207,7 @@ for i in sheet.edge_df.index:
         continue
 
 # Also update the coefficient value for cell area elasticity
-update_area_elasticity(sheet = sheet,default_value = 110, multiplier = 0.8)
+update_area_elasticity(sheet = sheet,default_value = 110, multiplier = 0.5)
 
 geom.update_all(sheet)
 
@@ -441,7 +441,7 @@ while t <= t_end:
 
     # Update dummy edges after all cell class changes.
     auto_dummy_edges(sheet, default_tension = default_tension, only_dummy = False)
-    update_area_elasticity(sheet=sheet, default_value=110, multiplier=0.8)
+    update_area_elasticity(sheet=sheet, default_value=110, multiplier=0.5)
 
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
