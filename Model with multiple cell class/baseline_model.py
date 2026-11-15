@@ -474,7 +474,7 @@ while t <= t_end:
     print(f'At time {real_time_hours:.4f} hours\n')
 
     # Tracking different cell populations.
-    current_CTs, current_Fs = cell_population_record()
+    current_CTs, current_Fs = cell_population_record(sheet)
     CT_num_tracking.append(current_CTs)
     F_num_tracking.append(current_Fs)
 
