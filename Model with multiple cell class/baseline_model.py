@@ -84,6 +84,12 @@ def face_boundary_edges(sheet, face_id):
         (sheet.edge_df['opposite'] == -1)
     ].index.tolist()
 
+def cell_population_record(sheet):
+    # This is the main function that stores the statistics of the system during evolution.
+    CT_count = sheet.face_df["cell_class"].isin(CT_classes).sum()
+    F_count = (sheet.face_df["cell_class"] == "F").sum()
+
+    return CT_count, F_count
 
 
 # Define the directory name
@@ -142,6 +148,7 @@ tau_M = 0.5   # Min M phase time is 0.5 hours
 tau_F = 4    # Min F phase time is 24 hours
 stb_age = 35      # After 35 hours, STB units can start to extrude with a certain probability at each time step.
 print('New attributes: cell_class; timer created for all cells. \n ')
+CT_classes = ["G1", "S", "M", "G2"]
 
 for i in range(0,num_x-2):  # These are the indices of the bottom layer.
     # All CTs assigned with class ‘G1’, ‘S’, ‘M’, or ‘G2’ based on probabilities that reflect typical times in each stage of the cell cycle
@@ -163,8 +170,6 @@ for i in range(0,num_x-2):  # These are the indices of the bottom layer.
 for i in range(num_x-2,len(sheet.face_df)):     # These are the indices of the top layer.
     sheet.face_df.loc[i,'cell_class'] = 'STB'
     sheet.face_df.loc[i, 'timer'] = np.nan
-
-print(f'There are {total_cell_num} total cells; equally split into "G1" and "STB" classes. ')
 
 # Add dynamics to the model, start with effectors, then change values.
 model = model_factory([
@@ -257,6 +262,8 @@ fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
 ax.set_axis_off()
 plt.show()
 
+CT_count, F_count = cell_population_record(sheet)
+print(f'\n There are {CT_count} CTs and {F_count} F cells.')
 
 # Set the threshold values for mesh restructure.
 t1_threshold = sheet.edge_df['length'].mean()/10
@@ -269,6 +276,8 @@ default_tension = sheet.specs.get('edge').get('line_tension')
 fusion_events = []      # number of fusion events at each time step
 time_list = []
 STB_area = []
+CT_num_tracking = []
+F_num_tracking = []
 # Also keep the record for initial stb area, stb-ct interface length and stb mean thickness.
 initial_stb_area = sheet.face_df.loc[sheet.face_df['cell_class'] == 'STB', 'area'].sum()
 initial_stb_ct_interface_length = stb_ct_interface_length(sheet)
@@ -464,6 +473,11 @@ while t <= t_end:
     # Print time in console.
     print(f'At time {real_time_hours:.4f} hours\n')
 
+    # Tracking different cell populations.
+    current_CTs, current_Fs = cell_population_record()
+    CT_num_tracking.append(current_CTs)
+    F_num_tracking.append(current_Fs)
+
     # Generate the plot at this time step.
     update_draw_specs(sheet, draw_specs)  # Update drawing specifications based on current sheet state
     fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
@@ -545,6 +559,28 @@ plt.title('Fusion Rate Over Time')
 plt.grid(True)
 plt.tight_layout()
 plt.savefig("fusion_rate_over_time.png", dpi=500)
+plt.close()
+
+# Genrate a number of CTs against time plot.
+plt.figure()
+plt.plot(time_list, CT_num_tracking, color='darkred')
+plt.xlabel('Time')
+plt.ylabel('Number of CTs in the system')
+plt.title('CT population over time')
+plt.grid(True)
+plt.tight_layout()
+plt.savefig("CT_population.png", dpi=500)
+plt.close()
+
+# Genrate a number of F cells against time plot.
+plt.figure()
+plt.plot(time_list, F_num_tracking, color='darkred')
+plt.xlabel('Time')
+plt.ylabel('Number of F-class cells in the system')
+plt.title('F cell population over time')
+plt.grid(True)
+plt.tight_layout()
+plt.savefig("F_population.png", dpi=500)
 plt.close()
 
 
