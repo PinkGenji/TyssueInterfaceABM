@@ -212,7 +212,7 @@ for i in sheet.edge_df.index:
         continue
 
 # Also update the coefficient value for cell area elasticity
-update_area_elasticity(sheet = sheet,default_value = 110, multiplier = 5)
+update_area_elasticity(sheet = sheet,default_value = 110, multiplier = 1)
 
 geom.update_all(sheet)
 
@@ -450,7 +450,7 @@ while t <= t_end:
 
     # Update dummy edges after all cell class changes.
     auto_dummy_edges(sheet, default_tension = default_tension, only_dummy = False)
-    update_area_elasticity(sheet=sheet, default_value=110, multiplier=5)
+    update_area_elasticity(sheet=sheet, default_value=110, multiplier=1)
 
     # Force computing and updating positions.
     valid_active_verts = sheet.active_verts[sheet.active_verts.isin(sheet.vert_df.index)]
@@ -496,7 +496,7 @@ final_stb_ct_interface_length = stb_ct_interface_length(sheet)
 final_stb_thickness = final_stb_area/final_stb_ct_interface_length
 
 # Write the final sheet to a hdf5 file.
-hdf5.save_datasets('hetero_k_alphaed.hdf5', sheet)
+hdf5.save_datasets('uniform_k_alpha.hdf5', sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
@@ -516,13 +516,17 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('hetero_k_alphaed.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('uniform_k_alpha.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
         writer.append_data(image)        # Write image to video
 
 
+
+# Create a directory to store alll the global plots
+result_plots_dir = "uniform_alpha_result_plots"
+os.makedirs(result_plots_dir, exist_ok=True)
 
 plt.figure(figsize=(8, 5))
 plt.plot(time_list, STB_area, label='Total STB Area', color='purple')
@@ -532,7 +536,7 @@ plt.title('STB Area Over Time')
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
-plt.savefig("stb_area_over_time.png", dpi=500)
+plt.savefig(os.path.join(result_plots_dir, 'stb_area_over_time.png',dpi = 500))
 plt.close()
 
 
@@ -545,7 +549,7 @@ plt.title('Fusion Events Over Time')
 plt.grid(True)
 plt.legend()
 plt.tight_layout()
-plt.savefig("fusion_events_over_time.png", dpi=500)
+plt.savefig(os.path.join(result_plots_dir, 'fusion_events_over_time.png',dpi = 500))
 plt.close()
 
 hours_per_step = dt * 100
@@ -558,7 +562,7 @@ plt.ylabel('Fusion events per hour')
 plt.title('Fusion Rate Over Time')
 plt.grid(True)
 plt.tight_layout()
-plt.savefig("fusion_rate_over_time.png", dpi=500)
+plt.savefig(os.path.join(result_plots_dir, 'fusion_rate_over_time.png.png',dpi = 500))
 plt.close()
 
 # Genrate a number of CTs against time plot.
@@ -569,7 +573,7 @@ plt.ylabel('Number of CTs in the system')
 plt.title('CT population over time')
 plt.grid(True)
 plt.tight_layout()
-plt.savefig("CT_population.png", dpi=500)
+plt.savefig(os.path.join(result_plots_dir, 'CT_population.png',dpi = 500))
 plt.close()
 
 # Genrate a number of F cells against time plot.
@@ -580,7 +584,7 @@ plt.ylabel('Number of F-class cells in the system')
 plt.title('F cell population over time')
 plt.grid(True)
 plt.tight_layout()
-plt.savefig("F_population.png", dpi=500)
+plt.savefig(os.path.join(result_plots_dir, 'F_population.png',dpi = 500))
 plt.close()
 
 
@@ -593,7 +597,7 @@ df = pd.DataFrame({
     "STB_area": STB_area
 })
 # Save to CSV
-df.to_csv("hetero_k_alphaed.csv", index=False)
+df.to_csv("uniform_k_alpha.csv", index=False)
 print("Saved csv file \n")
 
 print(f' The initial STB area is {initial_stb_area:.2f},\n the initial STB-CT interface length is {initial_stb_ct_interface_length:.2f},\n and the initial mean thickness is {initial_stb_thickness:.2f}.\n')
