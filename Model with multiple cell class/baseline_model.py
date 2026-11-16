@@ -536,7 +536,7 @@ plt.title('STB Area Over Time')
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
-plt.savefig(os.path.join(result_plots_dir, 'stb_area_over_time.png',dpi = 500))
+plt.savefig(os.path.join(result_plots_dir, 'stb_area_over_time.png'),dpi = 500)
 plt.close()
 
 
@@ -549,7 +549,7 @@ plt.title('Fusion Events Over Time')
 plt.grid(True)
 plt.legend()
 plt.tight_layout()
-plt.savefig(os.path.join(result_plots_dir, 'fusion_events_over_time.png',dpi = 500))
+plt.savefig(os.path.join(result_plots_dir, 'fusion_events_over_time.png'),dpi = 500)
 plt.close()
 
 hours_per_step = dt * 100
@@ -562,7 +562,7 @@ plt.ylabel('Fusion events per hour')
 plt.title('Fusion Rate Over Time')
 plt.grid(True)
 plt.tight_layout()
-plt.savefig(os.path.join(result_plots_dir, 'fusion_rate_over_time.png.png',dpi = 500))
+plt.savefig(os.path.join(result_plots_dir, 'fusion_rate_over_time.png.png'),dpi = 500)
 plt.close()
 
 # Genrate a number of CTs against time plot.
@@ -573,7 +573,7 @@ plt.ylabel('Number of CTs in the system')
 plt.title('CT population over time')
 plt.grid(True)
 plt.tight_layout()
-plt.savefig(os.path.join(result_plots_dir, 'CT_population.png',dpi = 500))
+plt.savefig(os.path.join(result_plots_dir, 'CT_population.png'),dpi = 500)
 plt.close()
 
 # Genrate a number of F cells against time plot.
@@ -584,7 +584,7 @@ plt.ylabel('Number of F-class cells in the system')
 plt.title('F cell population over time')
 plt.grid(True)
 plt.tight_layout()
-plt.savefig(os.path.join(result_plots_dir, 'F_population.png',dpi = 500))
+plt.savefig(os.path.join(result_plots_dir, 'F_population.png'),dpi = 500)
 plt.close()
 
 
