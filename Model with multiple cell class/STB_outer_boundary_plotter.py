@@ -1,47 +1,45 @@
-"""
-This script takes the HDF5 file of a trophoblast bilayer system, then plots the outer surface of the STB layer.
-
-"""
-# Load all required modules.
-import random
-import numpy as np
-import re
 import matplotlib.pyplot as plt
-from tyssue import Sheet, PlanarGeometry
-from tyssue.topology.sheet_topology import remove_face
-from tyssue import PlanarGeometry as geom #for simple 2d geometry
-from tyssue.dynamics import effectors, model_factory
-from tyssue.io import hdf5 # For saving the datasets
-from tyssue.solvers.viscous import EulerSolver
-from tyssue.behaviors import EventManager
-
-# 2D plotting
-from tyssue.draw import sheet_view
+from tyssue import Sheet
 from tyssue.io import hdf5
 
-# Starts reloading the hdf5 files, after each reloading, we check the reloading by genereating a plot.
+# One shared figure for all three surfaces
+fig, ax = plt.subplots(figsize=(10, 4))
+
+# ---- Uniform alpha ----
 dsets = hdf5.load_datasets('uniform_alpha.hdf5')
 uniform_sheet = Sheet('reloaded', dsets)
-fig,ax = sheet_view(uniform_sheet)
-ax.set_title('plot of uniform alpha simulation')
-plt.show()
+STB_ids = uniform_sheet.face_df[uniform_sheet.face_df['cell_class'] == 'STB'].index
+uniform_stb_surface_xys = uniform_sheet.edge_df[
+    (uniform_sheet.edge_df['face'].isin(STB_ids)) & (uniform_sheet.edge_df['opposite'] == -1)][['sx', 'sy']]
+sorted_uniform = uniform_stb_surface_xys.sort_values(by='sx').reset_index(drop=True)
+ax.plot(sorted_uniform['sx'], sorted_uniform['sy'], '-o', color='tab:blue',
+        markersize=3, linewidth=1.5, label='Uniform alpha')
 
-
-
+# ---- 80% alpha ----
 dsets2 = hdf5.load_datasets('80percent_alpha.hdf5')
 reduced_sheet = Sheet('reloaded', dsets2)
-fig, ax = sheet_view(reduced_sheet)
-ax.set_title('plot of reduced alpha simulation')
-plt.show()
+STB_ids = reduced_sheet.face_df[reduced_sheet.face_df['cell_class'] == 'STB'].index
+reduced_stb_surface_xys = reduced_sheet.edge_df[
+    (reduced_sheet.edge_df['face'].isin(STB_ids)) & (reduced_sheet.edge_df['opposite'] == -1)][['sx', 'sy']]
+sorted_reduced = reduced_stb_surface_xys.sort_values(by='sx').reset_index(drop=True)
+ax.plot(sorted_reduced['sx'], sorted_reduced['sy'], '-o', color='tab:orange',
+        markersize=3, linewidth=1.5, label='80% alpha')
 
+# ---- 50% alpha ----
 dsets3 = hdf5.load_datasets('50percent_alpha.hdf5')
 half_sheet = Sheet('reloaded', dsets3)
-fig, ax = sheet_view(half_sheet)
-ax.set_title('plot of half alpha simulation')
+STB_ids = half_sheet.face_df[half_sheet.face_df['cell_class'] == 'STB'].index
+half_stb_surface_xys = half_sheet.edge_df[
+    (half_sheet.edge_df['face'].isin(STB_ids)) & (half_sheet.edge_df['opposite'] == -1)][['sx', 'sy']]
+sorted_half = half_stb_surface_xys.sort_values(by='sx').reset_index(drop=True)
+ax.plot(sorted_half['sx'], sorted_half['sy'], '-o', color='tab:green',
+        markersize=3, linewidth=1.5, label='50% alpha')
+
+# ---- Finish the plot ----
+ax.set_xlabel('x')
+ax.set_ylabel('y')
+ax.set_title('STB outer surface comparison')
+ax.set_aspect('equal', adjustable='datalim')
+ax.legend()
+plt.tight_layout()
 plt.show()
-
-
-
-
-
-print("\n This is the end of the script. :) \n")
