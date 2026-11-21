@@ -6,6 +6,7 @@ This is a baseline model that the only stochasticity is my initial assignment of
 
 # Load all required modules.
 import numpy as np
+import pandas as pd
 import re
 import matplotlib.pyplot as plt
 from tyssue import Sheet
@@ -272,9 +273,10 @@ d_min = t1_threshold
 d_sep = d_min *1.5
 max_movement = t1_threshold / 2
 default_tension = sheet.specs.get('edge').get('line_tension')
-# Before the simulation loop:
-fusion_events = []      # number of fusion events at each time step
+# Initialise the tools for tracking the evolution of system:
 time_list = []
+next_save_time = 0      # we save the system into hdf5 file at the beginning
+save_interval = 6       # we then save it every 6 simulation hours
 STB_area = []
 CT_num_tracking = []
 F_num_tracking = []
@@ -282,6 +284,10 @@ F_num_tracking = []
 initial_stb_area = sheet.face_df.loc[sheet.face_df['cell_class'] == 'STB', 'area'].sum()
 initial_stb_ct_interface_length = stb_ct_interface_length(sheet)
 initial_stb_thickness = initial_stb_area/initial_stb_ct_interface_length
+
+# Create a directory to store alll the global plots
+result_plots_dir = "uniform_alpha_result_plots"
+os.makedirs(result_plots_dir, exist_ok=True)
 
 # Start simulating.
 t = 0
@@ -488,6 +494,15 @@ while t <= t_end:
     plt.savefig(frame_path)
     plt.close(fig)  # Close figure to prevent memory leaks
 
+    # Check the time to see if we want to save the system into HDF5 file.
+    if t >= next_save_time:
+        filename = f"simulation_{next_save_time:.0f}.hdf5"
+        filepath = os.path.join(result_plots_dir, filename)
+        hdf5.save_datasets(filepath, sheet.datasets)
+        print(f"Saved simulation at {next_save_time} hours")
+        # update the next save time so we won't over-saving.
+        next_save_time += save_interval
+
     # Update time_point
     t += dt
 
@@ -495,12 +510,13 @@ final_stb_area = sheet.face_df.loc[sheet.face_df['cell_class'] == 'STB', 'area']
 final_stb_ct_interface_length = stb_ct_interface_length(sheet)
 final_stb_thickness = final_stb_area/final_stb_ct_interface_length
 
-# Write the final sheet to a hdf5 file.
-hdf5.save_datasets('uniform_alpha.hdf5', sheet)
+# Save the final simulation state
+final_filepath = os.path.join(result_plots_dir,"uniform_alpha_final.hdf5")
+hdf5.save_datasets(final_filepath, sheet.datasets)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
-frame_folder = "uniform_k_alpha"
+frame_folder = frames_dir
 
 # Helper function to extract the numeric part from a filename
 # For example, from "frame_12.png", it extracts 12
@@ -524,10 +540,6 @@ with imageio.get_writer('uniform_alpha.mp4', fps=15, format='ffmpeg') as writer:
 
 
 
-# Create a directory to store alll the global plots
-result_plots_dir = "uniform_alpha_result_plots"
-os.makedirs(result_plots_dir, exist_ok=True)
-
 plt.figure(figsize=(8, 5))
 plt.plot(time_list, STB_area, label='Total STB Area', color='purple')
 plt.xlabel('Time')
@@ -537,32 +549,6 @@ plt.legend()
 plt.grid(True)
 plt.tight_layout()
 plt.savefig(os.path.join(result_plots_dir, 'stb_area_over_time.png'),dpi = 500)
-plt.close()
-
-
-
-plt.figure(figsize=(8, 5))
-plt.plot(time_list, fusion_events, label='Fusion events per time step', color='red')
-plt.xlabel('Time')
-plt.ylabel('Number of fusion events')
-plt.title('Fusion Events Over Time')
-plt.grid(True)
-plt.legend()
-plt.tight_layout()
-plt.savefig(os.path.join(result_plots_dir, 'fusion_events_over_time.png'),dpi = 500)
-plt.close()
-
-hours_per_step = dt * 100
-fusion_rate = [count / hours_per_step for count in fusion_events]
-
-plt.figure(figsize=(8, 5))
-plt.plot(time_list, fusion_rate, color='darkred')
-plt.xlabel('Time')
-plt.ylabel('Fusion events per hour')
-plt.title('Fusion Rate Over Time')
-plt.grid(True)
-plt.tight_layout()
-plt.savefig(os.path.join(result_plots_dir, 'fusion_rate_over_time.png.png'),dpi = 500)
 plt.close()
 
 # Genrate a number of CTs against time plot.
@@ -587,17 +573,16 @@ plt.tight_layout()
 plt.savefig(os.path.join(result_plots_dir, 'F_population.png'),dpi = 500)
 plt.close()
 
-
 # Create a DataFrame with all tracked quantities
-import pandas as pd
-
 df = pd.DataFrame({
-    "time": time_list,
-    "fusion_events": fusion_events,
+    "time_hours": time_list,
+    "CT_number": CT_num_tracking,
+    "F_number": F_num_tracking,
     "STB_area": STB_area
 })
+
 # Save to CSV
-df.to_csv("uniform_alpha.csv", index=False)
+df.to_csv(os.path.join(result_plots_dir, "uniform_alpha.csv"),index=False)
 print("Saved csv file \n")
 
 print(f' The initial STB area is {initial_stb_area:.2f},\n the initial STB-CT interface length is {initial_stb_ct_interface_length:.2f},\n and the initial mean thickness is {initial_stb_thickness:.2f}.\n')
