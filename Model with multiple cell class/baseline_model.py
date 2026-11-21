@@ -364,7 +364,6 @@ while t <= t_end:
     ### Cell class governing section starts.
     # For a mature 'S' cell, if it's touching STB, then it's possible to fuse, otherwise, must continue CT cycle.
     S_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist()
-    fusion_count = 0
     for cell in S_cells:
         if sheet.face_df.loc[cell, 'timer'] >0:
             sheet.face_df.loc[cell, 'timer'] -= dt
@@ -381,7 +380,6 @@ while t <= t_end:
                 sheet.face_df.loc[cell, 'cell_class'] = 'F'
                 # Add a timer for each cell enters 'F'.
                 sheet.face_df.loc[cell, 'timer'] = tau_F
-                fusion_count += 1
             else:   # Otherwise, all the cells becomes a G2 class.
                 sheet.face_df.loc[cell, 'cell_class'] = 'G2'
                 sheet.face_df.loc[cell, 'timer'] = tau_G2
@@ -474,8 +472,6 @@ while t <= t_end:
     total_STB = sheet.face_df.loc[sheet.face_df['cell_class'] == 'STB', 'area'].sum()
     STB_area.append(total_STB)
     time_list.append(real_time_hours)
-    # Record fusion events and time.
-    fusion_events.append(fusion_count)
     # Print time in console.
     print(f'At time {real_time_hours:.4f} hours\n')
 
