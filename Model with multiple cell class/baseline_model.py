@@ -266,6 +266,12 @@ plt.show()
 CT_count, F_count = cell_population_record(sheet)
 print(f'\n There are {CT_count} CTs and {F_count} F cells.')
 
+result_plots_dir = "uniform_alpha_result_plots"
+os.makedirs(result_plots_dir, exist_ok=True)
+filename = f"code_test.hdf5"
+filepath = os.path.join(result_plots_dir, filename)
+hdf5.save_datasets(filepath, sheet)
+
 # Set the threshold values for mesh restructure.
 t1_threshold = sheet.edge_df['length'].mean()/10
 t2_threshold = sheet.face_df['area'].mean()/10
@@ -494,7 +500,7 @@ while t <= t_end:
     if t >= next_save_time:
         filename = f"simulation_{next_save_time:.0f}.hdf5"
         filepath = os.path.join(result_plots_dir, filename)
-        hdf5.save_datasets(filepath, sheet.datasets)
+        hdf5.save_datasets(filepath, sheet)
         print(f"Saved simulation at {next_save_time} hours")
         # update the next save time so we won't over-saving.
         next_save_time += save_interval
