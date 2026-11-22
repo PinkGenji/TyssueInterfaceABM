@@ -514,7 +514,7 @@ final_stb_thickness = final_stb_area/final_stb_ct_interface_length
 
 # Save the final simulation state
 final_filepath = os.path.join(result_plots_dir,"uniform_alpha_final.hdf5")
-hdf5.save_datasets(final_filepath, sheet.datasets)
+hdf5.save_datasets(final_filepath, sheet)
 
 """ Generate the video based on the frames saved. """
 # Path to folder containing the frame images
