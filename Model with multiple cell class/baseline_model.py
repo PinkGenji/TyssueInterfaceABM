@@ -89,8 +89,11 @@ def cell_population_record(sheet):
     # This is the main function that stores the statistics of the system during evolution.
     CT_count = sheet.face_df["cell_class"].isin(CT_classes).sum()
     F_count = (sheet.face_df["cell_class"] == "F").sum()
+    CT_area = sheet.face_df.loc[
+        sheet.face_df["cell_class"].isin(CT_classes), "area"
+    ].sum()
 
-    return CT_count, F_count
+    return CT_count, F_count, CT_area
 
 
 # Define the directory name
@@ -263,7 +266,7 @@ fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
 ax.set_axis_off()
 plt.show()
 
-CT_count, F_count = cell_population_record(sheet)
+CT_count, F_count, CT_area = cell_population_record(sheet)
 print(f'\n There are {CT_count} CTs and {F_count} F cells.')
 
 # Set the threshold values for mesh restructure.
@@ -279,6 +282,7 @@ next_save_time = 0      # we save the system into hdf5 file at the beginning
 save_interval = 6       # we then save it every 6 simulation hours
 time_list = []
 STB_area = []
+CT_area_tracking = []
 CT_num_tracking = []
 F_num_tracking = []
 # Also keep the record for initial stb area, stb-ct interface length and stb mean thickness.
@@ -477,9 +481,10 @@ while t <= t_end:
     print(f'At time {real_time_hours:.4f} hours\n')
 
     # Tracking different cell populations.
-    current_CTs, current_Fs = cell_population_record(sheet)
+    current_CTs, current_Fs, current_CT_area = cell_population_record(sheet)
     CT_num_tracking.append(current_CTs)
     F_num_tracking.append(current_Fs)
+    CT_area_tracking.append(current_CT_area)
 
     # Generate the plot at this time step.
     update_draw_specs(sheet, draw_specs)  # Update drawing specifications based on current sheet state
@@ -583,7 +588,8 @@ df = pd.DataFrame({
     "time_hours": time_list,
     "CT_number": CT_num_tracking,
     "F_number": F_num_tracking,
-    "STB_area": STB_area
+    "STB_area": STB_area,
+    "CT_area": CT_area_tracking
 })
 # Save to CSV
 df.to_csv(os.path.join(result_plots_dir, "50percent_alpha.csv"),index=False)
