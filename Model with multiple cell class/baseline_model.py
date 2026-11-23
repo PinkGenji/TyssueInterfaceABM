@@ -266,7 +266,7 @@ fig, ax = sheet_view(sheet, ['x', 'y'], **draw_specs)
 ax.set_axis_off()
 plt.show()
 
-CT_count, F_count = cell_population_record(sheet)
+CT_count, F_count, CT_area = cell_population_record(sheet)
 print(f'\n There are {CT_count} CTs and {F_count} F cells.')
 
 result_plots_dir = "uniform_alpha_result_plots"
