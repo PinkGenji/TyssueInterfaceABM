@@ -97,7 +97,7 @@ def cell_population_record(sheet):
 
 
 # Define the directory name
-frames_dir = "uniform_k_alpha"
+frames_dir = "fusion_uniform_k_alapha"
 # Create directory for frames
 if not os.path.exists(frames_dir):
     print(f"Directory '{frames_dir}' does not exist. Creating it.")
@@ -149,7 +149,7 @@ tau_G1 = 8   # Min G1 phase time is 8 hours
 tau_S = 7    # Min S phase time is 7 hours
 tau_G2 = 3   # Min G2 phase time is 3 hours
 tau_M = 0.5   # Min M phase time is 0.5 hours
-tau_F = 4    # Min F phase time is 24 hours
+tau_F = 4    # Min F phase time is 4 hours
 stb_age = 35      # After 35 hours, STB units can start to extrude with a certain probability at each time step.
 print('New attributes: cell_class; timer created for all cells. \n ')
 CT_classes = ["G1", "S", "M", "G2"]
@@ -269,7 +269,7 @@ plt.show()
 CT_count, F_count, CT_area = cell_population_record(sheet)
 print(f'\n There are {CT_count} CTs and {F_count} F cells.')
 
-result_plots_dir = "uniform_alpha_result_plots"
+result_plots_dir = "fusion_uniform_k_alapha_result_plots"
 os.makedirs(result_plots_dir, exist_ok=True)
 filename = f"code_test.hdf5"
 filepath = os.path.join(result_plots_dir, filename)
@@ -295,9 +295,6 @@ initial_stb_area = sheet.face_df.loc[sheet.face_df['cell_class'] == 'STB', 'area
 initial_stb_ct_interface_length = stb_ct_interface_length(sheet)
 initial_stb_thickness = initial_stb_area/initial_stb_ct_interface_length
 
-# Create a directory to store alll the global plots
-result_plots_dir = "uniform_alpha_result_plots"
-os.makedirs(result_plots_dir, exist_ok=True)
 
 # Start simulating.
 t = 0
@@ -372,34 +369,34 @@ while t <= t_end:
     sheet.get_extra_indices()
 
     ### Cell class governing section starts.
-    # For a mature 'S' cell, if it's touching STB, then it's possible to fuse, otherwise, must continue CT cycle.
+    # For a mature 'S' Cell, it goes to 'G2' Class
     S_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'S'].tolist()
     for cell in S_cells:
         if sheet.face_df.loc[cell, 'timer'] >0:
             sheet.face_df.loc[cell, 'timer'] -= dt
         else:
+            sheet.face_df.loc[cell, 'cell_class'] = 'G2'
+            sheet.face_df.loc[cell, 'timer'] = tau_G2
+
+    # A cell that has done the delay time in G2 class, it must become 'F' or 'M' class.
+    # If a cell doesn't touch STB, then it has zero probability of F; if it's not a boundary CT, then it can be F or M.
+    G2_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'G2'].tolist()
+    for cell in G2_cells:
+        if sheet.face_df.loc[cell, 'timer'] < 0:
             neighbours = list(sheet.get_neighbors(cell))
             # Count the number of STB neighbours the cell has. Only fuse when have at least 2 STB units touching.
             neighbours_df = sheet.face_df.loc[neighbours]
             stb_count = (neighbours_df['cell_class'] == 'STB').sum()
-
             # Use rng to randomly generate a number between 0 and 1, this will determine the fate of the mature CT.
+            # If CT is adjacent to STB, then it has 30% probability to fuse.
             cell_fate_roulette = rng.random()
-            enable_fusion = 0
-            if stb_count == 2 and cell_fate_roulette < 0.3 and enable_fusion == 1:  # If CT is adjacent to STB, then it has 30% probability to fuse.
+            if stb_count == 2 and cell_fate_roulette < 0.3:
                 sheet.face_df.loc[cell, 'cell_class'] = 'F'
-                # Add a timer for each cell enters 'F'.
                 sheet.face_df.loc[cell, 'timer'] = tau_F
-            else:   # Otherwise, all the cells becomes a G2 class.
-                sheet.face_df.loc[cell, 'cell_class'] = 'G2'
-                sheet.face_df.loc[cell, 'timer'] = tau_G2
-
-    # At the end of the timer, "G2" becomes "M".
-    G2_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'G2'].tolist()
-    for cell in G2_cells:
-        if sheet.face_df.loc[cell, 'timer'] < 0:
-            sheet.face_df.loc[cell, 'cell_class'] = 'M'
-            sheet.face_df.loc[cell, 'timer'] = tau_M
+            else:
+                # If the first condition is not satisfied, we assign the cell to 'M', because it must be transitioned out of 'G2'.
+                sheet.face_df.loc[cell, 'cell_class'] = 'M'
+                sheet.face_df.loc[cell, 'timer'] = tau_M
         else:
             sheet.face_df.loc[cell, 'timer'] -= dt
 
@@ -497,7 +494,7 @@ while t <= t_end:
     ax.title.set_text(f'time = {real_time_hours:.4f}')
     ax.set_axis_off()
     # Save to file instead of showing.
-    frame_path = f"uniform_k_alpha/frame_{real_time_hours:.4f}.png"
+    frame_path = f"fusion_uniform_k_alapha/frame_{real_time_hours:.4f}.png"
     plt.savefig(frame_path)
     plt.close(fig)  # Close figure to prevent memory leaks
 
@@ -518,7 +515,7 @@ final_stb_ct_interface_length = stb_ct_interface_length(sheet)
 final_stb_thickness = final_stb_area/final_stb_ct_interface_length
 
 # Save the final simulation state
-final_filepath = os.path.join(result_plots_dir,"uniform_alpha_final.hdf5")
+final_filepath = os.path.join(result_plots_dir,"fusion_uniform_k_alapha_final.hdf5")
 hdf5.save_datasets(final_filepath, sheet)
 
 """ Generate the video based on the frames saved. """
@@ -539,7 +536,7 @@ frame_files = sorted([
 ], key=lambda x: extract_number(os.path.basename(x)))  # Sort by extracted number
 
 # Create a video with 15 frames per second, change the name to whatever you want the name of mp4 to be.
-with imageio.get_writer('uniform_alpha.mp4', fps=15, format='ffmpeg') as writer:
+with imageio.get_writer('fusion_uniform_k_alapha.mp4', fps=15, format='ffmpeg') as writer:
     # Read and append each frame in sorted order
     for filename in frame_files:
         image = imageio.imread(filename)  # Load image from the folder
@@ -590,7 +587,7 @@ df = pd.DataFrame({
 })
 
 # Save to CSV
-df.to_csv(os.path.join(result_plots_dir, "uniform_alpha.csv"),index=False)
+df.to_csv(os.path.join(result_plots_dir, "fusion_uniform_k_alapha.csv"),index=False)
 print("Saved csv file \n")
 
 print(f' The initial STB area is {initial_stb_area:.2f},\n the initial STB-CT interface length is {initial_stb_ct_interface_length:.2f},\n and the initial mean thickness is {initial_stb_thickness:.2f}.\n')
