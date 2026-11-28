@@ -11,15 +11,12 @@
 # Ignore test.py script
 test.py
 
-
-# Ignore .mp4 videos and the folder frames that contains frame plots
+# Simulation output (anywhere in the repo)
+*.png
 *.mp4
-*/frames
+*.csv
+*.hdf5
 *.gif
 
-# Ignore HDF5 files
-*.hdf5
-
-# Ignore csv files
-*.csv
-
+# Ignore the folder frames that contains frame plots
+*/frames
