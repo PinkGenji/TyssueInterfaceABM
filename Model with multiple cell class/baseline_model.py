@@ -428,17 +428,21 @@ while t <= t_end:
             sheet.face_df.loc[cell, 'timer'] -= dt
 
     # At the end of a timer, "F" class becomes "STB" and dummy edge is generated.
-    F_cells = sheet.face_df.index[sheet.face_df['cell_class'] == 'F'].tolist()
-    for cell in F_cells:
-        if sheet.face_df.loc[cell, 'timer'] < 0:
-            print(f'fusing the number {cell} cell')
-            fusing_cell = fuse_single_cell(sheet, cell, 10*d_min)
-            fusing_cell_idx = sheet.face_df[sheet.face_df['unique_id'] == fusing_cell].index
-            sheet.face_df.loc[fusing_cell_idx, 'cell_class'] = 'STB'
-            sheet.face_df.loc[fusing_cell_idx,'timer'] = 0 # As a fresh STB unit, set the timer to be 0
+    F_uids = sheet.face_df.loc[sheet.face_df['cell_class'] == 'F', 'unique_id'].tolist()
+    for uid in F_uids:
+        idx = sheet.face_df.index[sheet.face_df['unique_id'] == uid][0]  # fresh lookup each time
+        if sheet.face_df.loc[idx, 'timer'] < 0:
+            print(f'fusing cell with unique_id {uid}')
+            fused_uid = fuse_single_cell(sheet, idx, 10 * d_min,tau_F)
+            if fused_uid is None:
+                continue  # postponed; timer was already extended
+            idx = sheet.face_df.index[sheet.face_df['unique_id'] == fused_uid][0]
+            sheet.face_df.loc[idx, 'cell_class'] = 'STB'
+            sheet.face_df.loc[idx, 'timer'] = 0
             geom.update_all(sheet)
         else:
-            sheet.face_df.loc[cell, 'timer'] -= dt
+            sheet.face_df.loc[idx, 'timer'] -= dt
+
     sheet.reset_index()
     sheet.reset_topo()
     geom.update_all(sheet)
