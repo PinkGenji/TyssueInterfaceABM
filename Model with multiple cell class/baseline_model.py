@@ -384,13 +384,16 @@ while t <= t_end:
     for cell in G2_cells:
         if sheet.face_df.loc[cell, 'timer'] < 0:
             neighbours = list(sheet.get_neighbors(cell))
-            # Count the number of STB neighbours the cell has. Only fuse when have at least 2 STB units touching.
+            # Count the number of STB neighbours the cell has.
+            # A cell that has finished its G2 delay must become 'F' or 'M'.
+            # It can become 'F' only if it touches exactly 2 STB neighbours and has no boundary edge.
+            # Even then, it fuses with 30% probability. Otherwise it becomes 'M'.
             neighbours_df = sheet.face_df.loc[neighbours]
             stb_count = (neighbours_df['cell_class'] == 'STB').sum()
-            # Use rng to randomly generate a number between 0 and 1, this will determine the fate of the mature CT.
-            # If CT is adjacent to STB, then it has 30% probability to fuse.
+            cell_edges = sheet.edge_df[sheet.edge_df['face'] == cell]
+            has_boundary_edge = (cell_edges['opposite'] == -1).any()
             cell_fate_roulette = rng.random()
-            if stb_count == 2 and cell_fate_roulette < 0.3:
+            if stb_count == 2 and not has_boundary_edge and cell_fate_roulette < 0.3:
                 sheet.face_df.loc[cell, 'cell_class'] = 'F'
                 sheet.face_df.loc[cell, 'timer'] = tau_F
             else:
